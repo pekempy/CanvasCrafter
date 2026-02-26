@@ -6,9 +6,13 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        - NEXT_PUBLIC_UNSPLASH_ACCESS_KEY=${NEXT_PUBLIC_UNSPLASH_ACCESS_KEY}
+        - NEXT_PUBLIC_UNSPLASH_ACCESS_KEY
+        - NEXT_PUBLIC_PIXABAY_API_KEY
+        - NEXT_PUBLIC_PEXELS_API_KEY
     ports:
       - "3000:3000"
+    env_file:
+      - .env
     environment:
       - PORT=3000
     restart: always
