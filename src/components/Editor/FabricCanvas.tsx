@@ -30,6 +30,7 @@ export default function FabricCanvas() {
             height: canvasSize.height,
             backgroundColor: "#ffffff",
             preserveObjectStacking: true,
+            subTargetCheck: true,
         });
 
         fetch("/api/storage?key=autosave").then(r => r.json()).then(async (autosave) => {
@@ -37,6 +38,11 @@ export default function FabricCanvas() {
                 await preloadFontsFromJSON(autosave);
                 canvas.loadFromJSON(autosave).then(() => {
                     if (!canvas.destroyed) {
+                        canvas.getObjects().forEach(obj => {
+                            if (obj.type === 'group') {
+                                (obj as any).set({ interactive: false, subTargetCheck: true, objectCaching: false });
+                            }
+                        });
                         canvas.requestRenderAll();
                         setTimeout(() => fitToScreen(), 100);
                     }
@@ -99,8 +105,25 @@ export default function FabricCanvas() {
         fabricCanvasRef.current = canvas;
         setCanvas(canvas);
 
+        const canvasEl = canvasRef.current;
+        const preventMiddlePaste = (e: MouseEvent) => {
+            if (e.button === 1) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        };
+
+        if (canvasEl) {
+            canvasEl.addEventListener('mousedown', preventMiddlePaste, true);
+            canvasEl.addEventListener('auxclick', preventMiddlePaste, true);
+        }
+
         // Cleanup on unmount
         return () => {
+            if (canvasEl) {
+                canvasEl.removeEventListener('mousedown', preventMiddlePaste, true);
+                canvasEl.removeEventListener('auxclick', preventMiddlePaste, true);
+            }
             fabricCanvasRef.current = null;
             setCanvas(null);
             canvas.dispose();

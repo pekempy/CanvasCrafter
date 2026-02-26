@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from "react";
 import * as fabric from "fabric";
 import debounce from "lodash.debounce";
 import jsPDF from "jspdf";
@@ -118,6 +118,8 @@ interface CanvasContextType {
     removeCustomFont: (name: string) => Promise<void>;
     removeBackground: () => Promise<void>;
     setBackgroundImage: (url: string) => void;
+    presets: { id: string; name: string; width: number; height: number; iconType?: string }[];
+    setPresets: (presets: { id: string; name: string; width: number; height: number; iconType?: string }[]) => void;
 }
 
 const CanvasContext = createContext<CanvasContextType | null>(null);
@@ -138,6 +140,12 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         pixabayKey: process.env.NEXT_PUBLIC_PIXABAY_API_KEY || ''
     });
     const [clipboard, setClipboard] = useState<any>(null);
+    const [presets, setPresets] = useState<{ id: string; name: string; width: number; height: number; iconType?: string }[]>([
+        { id: "insta", name: "Instagram", width: 1080, height: 1080, iconType: 'instagram' },
+        { id: "fb", name: "Facebook", width: 1200, height: 630, iconType: 'facebook' },
+        { id: "twitter", name: "Twitter / X", width: 1600, height: 900, iconType: 'twitter' },
+        { id: "hero", name: "Website Hero", width: 1920, height: 1080, iconType: 'monitor' }
+    ]);
     const [updateTick, setUpdateTick] = useState(0);
 
     const forceUpdate = useCallback(() => {
@@ -226,6 +234,7 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         fetch("/api/storage?key=folders").then(r => r.json()).then(d => { if (d) setAssetFolders(d); }).catch(() => { });
         fetch("/api/storage?key=canvas_size").then(r => r.json()).then(d => { if (d) setCanvasSize(d); }).catch(() => { });
         fetch("/api/storage?key=custom_fonts").then(r => r.json()).then(d => { if (d) setCustomFonts(d); }).catch(() => { });
+        fetch("/api/storage?key=presets").then(r => r.json()).then(d => { if (d && Array.isArray(d)) setPresets(d); }).catch(() => { });
     }, []);
 
     useEffect(() => {
@@ -233,7 +242,8 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         fetch("/api/storage?key=folders", { method: 'POST', body: JSON.stringify(assetFolders) }).catch(() => { });
         fetch("/api/storage?key=canvas_size", { method: 'POST', body: JSON.stringify(canvasSize) }).catch(() => { });
         fetch("/api/storage?key=custom_fonts", { method: 'POST', body: JSON.stringify(customFonts) }).catch(() => { });
-    }, [brandKits, assetFolders, canvasSize, customFonts]);
+        fetch("/api/storage?key=presets", { method: 'POST', body: JSON.stringify(presets) }).catch(() => { });
+    }, [brandKits, assetFolders, canvasSize, customFonts, presets]);
 
     // Global Event Listeners (Moved to bottom of Provider)
 
@@ -711,7 +721,8 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         const group = new fabric.Group(objects, {
             name: objects.length > 1 ? "New Group" : "Folder",
             subTargetCheck: true,
-            interactive: true,
+            interactive: false,
+            objectCaching: false,
         } as any);
 
         // Remove from canvas top-level
@@ -946,10 +957,12 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
 
     useEffect(() => {
         if (!canvas) return;
+
         const handleSelection = () => {
             setSelectedObject(canvas.getActiveObject() || null);
             forceUpdate();
         };
+
         const debouncedAutoSave = debounce(() => {
             fetch("/api/storage?key=autosave", { method: 'POST', body: JSON.stringify(canvas.toJSON()) }).catch(() => { });
         }, 1000);
@@ -1072,21 +1085,35 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
 
         const handleMoving = (e: any) => {
             // Snapping disabled for smoother movement as per plan
-            // if (e.target) handleObjectSnapping(canvas, e.target);
-        };
-        const handleMoved = () => {
-            clearGuides(canvas);
         };
 
+        const handleMouseDown = (opt: any) => {
+            if (!canvas) return;
+            (canvas as any)._mouseDownPointer = canvas.getScenePoint(opt.e);
+        };
 
-
-
-        canvas.on("selection:created", handleSelection);
-        canvas.on("selection:updated", handleSelection);
-        canvas.on("selection:cleared", () => {
-            setSelectedObject(null);
+        const handleMouseUp = (opt: any) => {
             clearGuides(canvas);
-        });
+
+            // Fix for group drill-down: click again to enter
+            const activeObject = canvas.getActiveObject();
+            if (opt.target && opt.target.type === 'group' && opt.target === activeObject) {
+                const pointer = canvas.getScenePoint(opt.e);
+                const downPointer = (canvas as any)._mouseDownPointer;
+
+                // If the pointer hasn't moved much, it was a click, not a drag
+                const isClick = downPointer && Math.hypot(pointer.x - downPointer.x, pointer.y - downPointer.y) < 5;
+                if (isClick && opt.e.button === 0) {
+                    const subTarget = (opt.target as any)._searchPossibleTargets(opt.e);
+                    if (subTarget) {
+                        canvas.setActiveObject(subTarget);
+                        canvas.requestRenderAll();
+                        handleSelection();
+                    }
+                }
+            }
+        };
+
         const handleModified = (e: any) => {
             const obj = e.target;
             if (obj && obj.group) {
@@ -1095,16 +1122,25 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
             debouncedAutoSave();
         };
 
+        canvas.on("mouse:down", handleMouseDown);
+        canvas.on("selection:created", handleSelection);
+        canvas.on("selection:updated", handleSelection);
+        canvas.on("selection:cleared", () => {
+            setSelectedObject(null);
+            clearGuides(canvas);
+        });
+
         canvas.on("object:modified", handleModified);
         canvas.on("object:added", debouncedAutoSave);
         canvas.on("object:removed", debouncedAutoSave);
         canvas.on("object:moving", handleMoving);
-        canvas.on("mouse:up", handleMoved);
+        canvas.on("mouse:up", handleMouseUp);
 
         window.addEventListener("keydown", handleKeyDown);
         window.addEventListener("paste", handlePaste);
 
         return () => {
+            canvas.off("mouse:down", handleMouseDown);
             canvas.off("selection:created", handleSelection);
             canvas.off("selection:updated", handleSelection);
             canvas.off("selection:cleared", () => setSelectedObject(null));
@@ -1112,31 +1148,44 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
             canvas.off("object:added", debouncedAutoSave);
             canvas.off("object:removed", debouncedAutoSave);
             canvas.off("object:moving", handleMoving);
-            canvas.off("mouse:up", handleMoved);
+            canvas.off("mouse:up", handleMouseUp);
             window.removeEventListener("keydown", handleKeyDown);
             window.removeEventListener("paste", handlePaste);
         };
     }, [canvas, undo, redo, copySelected, pasteSelected, duplicateSelected, cutSelected, groupSelected, ungroupSelected, bringToFront, sendToBack, deleteSelected, addImage, clipboard]);
 
+    const contextValue = useMemo(() => ({
+        canvas, setCanvas, selectedObject, theme, setTheme, canvasSize, setCanvasSize, zoom, setZoom, panOffset, setPanOffset, fitToScreen,
+        updateTick, forceUpdate,
+        addRect, addText, addCircle, addTriangle, addStar, addHexagon, addDiamond, addArrow, addHeart, addBadge, addCloud, addPolygon, addImage,
+        clearCanvas, updateSelectedObject, applyFilter, clearEffects, updateMaskProperties, bringToFront, sendToBack, deleteSelected,
+        duplicateSelected, copySelected, cutSelected, pasteSelected, releaseMask, groupSelected, ungroupSelected, alignSelected,
+        maskShapeWithImage, saveToTemplate, loadTemplate, deleteDesign, exportAsFormat, savedDesigns,
+        brandKits, setBrandKits, assetFolders, setAssetFolders,
+        customFonts, addCustomFont, removeCustomFont,
+        removeBackground, setBackgroundImage,
+        showGrid, setShowGrid,
+        enterCropMode, confirmCrop, cancelCrop, isCropMode,
+        applyAIEdgeStroke,
+        undo, redo, canUndo: history.length > 0, canRedo: redoStack.length > 0,
+        smartResizeSelected: smartResize,
+        apiConfig, setApiConfig,
+        presets, setPresets
+    }), [
+        canvas, selectedObject, theme, canvasSize, zoom, panOffset, fitToScreen,
+        updateTick, forceUpdate, savedDesigns, brandKits, assetFolders,
+        customFonts, history.length, redoStack.length, apiConfig, presets,
+        addRect, addText, addCircle, addTriangle, addStar, addHexagon, addDiamond, addArrow, addHeart, addBadge, addCloud, addPolygon, addImage,
+        clearCanvas, updateSelectedObject, applyFilter, clearEffects, updateMaskProperties, bringToFront, sendToBack, deleteSelected,
+        duplicateSelected, copySelected, cutSelected, pasteSelected, releaseMask, groupSelected, ungroupSelected, alignSelected,
+        maskShapeWithImage, saveToTemplate, loadTemplate, deleteDesign, exportAsFormat,
+        addCustomFont, removeCustomFont, removeBackground, setBackgroundImage,
+        showGrid, enterCropMode, confirmCrop, cancelCrop, isCropMode, applyAIEdgeStroke, smartResize,
+        setPresets
+    ]);
+
     return (
-        <CanvasContext.Provider value={{
-            canvas, setCanvas, selectedObject, theme, setTheme, canvasSize, setCanvasSize, zoom, setZoom, panOffset, setPanOffset, fitToScreen,
-            updateTick, forceUpdate,
-            addRect, addText, addCircle, addTriangle, addStar, addHexagon, addDiamond, addArrow, addHeart, addBadge, addCloud, addPolygon, addImage,
-            clearCanvas, updateSelectedObject, applyFilter, clearEffects, updateMaskProperties, bringToFront, sendToBack, deleteSelected,
-            duplicateSelected, copySelected, cutSelected, pasteSelected, releaseMask, groupSelected, ungroupSelected, alignSelected,
-            maskShapeWithImage, saveToTemplate, loadTemplate, deleteDesign, exportAsFormat, savedDesigns,
-            brandKits, setBrandKits, assetFolders, setAssetFolders,
-            customFonts, addCustomFont, removeCustomFont,
-            removeBackground, setBackgroundImage,
-            showGrid, setShowGrid,
-            enterCropMode, confirmCrop, cancelCrop, isCropMode,
-            applyAIEdgeStroke,
-            undo, redo, canUndo: history.length > 0, canRedo: redoStack.length > 0,
-            // new utilities
-            smartResizeSelected: smartResize,
-            apiConfig, setApiConfig
-        }}>
+        <CanvasContext.Provider value={contextValue}>
             <div className={theme}>
                 {children}
             </div>

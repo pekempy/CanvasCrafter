@@ -5,7 +5,7 @@ export async function detectEdgesAndAddStroke(canvas: fabric.Canvas, img: fabric
     const imgElement = img.getElement() as HTMLImageElement;
     if (!imgElement) return;
 
-    const scale = Math.min(1, 400 / Math.max(img.width!, img.height!)); 
+    const scale = Math.min(1, 400 / Math.max(img.width!, img.height!));
     const w = Math.round(img.width! * scale);
     const h = Math.round(img.height! * scale);
 
@@ -20,14 +20,14 @@ export async function detectEdgesAndAddStroke(canvas: fabric.Canvas, img: fabric
     const data = imageData.data;
 
     // Create a 1D array of values for d3-contour (using alpha channel)
-    const values = new Float32Array(w * h);
+    const values = new Array(w * h);
     for (let i = 0; i < w * h; i++) {
         values[i] = data[i * 4 + 3] > 60 ? 1 : 0;
     }
 
     const contourGen = contours().size([w, h]).thresholds([0.5]);
     const results = contourGen(values);
-    
+
     // d3-contour shapes arrays have type === "MultiPolygon"
     const shape = results[0];
     if (!shape || !shape.coordinates || shape.coordinates.length === 0) return;
@@ -55,10 +55,10 @@ export async function detectEdgesAndAddStroke(canvas: fabric.Canvas, img: fabric
         strokeLineCap: 'round',
         originX: 'center',
         originY: 'center',
-        evented: false, 
+        evented: false,
         selectable: false
     });
-    
+
 
     const clone = await img.clone() as fabric.Image;
     clone.set({

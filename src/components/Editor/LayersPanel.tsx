@@ -245,6 +245,7 @@ export default function LayersPanel() {
                 }
             }
         } else {
+            canvas.discardActiveObject();
             canvas.setActiveObject(obj);
         }
 
