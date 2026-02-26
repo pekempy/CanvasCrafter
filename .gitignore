@@ -1,0 +1,51 @@
+# Dependencies
+/node_modules
+/.pnp
+.pnp.js
+.yarn/install-state.gz
+
+# Testing
+/coverage
+/.nyc_output
+
+# Next.js build output
+/.next/
+/out/
+
+# Production build
+/build
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Misc
+.DS_Store
+*.pem
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Local env files
+.env*.local
+.env
+.env.development
+.env.production
+.env.test
+
+# Custom project data (Autosaves / Local DBs)
+/data/*.json
+!/data/presets.json
+/public/uploads/
+
+# IDE settings
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Docker
+.docker

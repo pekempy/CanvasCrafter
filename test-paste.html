@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<body>
+<button id="btn">Paste</button>
+<script>
+document.getElementById('btn').onclick = async () => {
+    try {
+        const items = await navigator.clipboard.read();
+        console.log(items);
+    } catch (e) {
+        console.error(e);
+    }
+}
+</script>
+</body>
+</html>
