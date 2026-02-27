@@ -11,6 +11,7 @@ import FontPicker from "./FontPicker";
 import EffectsPanel from "./EffectsPanel";
 import StrokePanel from "./StrokePanel";
 import BrandColorPicker from "./BrandColorPicker";
+import TypographyEffects from "./TypographyEffects";
 import * as fabric from "fabric";
 
 export default function PropertiesPanel() {
@@ -33,7 +34,7 @@ export default function PropertiesPanel() {
         );
     }
 
-    const isText = selectedObject instanceof fabric.IText;
+    const isText = selectedObject instanceof fabric.IText || selectedObject instanceof fabric.Textbox || selectedObject.type === 'i-text' || selectedObject.type === 'textbox';
 
     return (
         <div className="flex h-full w-full flex-col bg-[#181a20] border-l border-white/5 overflow-y-auto scrollbar-hide">
@@ -159,11 +160,12 @@ export default function PropertiesPanel() {
                                 <input
                                     type="number"
                                     className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-black text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                                    value={Math.round((selectedObject as fabric.IText).fontSize)}
+                                    value={Math.round((selectedObject as any).fontSize || 40)}
                                     onChange={(e) => updateSelectedObject({ fontSize: parseInt(e.target.value) })}
                                 />
                                 <span className="text-[10px] font-black text-gray-600">PX</span>
                             </div>
+                            <TypographyEffects />
                         </div>
                     </section>
                 )}
