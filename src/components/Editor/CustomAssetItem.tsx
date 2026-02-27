@@ -1,7 +1,7 @@
 "use client";
 
 import { useCanvas, CustomAsset } from "@/store/useCanvasStore";
-import { Trash2, Heart, Tag, Plus, X, Info } from "lucide-react";
+import { Trash2, Heart, Tag, Plus, X, Info, Globe, Folder } from "lucide-react";
 import { useState } from "react";
 
 export default function CustomAssetItem({ asset, folderId }: { asset: CustomAsset; folderId: string }) {
@@ -14,7 +14,8 @@ export default function CustomAssetItem({ asset, folderId }: { asset: CustomAsse
             if (f.id === folderId) {
                 return {
                     ...f,
-                    assets: f.assets.map(a => a.id === asset.id ? { ...a, ...updates } : a)
+                    assets: f.assets.map(a => a.id === asset.id ? { ...a, ...updates, updatedAt: Date.now() } : a),
+                    updatedAt: Date.now()
                 };
             }
             return f;
@@ -53,6 +54,22 @@ export default function CustomAssetItem({ asset, folderId }: { asset: CustomAsse
                 return f;
             }));
         }
+    };
+
+    const moveToFolder = (targetRawId: string) => {
+        const rawCurrentId = (assetFolders.find(f => f.id === folderId) as any)?.originalId || folderId;
+        if (targetRawId === rawCurrentId) return;
+
+        setAssetFolders(assetFolders.map(f => {
+            const fRawId = (f as any).originalId || f.id;
+            if (fRawId === rawCurrentId) {
+                return { ...f, assets: f.assets.filter(a => a.id !== asset.id), updatedAt: Date.now() };
+            }
+            if (fRawId === targetRawId) {
+                return { ...f, assets: [{ ...asset, folderId: targetRawId, updatedAt: Date.now() }, ...f.assets], updatedAt: Date.now() };
+            }
+            return f;
+        }));
     };
 
     return (
@@ -124,46 +141,100 @@ export default function CustomAssetItem({ asset, folderId }: { asset: CustomAsse
                 ) : (
                     /* VIEW MODE UI */
                     <div className="flex flex-col h-full">
-                        <button
-                            onClick={() => addImage(asset.url)}
-                            className="w-full py-2.5 rounded-xl bg-blue-600 text-[10px] font-black uppercase tracking-widest text-white hover:bg-blue-700 shadow-[0_5px_15px_rgba(37,99,235,0.3)] active:scale-95 transition-all flex items-center justify-center gap-2 shrink-0"
-                        >
-                            <Plus className="h-4 w-4" />
-                            To Canvas
-                        </button>
+                        <div className="grid grid-cols-2 gap-1.5 shrink-0 mb-1.5">
+                            <button
+                                onClick={() => addImage(asset.url)}
+                                className="col-span-2 py-1.5 rounded-lg bg-blue-600/20 text-blue-500 hover:bg-blue-600 hover:text-white text-[9px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-1.5"
+                            >
+                                <Plus className="h-3 w-3" /> Insert
+                            </button>
+                            <button
+                                onClick={() => setBackgroundImage(asset.url)}
+                                className="py-1.5 rounded-lg bg-white/5 text-[8px] font-black uppercase text-gray-400 hover:bg-white/10 hover:text-white transition-all"
+                            >
+                                Set BG
+                            </button>
+                            <button
+                                onClick={() => selectedObject ? maskShapeWithImage(selectedObject, asset.url) : null}
+                                className={`py-1.5 rounded-lg text-[8px] font-black uppercase transition-all ${selectedObject ? 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white' : 'bg-transparent border border-white/5 text-gray-600 cursor-not-allowed'}`}
+                            >
+                                Mask
+                            </button>
+                        </div>
 
-                        <div className="flex-1 overflow-y-auto scrollbar-hide flex flex-wrap gap-1.5 content-start py-2">
+                        <div className="flex-1 overflow-y-auto scrollbar-hide flex flex-wrap gap-1 content-start py-1">
+                            <span className="px-1.5 py-0.5 rounded relative bg-white/10 text-[8px] font-black text-white uppercase tracking-widest border border-white/10 flex items-center gap-1 shrink-0" title={`In folder: ${assetFolders.find(f => f.id === folderId)?.name || 'Unknown'}`}>
+                                <Folder className="h-2.5 w-2.5 text-white/70" />
+                                <span className="truncate max-w-[80px]">{assetFolders.find(f => (f as any).originalId === folderId || f.id === folderId)?.name || "Unknown"}</span>
+                            </span>
                             {asset.tags?.map((tag, i) => (
-                                <span key={i} className="px-2 py-1 rounded-md bg-white/5 border border-white/5 text-[8px] font-black text-gray-400 uppercase tracking-[0.05em]">
+                                <span key={i} className="px-1.5 py-0.5 rounded pl-2.5 relative bg-white/5 text-[8px] font-black text-gray-400 uppercase tracking-widest shrink-0">
+                                    <span className="absolute left-1 top-1/2 -translate-y-1/2 w-0.5 h-2 bg-blue-500 rounded-full" />
                                     {tag}
                                 </span>
                             ))}
                             {(!asset.tags || asset.tags.length === 0) && (
-                                <p className="text-[9px] font-bold text-gray-600 italic py-1">No tags yet...</p>
+                                <span className="text-[8px] font-bold text-gray-600 italic py-1 px-1">No tags.</span>
                             )}
                         </div>
 
-                        <div className="flex items-center justify-between mt-auto pt-2 border-t border-white/5 shrink-0 opacity-60 hover:opacity-100 transition-opacity">
-                            <div className="flex flex-col">
-                                <span className="text-[7px] font-black text-gray-600 uppercase">File ID</span>
-                                <span className="text-[8px] font-black text-white tracking-widest">{asset.id.toString().slice(-6)}</span>
-                            </div>
+                        <div className="flex items-center gap-1 mt-auto pt-2 border-t border-white/5 shrink-0 opacity-40 group-hover:opacity-100 transition-opacity">
+                            <button
+                                onClick={() => {
+                                    const isGlobal = (asset as any).visibility === 'global';
+                                    if (confirm(isGlobal ? "Remove this asset from global library?" : "Share this asset globally with all users?")) {
+                                        setAssetFolders(assetFolders.map(f => {
+                                            if (f.id === folderId) {
+                                                return {
+                                                    ...f,
+                                                    assets: f.assets.map(a => a.id === asset.id ? { ...a, visibility: isGlobal ? 'private' : 'global', updatedAt: Date.now() } : a),
+                                                    updatedAt: Date.now()
+                                                };
+                                            }
+                                            return f;
+                                        }));
+                                    }
+                                }}
+                                className={`p-1.5 rounded-lg transition-all ${(asset as any).visibility === 'global' ? 'text-blue-500 bg-blue-500/10' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}
+                                title={(asset as any).visibility === 'global' ? "Shared Globally" : "Share Globally"}
+                            >
+                                <Globe className="h-3 w-3" />
+                            </button>
+                            <button
+                                onClick={() => setIsEditingTags(true)}
+                                className="p-1.5 rounded-lg text-gray-500 hover:text-blue-400 hover:bg-blue-500/10 transition-all"
+                                title="Edit Tags"
+                            >
+                                <Tag className="h-3 w-3" />
+                            </button>
+                            <button
+                                onClick={() => alert(`ASSET INSIGHT\n\nID: ${asset.id}\nFolder: ${folderId}\nBrand: ${asset.brandId || 'None'}\nPath: /images/${asset.id}.png\nVisibility: ${(asset as any).visibility || 'private'}`)}
+                                className="p-1.5 rounded-lg text-gray-500 hover:text-blue-400 hover:bg-blue-500/10 transition-all"
+                                title="Technical Info"
+                            >
+                                <Info className="h-3 w-3" />
+                            </button>
 
-                            <div className="flex gap-3">
-                                <button
-                                    onClick={() => alert(`ASSET INSIGHT\n\nID: ${asset.id}\nFolder: ${folderId}\nBrand: ${asset.brandId || 'None'}\nPath: /images/${asset.id}.png`)}
-                                    className="p-1 rounded-md hover:bg-white/5 text-gray-600 hover:text-blue-500 transition-all"
-                                    title="Technical Info"
+                            <div className="ml-auto relative min-w-0 max-w-[80px]">
+                                <select
+                                    className="w-full appearance-none bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 text-[8px] font-black uppercase tracking-widest py-1.5 pl-2 pr-5 rounded-lg outline-none cursor-pointer transition-colors truncate"
+                                    value="move"
+                                    onChange={(e) => {
+                                        if (e.target.value !== 'move') {
+                                            moveToFolder(e.target.value);
+                                        }
+                                    }}
                                 >
-                                    <Info className="h-3.5 w-3.5" />
-                                </button>
-                                <button
-                                    onClick={() => setIsEditingTags(true)}
-                                    className="flex items-center gap-1 text-[9px] font-black text-blue-500 hover:text-blue-400 transition-colors uppercase"
-                                >
-                                    <Tag className="h-3.5 w-3.5" />
-                                    Edit Tags
-                                </button>
+                                    <option value="move" disabled>MOVE...</option>
+                                    {assetFolders.map(f => (
+                                        <option key={f.id} value={(f as any).originalId || f.id} className="bg-[#181a20] text-gray-300 py-1">
+                                            {f.name}
+                                        </option>
+                                    ))}
+                                </select>
+                                <div className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none text-blue-400">
+                                    <Folder className="h-2.5 w-2.5" />
+                                </div>
                             </div>
                         </div>
                     </div>

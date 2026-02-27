@@ -6,7 +6,7 @@ import {
     Plus, Palette, Type, Shield, Trash2,
     ChevronRight, Hash, Edit3, Save, X, Search,
     Check, PlusCircle, MinusCircle, ChevronLeft, Image as ImageIcon,
-    ChevronDown, Layout, Clock
+    ChevronDown, Layout, Clock, Globe
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import WebFont from "webfontloader";
@@ -14,7 +14,7 @@ import CustomAssetItem from "./CustomAssetItem";
 import FontPicker from "./FontPicker";
 
 export default function BrandPanel() {
-    const { brandKits, setBrandKits, assetFolders, updateSelectedObject, addImage, maskShapeWithImage, selectedObject, customFonts, savedDesigns, loadTemplate, deleteDesign } = useCanvas();
+    const { brandKits, setBrandKits, assetFolders, setAssetFolders, updateSelectedObject, addImage, maskShapeWithImage, selectedObject, customFonts, savedDesigns, loadTemplate, deleteDesign, currentUser } = useCanvas();
     const [activeBrandId, setActiveBrandId] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<"colours" | "images" | "templates">("colours");
     const [editingBrandName, setEditingBrandName] = useState(false);
@@ -38,7 +38,10 @@ export default function BrandPanel() {
             colors: ["#3b82f6", "#10b981", "#f59e0b", "#ef4444"],
             fonts: ["Inter", "Oswald"],
             images: [],
-            assetFolderIds: []
+            assetFolderIds: [],
+            owner: currentUser || undefined,
+            visibility: 'private' as const,
+            updatedAt: Date.now()
         };
         setBrandKits([newKit, ...brandKits]);
         setActiveBrandId(newKit.id);
@@ -54,7 +57,7 @@ export default function BrandPanel() {
     };
 
     const updateKit = (id: string, updates: any) => {
-        setBrandKits(brandKits.map(k => k.id === id ? { ...k, ...updates } : k));
+        setBrandKits(brandKits.map(k => k.id === id ? { ...k, ...updates, updatedAt: Date.now() } : k));
     };
 
     const addColor = (id: string) => {
@@ -124,9 +127,41 @@ export default function BrandPanel() {
                                 {activeKit.name}
                             </h3>
                         )}
-                        <button onClick={() => deleteKit(activeKit.id)} className="p-1.5 text-gray-500 hover:text-red-500 transition-colors">
-                            <Trash2 className="h-3.5 w-3.5" />
-                        </button>
+                        <div className="flex items-center gap-1">
+                            <button
+                                onClick={() => {
+                                    const isGlobal = (activeKit as any).visibility === 'global';
+                                    if (confirm(isGlobal ? "Make this brand kit private?" : "Share this brand kit globally? This will also share all associated images.")) {
+                                        const nextVisibility = isGlobal ? 'private' : 'global';
+
+                                        // Update Kit
+                                        updateKit(activeKit.id, { visibility: nextVisibility });
+
+                                        // Cascade to Asset Folders & Assets
+                                        if (activeKit.assetFolderIds && activeKit.assetFolderIds.length > 0) {
+                                            setAssetFolders(assetFolders.map(f => {
+                                                if (activeKit.assetFolderIds.includes(f.id)) {
+                                                    return {
+                                                        ...f,
+                                                        visibility: nextVisibility,
+                                                        assets: f.assets.map(a => ({ ...a, visibility: nextVisibility })),
+                                                        updatedAt: Date.now()
+                                                    };
+                                                }
+                                                return f;
+                                            }));
+                                        }
+                                    }
+                                }}
+                                className={`p-1.5 rounded-lg transition-all ${(activeKit as any).visibility === 'global' ? 'text-blue-500 bg-blue-500/10' : 'text-gray-500 hover:bg-white/5'}`}
+                                title={(activeKit as any).visibility === 'global' ? "Shared Globally" : "Private (Click to Share)"}
+                            >
+                                <Globe className="h-3.5 w-3.5" />
+                            </button>
+                            <button onClick={() => deleteKit(activeKit.id)} className="p-1.5 text-gray-500 hover:text-red-500 transition-colors">
+                                <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -232,59 +267,73 @@ export default function BrandPanel() {
                     )}
 
                     {/* IMAGES TAB */}
-                    {activeTab === 'images' && (
-                        <div className="space-y-6">
-                            <div className="relative group px-1">
-                                <Search className="absolute left-4 top-2.5 h-3.5 w-3.5 text-gray-500 transition-colors group-focus-within:text-blue-500" />
-                                <input
-                                    type="text"
-                                    placeholder="Search brand assets by tags..."
-                                    value={assetSearch}
-                                    onChange={(e) => setAssetSearch(e.target.value)}
-                                    className="w-full bg-white/5 border border-white/5 rounded-xl py-2 pl-10 pr-4 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-white transition-all"
-                                />
-                            </div>
+                    {activeTab === 'images' && (() => {
+                        // 1. Get all assets that are either in a linked folder OR explicitly tagged with this brandId
+                        const linkedFolderIds = new Set(activeKit.assetFolderIds || []);
+                        const brandAssetsWithFolders: { asset: any, folder: any }[] = [];
 
-                            {/* Folders tied to this brand */}
-                            {assetFolders.filter(f => activeKit.assetFolderIds?.includes(f.id)).map(folder => {
-                                const filteredAssets = folder.assets.filter(asset =>
-                                    !assetSearch || (asset.tags && asset.tags.some(tag => tag.toLowerCase().includes(assetSearch.toLowerCase())))
-                                );
+                        assetFolders.forEach(folder => {
+                            // Exclude 'default' (All Uploads) so it doesn't arbitrarily show up in Brand Kits
+                            if (folder.id === 'default' || folder.id?.includes('default_shared')) return;
 
-                                if (assetSearch && filteredAssets.length === 0) return null;
+                            const isLinkedFolder = linkedFolderIds.has(folder.id) || linkedFolderIds.has((folder as any).originalId);
+                            folder.assets.forEach(asset => {
+                                if (isLinkedFolder || asset.brandId === activeKit.id || linkedFolderIds.has((asset as any).folderId)) {
+                                    if (!assetSearch || (asset.tags && asset.tags.some(tag => tag.toLowerCase().includes(assetSearch.toLowerCase())))) {
+                                        brandAssetsWithFolders.push({ asset, folder });
+                                    }
+                                }
+                            });
+                        });
 
-                                return (
-                                    <div key={folder.id}>
-                                        <div className="flex items-center justify-between mb-3 px-1">
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">{folder.name}</p>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-2">
-                                            {filteredAssets.map((asset) => (
-                                                <CustomAssetItem key={asset.id} asset={asset} folderId={folder.id} />
-                                            ))}
-                                        </div>
-                                    </div>
-                                );
-                            })}
+                        // 2. Group by folder for clean UI
+                        const groupedByFolder = brandAssetsWithFolders.reduce((acc, { asset, folder }) => {
+                            if (!acc[folder.id]) acc[folder.id] = { name: folder.name, assets: [] };
+                            acc[folder.id].assets.push(asset);
+                            return acc;
+                        }, {} as Record<string, { name: string, assets: any[] }>);
 
-                            {/* Unassigned images or placeholder */}
-                            {(!activeKit.assetFolderIds || activeKit.assetFolderIds.length === 0) ? (
-                                <div className="flex flex-col items-center justify-center py-10 text-center opacity-30 px-4">
-                                    <ImageIcon className="h-8 w-8 mb-3" />
-                                    <p className="text-[9px] font-black uppercase tracking-widest leading-relaxed">No asset folders linked to this brand kit yet.</p>
+                        const folderIds = Object.keys(groupedByFolder);
+
+                        return (
+                            <div className="space-y-6">
+                                <div className="relative group px-1">
+                                    <Search className="absolute left-4 top-2.5 h-3.5 w-3.5 text-gray-500 transition-colors group-focus-within:text-blue-500" />
+                                    <input
+                                        type="text"
+                                        placeholder="Search brand assets..."
+                                        value={assetSearch}
+                                        onChange={(e) => setAssetSearch(e.target.value)}
+                                        className="w-full bg-white/5 border border-white/5 rounded-xl py-2 pl-10 pr-4 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-white transition-all"
+                                    />
                                 </div>
-                            ) : (
-                                assetSearch && !assetFolders
-                                    .filter(f => activeKit.assetFolderIds?.includes(f.id))
-                                    .some(f => f.assets.some(a => a.tags?.some(t => t.toLowerCase().includes(assetSearch.toLowerCase())))) && (
-                                    <div className="flex flex-col items-center justify-center py-10 text-center opacity-30 px-4">
-                                        <Search className="h-8 w-8 mb-3" />
-                                        <p className="text-[9px] font-black uppercase tracking-widest leading-relaxed">No assets found with matching tags.</p>
+
+                                {folderIds.length > 0 ? (
+                                    folderIds.map(fid => (
+                                        <div key={fid}>
+                                            <div className="flex items-center justify-between mb-3 px-1">
+                                                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                                                    {groupedByFolder[fid].name}
+                                                    {!linkedFolderIds.has(fid) && <span className="ml-2 text-blue-500/50 italic capitalize leading-none">(Included)</span>}
+                                                </p>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                {groupedByFolder[fid].assets.map((asset) => (
+                                                    <CustomAssetItem key={asset.id} asset={asset} folderId={fid} />
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="flex flex-col items-center justify-center py-20 text-center opacity-30 px-6">
+                                        <ImageIcon className="h-10 w-10 mb-4" />
+                                        <p className="text-[10px] font-black uppercase tracking-widest leading-relaxed"> No brand assets found.</p>
+                                        <p className="text-[8px] font-bold mt-2 uppercase tracking-tighter max-w-[200px]">Link a folder in the 'Uploads' tab or upload images to this brand.</p>
                                     </div>
-                                )
-                            )}
-                        </div>
-                    )}
+                                )}
+                            </div>
+                        );
+                    })()}
 
                     {/* TEMPLATES TAB */}
                     {activeTab === 'templates' && (

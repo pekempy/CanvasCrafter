@@ -21,6 +21,7 @@
     "@types/d3-scale": "^4.0.9",
     "@types/lodash.debounce": "^4.0.9",
     "@types/webfontloader": "^1.6.38",
+    "bcryptjs": "^3.0.3",
     "d3-contour": "^4.0.2",
     "d3-path": "^3.1.0",
     "d3-polygon": "^3.0.1",
@@ -37,6 +38,7 @@
     "webfontloader": "^1.6.28"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
     "@types/d3-polygon": "^3.0.2",
     "@types/jest": "^30.0.0",
     "@types/node": "^25.3.1",

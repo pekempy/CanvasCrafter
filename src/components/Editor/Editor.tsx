@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
     Type,
     Image as ImageIcon,
@@ -27,7 +27,8 @@ import {
     Hexagon,
     Diamond,
     ArrowRight,
-    Cloud
+    Cloud,
+    LogOut
 } from "lucide-react";
 import FabricCanvas from "@/components/Editor/FabricCanvas";
 import Toolbar from "@/components/Editor/Toolbar";
@@ -36,15 +37,16 @@ import LayersPanel from "@/components/Editor/LayersPanel";
 import AssetPanel from "@/components/Editor/AssetPanel";
 import TemplatePanel from "@/components/Editor/TemplatePanel";
 import BrandPanel from "@/components/Editor/BrandPanel";
+import SettingsPanel from "@/components/Editor/SettingsPanel";
 import FontUploader from "@/components/Editor/FontUploader";
 import PropertiesPanel from "@/components/Editor/PropertiesPanel";
 import ContextMenu from "@/components/Editor/ContextMenu";
 import { CanvasProvider, useCanvas } from "@/store/useCanvasStore";
 import DropAssetDialog from "@/components/Editor/DropAssetDialog";
 
-type SidebarTab = "templates" | "assets" | "text" | "shapes" | "layers" | "brands";
+type SidebarTab = "templates" | "assets" | "text" | "shapes" | "layers" | "brands" | "settings";
 
-function EditorContent() {
+function EditorContent({ username }: { username?: string }) {
     const [isResizeOpen, setIsResizeOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<SidebarTab>("templates");
     const [showExportMenu, setShowExportMenu] = useState(false);
@@ -58,8 +60,15 @@ function EditorContent() {
         clearCanvas, selectedObject, canvasSize, exportAsFormat,
         theme, setTheme, zoom, setZoom, panOffset, fitToScreen, showGrid, setShowGrid,
         undo, redo, canUndo, canRedo,
-        canvasName, setCanvasName
+        canvasName, setCanvasName,
+        setCurrentUser
     } = useCanvas();
+
+    useEffect(() => {
+        if (username) {
+            setCurrentUser(username);
+        }
+    }, [username, setCurrentUser]);
 
     const toggleTheme = () => setTheme(theme === "dark" ? "light" : "dark");
 
@@ -238,10 +247,23 @@ function EditorContent() {
                                 <ExportOption icon={<ImageIcon className="h-4 w-4" />} label="PNG" sub="Best for complex images" onClick={() => exportAsFormat('png')} />
                                 <ExportOption icon={<ImageIcon className="h-4 w-4" />} label="JPEG" sub="Best for sharing" onClick={() => exportAsFormat('jpeg')} />
                                 <div className="h-px w-full bg-white/5 my-1" />
-                                <ExportOption icon={<FileDown className="h-4 w-4" />} label="PDF" sub="Standard document" onClick={() => exportAsFormat('pdf')} />
+                                <ExportOption icon={<FileDown className="h-4 w-4" />} label="PDF" sub="Best for printing" onClick={() => exportAsFormat('pdf')} />
                             </div>
                         )}
                     </div>
+
+                    <button
+                        onClick={async () => {
+                            if (confirm("Log out? Any unsaved work may be lost.")) {
+                                await fetch('/api/auth/status', { method: 'DELETE' });
+                                window.location.reload();
+                            }
+                        }}
+                        className="rounded-xl p-2 text-gray-500 hover:bg-white/5 hover:text-red-500 transition-all"
+                        title="Log Out"
+                    >
+                        <LogOut className="h-5 w-5" />
+                    </button>
                 </div>
             </header>
 
@@ -256,12 +278,15 @@ function EditorContent() {
 
                     <div className="w-8 h-px bg-white/5 my-4" />
                     <SidebarNavItem icon={<LayersIcon className="h-5 w-5" />} label="Layers" active={activeTab === "layers"} onClick={() => setActiveTab("layers")} />
+                    <div className="flex-1" />
+                    <SidebarNavItem icon={<Settings2 className="h-5 w-5" />} label="Settings" active={activeTab === "settings"} onClick={() => setActiveTab("settings")} />
                 </nav>
 
                 {/* Secondary Sidebar (Tab Content) */}
                 <aside className="w-80 border-r border-white/5 bg-[#181a20] z-30 shadow-2xl flex flex-col h-full">
                     {activeTab === "templates" && <TemplatePanel />}
                     {activeTab === "brands" && <BrandPanel />}
+                    {activeTab === "settings" && <SettingsPanel />}
 
                     {activeTab === "text" && (
                         <div className="flex h-full flex-col">
@@ -371,10 +396,10 @@ function EditorContent() {
     );
 }
 
-export default function Editor() {
+export default function Editor({ username }: { username?: string }) {
     return (
         <CanvasProvider>
-            <EditorContent />
+            <EditorContent username={username} />
         </CanvasProvider>
     );
 }

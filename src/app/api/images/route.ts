@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
+import { getSession } from '@/lib/security';
 
 // Define the images path
 const IMAGES_DIR = process.env.IMAGES_DIR || path.join(process.cwd(), 'images');
@@ -16,7 +17,10 @@ async function ensureImagesDir() {
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
+    const cookieStore = await import('next/headers').then(m => m.cookies());
+    const token = (await cookieStore).get('auth_token');
 
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     if (!id) {
         return NextResponse.json({ error: 'Missing id' }, { status: 400 });
     }
@@ -38,6 +42,11 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+    const cookieStore = await import('next/headers').then(m => m.cookies());
+    const token = (await cookieStore).get('auth_token');
+
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     try {
         await ensureImagesDir();
         const body = await request.json();
@@ -49,20 +58,20 @@ export async function POST(request: Request) {
 
         // Handle Base64 URL
         if (url.startsWith('data:image/')) {
+            const user = await getSession(request);
             const base64Data = url.split(',')[1];
             const buffer = Buffer.from(base64Data, 'base64');
             const filePath = path.join(IMAGES_DIR, `${id}.png`);
             await fs.writeFile(filePath, buffer);
 
             // Save sidecar JSON
-            if (metadata) {
-                const jsonPath = path.join(IMAGES_DIR, `${id}.json`);
-                await fs.writeFile(jsonPath, JSON.stringify({
-                    id,
-                    ...metadata,
-                    timestamp: Date.now()
-                }, null, 2));
-            }
+            const jsonPath = path.join(IMAGES_DIR, `${id}.json`);
+            await fs.writeFile(jsonPath, JSON.stringify({
+                id,
+                ...metadata,
+                owner: user || undefined,
+                timestamp: Date.now()
+            }, null, 2));
 
             return NextResponse.json({
                 success: true,
@@ -80,7 +89,10 @@ export async function POST(request: Request) {
 export async function DELETE(request: Request) {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
+    const cookieStore = await import('next/headers').then(m => m.cookies());
+    const token = (await cookieStore).get('auth_token');
 
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
 
     try {

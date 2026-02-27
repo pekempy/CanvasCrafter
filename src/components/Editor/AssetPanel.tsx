@@ -11,7 +11,7 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import CustomAssetItem from "./CustomAssetItem";
 
 export default function AssetPanel() {
-    const { addImage, assetFolders, setAssetFolders, maskShapeWithImage, selectedObject, brandKits, setBrandKits, apiConfig, setBackgroundImage } = useCanvas();
+    const { addImage, assetFolders, setAssetFolders, maskShapeWithImage, selectedObject, brandKits, setBrandKits, apiConfig, setBackgroundImage, currentUser } = useCanvas();
     const [isUploading, setIsUploading] = useState(false);
     const [activeTab, setActiveTab] = useState<"library" | "stock" | "clipart">("library");
     const [activeFolderId, setActiveFolderId] = useState("default");
@@ -209,7 +209,20 @@ export default function AssetPanel() {
 
             const updated = assetFolders.map(f => {
                 if (f.id === activeFolderId) {
-                    return { ...f, assets: [{ id: assetId, url: finalUrl }, ...f.assets] };
+                    // Check if this folder is linked to any global brand
+                    const isLinkedToGlobal = brandKits.some(k => k.assetFolderIds?.includes(activeFolderId) && (k as any).visibility === 'global');
+                    const nextVisibility = isLinkedToGlobal ? 'global' : (f.visibility || 'private');
+
+                    return {
+                        ...f,
+                        assets: [{
+                            id: assetId,
+                            url: finalUrl,
+                            owner: currentUser || undefined,
+                            visibility: nextVisibility
+                        }, ...f.assets],
+                        updatedAt: Date.now()
+                    };
                 }
                 return f;
             });
@@ -374,7 +387,14 @@ export default function AssetPanel() {
                                         const name = prompt("Enter new folder name:");
                                         if (name) {
                                             const newId = Math.random().toString(36).substr(2, 9);
-                                            setAssetFolders([...assetFolders, { id: newId, name, assets: [] }]);
+                                            setAssetFolders([...assetFolders, {
+                                                id: newId,
+                                                name,
+                                                assets: [],
+                                                owner: currentUser || undefined,
+                                                visibility: 'private',
+                                                updatedAt: Date.now()
+                                            }]);
                                             setActiveFolderId(newId);
                                         }
                                     }}
@@ -390,7 +410,7 @@ export default function AssetPanel() {
                                                 const currentFolder = assetFolders.find(f => f.id === activeFolderId);
                                                 const newName = prompt("Rename folder:", currentFolder?.name);
                                                 if (newName) {
-                                                    setAssetFolders(assetFolders.map(f => f.id === activeFolderId ? { ...f, name: newName } : f));
+                                                    setAssetFolders(assetFolders.map(f => f.id === activeFolderId ? { ...f, name: newName, updatedAt: Date.now() } : f));
                                                 }
                                             }}
                                             className="p-2 bg-white/5 text-gray-400 rounded-xl hover:bg-white/10 transition-colors"
@@ -423,26 +443,42 @@ export default function AssetPanel() {
                                             className="w-full bg-white/5 text-[8px] font-black uppercase tracking-[0.15em] text-gray-400 border border-white/5 rounded-md pl-2 pr-6 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500/30 appearance-none transition-all hover:bg-white/10 hover:text-white hover:border-white/10 cursor-pointer"
                                             onChange={(e) => {
                                                 const brandId = e.target.value;
+                                                const targetBrand = brandKits.find(k => k.id === brandId);
+                                                const rawFolderId = (assetFolders.find(f => f.id === activeFolderId) as any)?.originalId || activeFolderId;
+
                                                 if (brandId === "none") {
                                                     // Remove from all kits
                                                     setBrandKits(brandKits.map((k: any) => ({
                                                         ...k,
-                                                        assetFolderIds: k.assetFolderIds?.filter((id: string) => id !== activeFolderId) || []
+                                                        assetFolderIds: k.assetFolderIds?.filter((id: string) => id !== activeFolderId && id !== rawFolderId) || [],
+                                                        updatedAt: Date.now()
                                                     })));
                                                 } else {
                                                     // Add to selected kit
                                                     setBrandKits(brandKits.map((k: any) => {
                                                         if (k.id === brandId) {
                                                             const currentIds = k.assetFolderIds || [];
-                                                            if (!currentIds.includes(activeFolderId)) {
-                                                                return { ...k, assetFolderIds: [...currentIds, activeFolderId] };
+                                                            if (!currentIds.includes(rawFolderId)) {
+                                                                return { ...k, assetFolderIds: [...currentIds, rawFolderId], updatedAt: Date.now() };
                                                             }
                                                         }
                                                         return k;
                                                     }));
+
+                                                    // Sync folder visibility with brand
+                                                    if (targetBrand && (targetBrand as any).visibility === 'global') {
+                                                        setAssetFolders(assetFolders.map(f =>
+                                                            (f.id === activeFolderId || (f as any).originalId === rawFolderId) ? {
+                                                                ...f,
+                                                                visibility: 'global',
+                                                                assets: f.assets.map(a => ({ ...a, visibility: 'global' })),
+                                                                updatedAt: Date.now()
+                                                            } : f
+                                                        ));
+                                                    }
                                                 }
                                             }}
-                                            value={brandKits.find((k: any) => k.assetFolderIds?.includes(activeFolderId))?.id || "none"}
+                                            value={brandKits.find((k: any) => k.assetFolderIds?.includes(activeFolderId) || k.assetFolderIds?.includes((assetFolders.find(f => f.id === activeFolderId) as any)?.originalId))?.id || "none"}
                                         >
                                             <option value="none" className="bg-[#181a20]">No Brand Kit Linked</option>
                                             {brandKits.map((kit: any) => (

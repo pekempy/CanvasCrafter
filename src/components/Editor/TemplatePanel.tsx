@@ -1,11 +1,11 @@
 "use client";
 
 import { useCanvas } from "@/store/useCanvasStore";
-import { Layout, Trash2, Clock, Save, Check, Folder, ChevronDown } from "lucide-react";
+import { Layout, Trash2, Clock, Save, Check, Folder, ChevronDown, Globe } from "lucide-react";
 import { useState, useMemo } from "react";
 
 export default function TemplatePanel() {
-    const { savedDesigns, saveToTemplate, loadTemplate, deleteDesign, brandKits } = useCanvas();
+    const { savedDesigns, setSavedDesigns, saveToTemplate, loadTemplate, deleteDesign, brandKits } = useCanvas();
     const [designName, setDesignName] = useState("");
     const [selectedBrand, setSelectedBrand] = useState<string>("");
     const [selectedParent, setSelectedParent] = useState<string>("none");
@@ -159,6 +159,24 @@ export default function TemplatePanel() {
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-1">
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            const isGlobal = master.visibility === 'global';
+                                            if (confirm(isGlobal ? "Make this template private?" : "Share this template globally?")) {
+                                                setSavedDesigns(savedDesigns.map(d => {
+                                                    if (d.id === master.id || d.parentId === master.id) {
+                                                        return { ...d, visibility: isGlobal ? 'private' : 'global' };
+                                                    }
+                                                    return d;
+                                                }));
+                                            }
+                                        }}
+                                        className={`p-1.5 rounded-lg hover:bg-white/10 transition-all opacity-0 group-hover:opacity-100 ${master.visibility === 'global' ? 'text-blue-500' : 'text-gray-500'}`}
+                                        title={master.visibility === 'global' ? "Shared Globally" : "Private (Click to Share)"}
+                                    >
+                                        <Globe className="h-4 w-4" />
+                                    </button>
                                     {versions.length > 0 && (
                                         <button
                                             onClick={(e) => { e.stopPropagation(); toggleMaster(master.id); }}

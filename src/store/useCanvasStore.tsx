@@ -18,6 +18,9 @@ interface BrandKit {
     fonts: string[];
     images: string[];
     assetFolderIds: string[];
+    owner?: string;
+    visibility?: 'private' | 'global';
+    updatedAt?: number;
 }
 
 export interface CustomAsset {
@@ -27,12 +30,18 @@ export interface CustomAsset {
     isFavorite?: boolean;
     brandId?: string;
     timestamp?: number;
+    owner?: string;
+    visibility?: 'private' | 'global';
+    updatedAt?: number;
 }
 
 export interface AssetFolder {
     id: string;
     name: string;
     assets: CustomAsset[];
+    owner?: string;
+    visibility?: 'private' | 'global';
+    updatedAt?: number;
 }
 
 interface CanvasContextType {
@@ -97,6 +106,8 @@ interface CanvasContextType {
 
     // Advanced Features
     maskShapeWithImage: (shape: fabric.Object, imageUrl: string) => void;
+    currentUser: string | null;
+    setCurrentUser: (user: string | null) => void;
     // New utilities
     smartResizeSelected: (width: number, height: number) => void;
     apiConfig: { unsplashAccessKey: string; pexelsKey: string; pixabayKey: string };
@@ -107,6 +118,7 @@ interface CanvasContextType {
     deleteDesign: (id: string) => void;
     exportAsFormat: (format: 'png' | 'jpeg' | 'pdf') => void;
     savedDesigns: any[];
+    setSavedDesigns: (designs: any[]) => void;
     canvasName: string;
     setCanvasName: (name: string) => void;
 
@@ -120,6 +132,7 @@ interface CanvasContextType {
 
     // Custom Fonts
     customFonts: { name: string; dataUrl: string }[];
+    setCustomFonts: (fonts: { name: string; dataUrl: string }[]) => void;
     addCustomFont: (name: string, dataUrl: string) => Promise<void>;
     removeCustomFont: (name: string) => Promise<void>;
     removeBackground: () => Promise<void>;
@@ -138,6 +151,7 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
     const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
     const [theme, setTheme] = useState<"dark" | "light">("dark");
     const [savedDesigns, setSavedDesigns] = useState<any[]>([]);
+    const [currentUser, setCurrentUser] = useState<string | null>(null);
     const [brandKits, setBrandKits] = useState<BrandKit[]>([]);
     const [templateFolders, setTemplateFolders] = useState<{ id: string; name: string; designIds: string[] }[]>([]);
     const [canvasName, setCanvasName] = useState("Untitled Project");
@@ -258,8 +272,81 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         load();
     }, []);
 
+    const lastActionTime = useRef(0);
+
+    // --- Collaboration Sync Engine ---
     useEffect(() => {
         if (!isLoaded.current) return;
+
+        const pollTeamData = async () => {
+            try {
+                // Poll for shared collections
+                const keys = ["brandkits", "folders", "designs"];
+                const results = await Promise.all(keys.map(k => fetch(`/api/storage?key=${k}`).then(r => r.json().catch(() => null))));
+
+                const smartSync = (local: any[], remote: any[]) => {
+                    if (!Array.isArray(remote)) return local;
+                    const localMap = new Map(local.map(item => [item.id, item]));
+                    const remoteIds = new Set(remote.map((r: any) => r.id));
+
+                    // Keep local-only items (prevent dropping fresh local folders)
+                    const localOnly = local.filter(item => !remoteIds.has(item.id));
+
+                    const merged = remote.map(remoteItem => {
+                        const localItem = localMap.get(remoteItem.id);
+                        // Base overwrite rule
+                        if (localItem && (localItem.updatedAt || 0) > (remoteItem.updatedAt || 0)) {
+                            return localItem;
+                        }
+                        // Deep asset merge fallback for fresh local assets inside remote folders
+                        if (localItem && localItem.assets && remoteItem.assets) {
+                            const remoteAssetIds = new Set(remoteItem.assets.map((a: any) => a.id));
+                            const uniqueLocalAssets = localItem.assets.filter((a: any) => !remoteAssetIds.has(a.id));
+                            if (uniqueLocalAssets.length > 0) {
+                                return { ...remoteItem, assets: [...remoteItem.assets, ...uniqueLocalAssets] };
+                            }
+                        }
+                        return remoteItem;
+                    });
+
+                    return [...merged, ...localOnly];
+                };
+
+                // 1. Sync Brands
+                if (results[0]) {
+                    const merged = smartSync(brandKits, results[0]);
+                    if (JSON.stringify(merged) !== JSON.stringify(brandKits)) setBrandKits(merged);
+                }
+                // 2. Sync Folders
+                if (results[1]) {
+                    const merged = smartSync(assetFolders, results[1]);
+                    if (JSON.stringify(merged) !== JSON.stringify(assetFolders)) setAssetFolders(merged);
+                }
+                // 3. Sync Designs
+                if (results[2]) {
+                    const merged = smartSync(savedDesigns, results[2]);
+                    if (JSON.stringify(merged) !== JSON.stringify(savedDesigns)) setSavedDesigns(merged);
+                }
+            } catch (e) {
+                console.error("Collaboration sync error:", e);
+            }
+        };
+
+        const interval = setInterval(pollTeamData, 5000); // 5s Heartbeat
+        return () => clearInterval(interval);
+    }, [brandKits, assetFolders, savedDesigns]);
+
+    useEffect(() => {
+        if (!isLoaded.current) return;
+
+        // Use a hidden string ref to prevent infinite POST loops during polling
+        const currentDataString = JSON.stringify({ brandKits, assetFolders, canvasSize, customFonts, presets, templateFolders, canvasName, apiConfig, theme });
+        if ((window as any).__lastSyncedData === currentDataString) return;
+        (window as any).__lastSyncedData = currentDataString;
+
+        // Mark that we just performed a local action to prevent poll-reversal
+        lastActionTime.current = Date.now();
+
         fetch("/api/storage?key=brandkits", { method: 'POST', body: JSON.stringify(brandKits) }).catch(() => { });
         fetch("/api/storage?key=folders", { method: 'POST', body: JSON.stringify(assetFolders) }).catch(() => { });
         fetch("/api/storage?key=canvas_size", { method: 'POST', body: JSON.stringify(canvasSize) }).catch(() => { });
@@ -496,7 +583,8 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
             data: json,
             timestamp: Date.now(),
             brandId,
-            parentId // for versions
+            parentId, // for versions
+            updatedAt: Date.now()
         };
         const updated = [newDesign, ...savedDesigns];
         setSavedDesigns(updated);
@@ -1200,15 +1288,16 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
 
     const contextValue = useMemo(() => ({
         canvas, setCanvas, selectedObject, theme, setTheme, canvasSize, setCanvasSize, zoom, setZoom, panOffset, setPanOffset, fitToScreen,
+        currentUser, setCurrentUser,
         updateTick, forceUpdate,
         addRect, addText, addCircle, addTriangle, addStar, addHexagon, addDiamond, addArrow, addHeart, addBadge, addCloud, addPolygon, addImage,
         clearCanvas, updateSelectedObject, applyFilter, clearEffects, updateMaskProperties, bringToFront, sendToBack, deleteSelected,
         duplicateSelected, copySelected, cutSelected, pasteSelected, releaseMask, groupSelected, ungroupSelected, alignSelected,
-        maskShapeWithImage, saveToTemplate, loadTemplate, deleteDesign, exportAsFormat, savedDesigns,
+        maskShapeWithImage, saveToTemplate, loadTemplate, deleteDesign, exportAsFormat, savedDesigns, setSavedDesigns,
         canvasName, setCanvasName,
         brandKits, setBrandKits, assetFolders, setAssetFolders,
         templateFolders, setTemplateFolders,
-        customFonts, addCustomFont, removeCustomFont,
+        customFonts, setCustomFonts, addCustomFont, removeCustomFont,
         removeBackground, setBackgroundImage,
         showGrid, setShowGrid,
         enterCropMode, confirmCrop, cancelCrop, isCropMode,
@@ -1219,8 +1308,9 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         presets, setPresets
     }), [
         canvas, selectedObject, theme, canvasSize, zoom, panOffset, fitToScreen,
-        updateTick, forceUpdate, savedDesigns, canvasName, brandKits, assetFolders, templateFolders,
-        customFonts, history.length, redoStack.length, apiConfig, presets,
+        currentUser, setCurrentUser,
+        updateTick, forceUpdate, savedDesigns, setSavedDesigns, canvasName, brandKits, assetFolders, templateFolders,
+        customFonts, setCustomFonts, history.length, redoStack.length, apiConfig, presets,
         addRect, addText, addCircle, addTriangle, addStar, addHexagon, addDiamond, addArrow, addHeart, addBadge, addCloud, addPolygon, addImage,
         clearCanvas, updateSelectedObject, applyFilter, clearEffects, updateMaskProperties, bringToFront, sendToBack, deleteSelected,
         duplicateSelected, copySelected, cutSelected, pasteSelected, releaseMask, groupSelected, ungroupSelected, alignSelected,
