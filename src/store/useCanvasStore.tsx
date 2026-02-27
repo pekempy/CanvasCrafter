@@ -25,6 +25,8 @@ export interface CustomAsset {
     url: string;
     tags?: string[];
     isFavorite?: boolean;
+    brandId?: string;
+    timestamp?: number;
 }
 
 export interface AssetFolder {
@@ -100,17 +102,21 @@ interface CanvasContextType {
     apiConfig: { unsplashAccessKey: string; pexelsKey: string; pixabayKey: string };
     setApiConfig: (config: { unsplashAccessKey: string; pexelsKey: string; pixabayKey: string }) => void;
 
-    saveToTemplate: (name: string, brandId?: string) => void;
-    loadTemplate: (json: string) => void;
+    saveToTemplate: (name: string, brandId?: string, parentId?: string) => void;
+    loadTemplate: (json: string, name?: string) => void;
     deleteDesign: (id: string) => void;
     exportAsFormat: (format: 'png' | 'jpeg' | 'pdf') => void;
     savedDesigns: any[];
+    canvasName: string;
+    setCanvasName: (name: string) => void;
 
     // Organizations
     brandKits: BrandKit[];
     setBrandKits: (kits: BrandKit[]) => void;
     assetFolders: AssetFolder[];
     setAssetFolders: (folders: AssetFolder[]) => void;
+    templateFolders: { id: string; name: string; designIds: string[] }[];
+    setTemplateFolders: (folders: { id: string; name: string; designIds: string[] }[]) => void;
 
     // Custom Fonts
     customFonts: { name: string; dataUrl: string }[];
@@ -133,6 +139,8 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
     const [theme, setTheme] = useState<"dark" | "light">("dark");
     const [savedDesigns, setSavedDesigns] = useState<any[]>([]);
     const [brandKits, setBrandKits] = useState<BrandKit[]>([]);
+    const [templateFolders, setTemplateFolders] = useState<{ id: string; name: string; designIds: string[] }[]>([]);
+    const [canvasName, setCanvasName] = useState("Untitled Project");
     // API key handling
     const [apiConfig, setApiConfig] = useState({
         unsplashAccessKey: process.env.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY || '',
@@ -147,6 +155,7 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         { id: "hero", name: "Website Hero", width: 1920, height: 1080, iconType: 'monitor' }
     ]);
     const [updateTick, setUpdateTick] = useState(0);
+    const isLoaded = useRef(false);
 
     const forceUpdate = useCallback(() => {
         setUpdateTick(t => t + 1);
@@ -229,21 +238,38 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
     }, [canvas, canvasSize.width, canvasSize.height]);
 
     useEffect(() => {
-        fetch("/api/storage?key=designs").then(r => r.json()).then(d => { if (d) setSavedDesigns(d); }).catch(() => { });
-        fetch("/api/storage?key=brandkits").then(r => r.json()).then(d => { if (d) setBrandKits(d); }).catch(() => { });
-        fetch("/api/storage?key=folders").then(r => r.json()).then(d => { if (d) setAssetFolders(d); }).catch(() => { });
-        fetch("/api/storage?key=canvas_size").then(r => r.json()).then(d => { if (d) setCanvasSize(d); }).catch(() => { });
-        fetch("/api/storage?key=custom_fonts").then(r => r.json()).then(d => { if (d) setCustomFonts(d); }).catch(() => { });
-        fetch("/api/storage?key=presets").then(r => r.json()).then(d => { if (d && Array.isArray(d)) setPresets(d); }).catch(() => { });
+        const load = async () => {
+            const keys = ["designs", "brandkits", "folders", "canvas_size", "custom_fonts", "presets", "template_folders", "canvas_name", "api_config", "theme"];
+            const results = await Promise.all(keys.map(k => fetch(`/api/storage?key=${k}`).then(r => r.json().catch(() => null))));
+
+            if (results[0]) setSavedDesigns(results[0]);
+            if (results[1]) setBrandKits(results[1]);
+            if (results[2]) setAssetFolders(results[2]);
+            if (results[3]) setCanvasSize(results[3]);
+            if (results[4]) setCustomFonts(results[4]);
+            if (results[5] && Array.isArray(results[5])) setPresets(results[5]);
+            if (results[6]) setTemplateFolders(results[6]);
+            if (results[7]) setCanvasName(results[7]);
+            if (results[8]) setApiConfig(prev => ({ ...prev, ...results[8] }));
+            if (results[9]) setTheme(results[9]);
+
+            isLoaded.current = true;
+        };
+        load();
     }, []);
 
     useEffect(() => {
+        if (!isLoaded.current) return;
         fetch("/api/storage?key=brandkits", { method: 'POST', body: JSON.stringify(brandKits) }).catch(() => { });
         fetch("/api/storage?key=folders", { method: 'POST', body: JSON.stringify(assetFolders) }).catch(() => { });
         fetch("/api/storage?key=canvas_size", { method: 'POST', body: JSON.stringify(canvasSize) }).catch(() => { });
         fetch("/api/storage?key=custom_fonts", { method: 'POST', body: JSON.stringify(customFonts) }).catch(() => { });
         fetch("/api/storage?key=presets", { method: 'POST', body: JSON.stringify(presets) }).catch(() => { });
-    }, [brandKits, assetFolders, canvasSize, customFonts, presets]);
+        fetch("/api/storage?key=template_folders", { method: 'POST', body: JSON.stringify(templateFolders) }).catch(() => { });
+        fetch("/api/storage?key=canvas_name", { method: 'POST', body: JSON.stringify(canvasName) }).catch(() => { });
+        fetch("/api/storage?key=api_config", { method: 'POST', body: JSON.stringify(apiConfig) }).catch(() => { });
+        fetch("/api/storage?key=theme", { method: 'POST', body: JSON.stringify(theme) }).catch(() => { });
+    }, [brandKits, assetFolders, canvasSize, customFonts, presets, templateFolders, canvasName, apiConfig, theme]);
 
     // Global Event Listeners (Moved to bottom of Provider)
 
@@ -315,8 +341,8 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
     const setBackgroundImage = useCallback((url: string) => {
         if (!canvas) return;
         fabric.Image.fromURL(url, { crossOrigin: 'anonymous' }).then((img) => {
-            const canvasW = canvas.width!;
-            const canvasH = canvas.height!;
+            const canvasW = canvasSize.width;
+            const canvasH = canvasSize.height;
 
             const scaleX = canvasW / img.width!;
             const scaleY = canvasH / img.height!;
@@ -336,7 +362,7 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
             canvas.backgroundImage = img;
             canvas.renderAll();
         }).catch(e => console.error("Background set failed", e));
-    }, [canvas]);
+    }, [canvas, canvasSize.width, canvasSize.height]);
 
     const maskShapeWithImage = useCallback((shape: fabric.Object, imageUrl: string) => {
         if (!canvas) return;
@@ -458,24 +484,35 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         }
     }, [canvas, selectedObject, forceUpdate]);
 
-    const saveToTemplate = useCallback((name: string, brandId?: string) => {
+    const saveToTemplate = useCallback((name: string, brandId?: string, parentId?: string) => {
         if (!canvas) return;
         const json = JSON.stringify(canvas.toJSON());
         const thumbnail = canvas.toDataURL({ format: 'png', multiplier: 0.1 });
-        const newDesign = { id: Math.random().toString(36).substr(2, 9), name: name || "Untitled", thumbnail, data: json, timestamp: Date.now(), brandId };
-        const updated = [newDesign, ...savedDesigns.filter(d => d.name !== newDesign.name)];
+        const id = Math.random().toString(36).substr(2, 9);
+        const newDesign = {
+            id,
+            name: name || "Untitled",
+            thumbnail,
+            data: json,
+            timestamp: Date.now(),
+            brandId,
+            parentId // for versions
+        };
+        const updated = [newDesign, ...savedDesigns];
         setSavedDesigns(updated);
         fetch("/api/storage?key=designs", { method: 'POST', body: JSON.stringify(updated) }).catch(() => { });
+        return id;
     }, [canvas, savedDesigns]);
 
     const deleteDesign = useCallback((id: string) => {
-        const updated = savedDesigns.filter(d => d.id !== id);
+        const updated = savedDesigns.filter(d => d.id !== id && d.parentId !== id);
         setSavedDesigns(updated);
         fetch("/api/storage?key=designs", { method: 'POST', body: JSON.stringify(updated) }).catch(() => { });
     }, [savedDesigns]);
 
-    const loadTemplate = useCallback((json: string) => {
+    const loadTemplate = useCallback((json: string, name?: string) => {
         if (!canvas) return;
+        if (name) setCanvasName(name);
         try {
             const data = JSON.parse(json);
             // Sanitize objects to handle expired blob URLs
@@ -489,10 +526,17 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
                 });
             }
             preloadFontsFromJSON(data).then(() => {
+                // Update canvas size from template
+                if (data.width && data.height) {
+                    const newSize = { width: data.width, height: data.height };
+                    setCanvasSize(newSize);
+                    canvas.setDimensions(newSize);
+                }
+
                 canvas.loadFromJSON(data)
                     .then(() => {
                         canvas.renderAll();
-                        if (fitToScreen) fitToScreen();
+                        setTimeout(() => fitToScreen(), 100); // Small delay to ensure render is stable
                     })
                     .catch(err => {
                         console.error("Fabric load error:", err);
@@ -521,11 +565,11 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
             const dataURL = canvas.toDataURL({ format: 'png', multiplier: 2 });
             const pdf = new jsPDF({ orientation: canvasSize.width > canvasSize.height ? 'landscape' : 'portrait', unit: 'px', format: [canvasSize.width, canvasSize.height] });
             pdf.addImage(dataURL, 'PNG', 0, 0, canvasSize.width, canvasSize.height);
-            pdf.save("canvascrafter.pdf");
+            pdf.save(`${canvasName || 'canvascrafter'}.pdf`);
         } else {
             const dataURL = canvas.toDataURL({ format, multiplier: 2, quality: 1 });
             const link = document.createElement("a");
-            link.download = `canvascrafter.${format}`;
+            link.download = `${canvasName || 'canvascrafter'}.${format}`;
             link.href = dataURL;
             link.click();
         }
@@ -533,7 +577,7 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         canvas.setDimensions({ width: currentWidth, height: currentHeight });
         canvas.setZoom(currentZoom);
         canvas.renderAll();
-    }, [canvas, canvasSize.width, canvasSize.height]);
+    }, [canvas, canvasSize.width, canvasSize.height, canvasName]);
 
     const bringToFront = useCallback(() => { selectedObject && canvas?.bringObjectToFront(selectedObject); canvas?.renderAll(); }, [canvas, selectedObject]);
     const sendToBack = useCallback(() => { selectedObject && canvas?.sendObjectToBack(selectedObject); canvas?.renderAll(); }, [canvas, selectedObject]);
@@ -1161,7 +1205,9 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         clearCanvas, updateSelectedObject, applyFilter, clearEffects, updateMaskProperties, bringToFront, sendToBack, deleteSelected,
         duplicateSelected, copySelected, cutSelected, pasteSelected, releaseMask, groupSelected, ungroupSelected, alignSelected,
         maskShapeWithImage, saveToTemplate, loadTemplate, deleteDesign, exportAsFormat, savedDesigns,
+        canvasName, setCanvasName,
         brandKits, setBrandKits, assetFolders, setAssetFolders,
+        templateFolders, setTemplateFolders,
         customFonts, addCustomFont, removeCustomFont,
         removeBackground, setBackgroundImage,
         showGrid, setShowGrid,
@@ -1173,7 +1219,7 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         presets, setPresets
     }), [
         canvas, selectedObject, theme, canvasSize, zoom, panOffset, fitToScreen,
-        updateTick, forceUpdate, savedDesigns, brandKits, assetFolders,
+        updateTick, forceUpdate, savedDesigns, canvasName, brandKits, assetFolders, templateFolders,
         customFonts, history.length, redoStack.length, apiConfig, presets,
         addRect, addText, addCircle, addTriangle, addStar, addHexagon, addDiamond, addArrow, addHeart, addBadge, addCloud, addPolygon, addImage,
         clearCanvas, updateSelectedObject, applyFilter, clearEffects, updateMaskProperties, bringToFront, sendToBack, deleteSelected,

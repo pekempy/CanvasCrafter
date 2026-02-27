@@ -3,16 +3,32 @@ version: '3.8'
 services:
   canvascrafter:
     build:
-      context: .
+      context: /mnt/storage/disk-1/CanvasCrafter/
       dockerfile: Dockerfile
+      network: host
       args:
-        - NEXT_PUBLIC_UNSPLASH_ACCESS_KEY
-        - NEXT_PUBLIC_PIXABAY_API_KEY
-        - NEXT_PUBLIC_PEXELS_API_KEY
+        - NEXT_PUBLIC_UNSPLASH_ACCESS_KEY=${NEXT_PUBLIC_UNSPLASH_ACCESS_KEY}
+        - NEXT_PUBLIC_PIXABAY_API_KEY=${NEXT_PUBLIC_PIXABAY_API_KEY}
+        - NEXT_PUBLIC_PEXELS_API_KEY=${NEXT_PUBLIC_PEXELS_API_KEY}
+    container_name: canvascrafter
+    user: "1000:1000"
     ports:
-      - "3000:3000"
+      - "9654:3000"
     env_file:
-      - .env
+      - /mnt/storage/disk-1/CanvasCrafter/.env
     environment:
       - PORT=3000
+      - DATA_DIR=/data
+      - IMAGES_DIR=/images
+    volumes:
+      - /srv/docker/canvascrafter/data:/data
+      - /srv/docker/canvascrafter/images:/images
     restart: always
+    labels:
+      - "dockhand.enable=true"
+    networks:
+      - glados
+
+networks:
+  glados:
+    external: true

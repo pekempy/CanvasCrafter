@@ -40,6 +40,7 @@ import FontUploader from "@/components/Editor/FontUploader";
 import PropertiesPanel from "@/components/Editor/PropertiesPanel";
 import ContextMenu from "@/components/Editor/ContextMenu";
 import { CanvasProvider, useCanvas } from "@/store/useCanvasStore";
+import DropAssetDialog from "@/components/Editor/DropAssetDialog";
 
 type SidebarTab = "templates" | "assets" | "text" | "shapes" | "layers" | "brands";
 
@@ -47,6 +48,8 @@ function EditorContent() {
     const [isResizeOpen, setIsResizeOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<SidebarTab>("templates");
     const [showExportMenu, setShowExportMenu] = useState(false);
+    const [droppedImage, setDroppedImage] = useState<string | null>(null);
+    const [isHoveringFile, setIsHoveringFile] = useState(false);
 
     const {
         addRect, addText, addCircle, addTriangle, addStar,
@@ -54,15 +57,105 @@ function EditorContent() {
         addBadge, addCloud, addPolygon,
         clearCanvas, selectedObject, canvasSize, exportAsFormat,
         theme, setTheme, zoom, setZoom, panOffset, fitToScreen, showGrid, setShowGrid,
-        undo, redo, canUndo, canRedo
+        undo, redo, canUndo, canRedo,
+        canvasName, setCanvasName
     } = useCanvas();
 
     const toggleTheme = () => setTheme(theme === "dark" ? "light" : "dark");
 
+    const { addImage, assetFolders, setAssetFolders, brandKits, setBrandKits } = useCanvas();
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsHoveringFile(true);
+    };
+
+    const handleDragLeave = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsHoveringFile(false);
+    };
+
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsHoveringFile(false);
+
+        const file = e.dataTransfer.files?.[0];
+        if (file && file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                setDroppedImage(event.target?.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleConfirmDrop = async (brandId?: string, folderId?: string, tags?: string[]) => {
+        if (!droppedImage) return;
+
+        const assetId = Date.now();
+        let finalUrl = droppedImage;
+
+        // If saved to folder/library or even if just added, we want to store it physically
+        try {
+            const res = await fetch('/api/images', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: assetId.toString(),
+                    url: droppedImage,
+                    metadata: { tags, folderId, brandId }
+                })
+            });
+            const data = await res.json();
+            if (data.url) finalUrl = data.url;
+        } catch (e) {
+            console.error("Failed to upload dropped image to server", e);
+        }
+
+        if (folderId) {
+            const updatedFolders = assetFolders.map(f => {
+                if (f.id === folderId) {
+                    return { ...f, assets: [{ id: assetId, url: finalUrl, tags, brandId }, ...f.assets] };
+                }
+                return f;
+            });
+            setAssetFolders(updatedFolders);
+        }
+
+        addImage(finalUrl);
+        setDroppedImage(null);
+    };
+
     return (
-        <main className={`flex h-screen flex-col overflow-hidden text-[#1a1c1e] transition-colors ${theme}`}>
+        <main
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            className={`flex h-screen flex-col overflow-hidden text-[#1a1c1e] transition-colors ${theme} relative`}
+        >
             <ResizeDialog isOpen={isResizeOpen} onClose={() => setIsResizeOpen(false)} />
+            <DropAssetDialog
+                isOpen={!!droppedImage}
+                onClose={() => setDroppedImage(null)}
+                dataUrl={droppedImage}
+                onConfirm={handleConfirmDrop}
+            />
             <ContextMenu />
+
+            {/* Drag Overlay Feedback */}
+            {isHoveringFile && (
+                <div className="absolute inset-0 z-[500] bg-blue-600/10 backdrop-blur-sm border-4 border-dashed border-blue-500/50 flex items-center justify-center pointer-events-none">
+                    <div className="bg-[#1a1c22] rounded-[2.5rem] p-10 shadow-2xl flex flex-col items-center gap-4 animate-in zoom-in-95 duration-200">
+                        <div className="bg-blue-500 rounded-3xl p-6 shadow-[0_0_50px_rgba(59,130,246,0.5)]">
+                            <ImageIcon className="h-10 w-10 text-white" />
+                        </div>
+                        <h2 className="text-xl font-black uppercase tracking-tighter text-white">Drop to add asset</h2>
+                    </div>
+                </div>
+            )}
 
             {/* Top Navbar */}
             <header className="flex h-14 items-center justify-between border-b border-white/5 bg-[#181a20] px-4 shadow-sm z-[1000]">
@@ -115,6 +208,18 @@ function EditorContent() {
                         <Plus className="h-3 w-3" />
                         New Canvas
                     </button>
+
+                    <div className="h-4 w-px bg-white/10" />
+
+                    <div className="flex items-center gap-2">
+                        <input
+                            type="text"
+                            value={canvasName}
+                            onChange={(e) => setCanvasName(e.target.value)}
+                            className="bg-transparent text-[10px] font-black uppercase tracking-widest text-white focus:outline-none border-b border-transparent hover:border-white/20 focus:border-blue-500 transition-all w-48 px-1 py-0.5"
+                            placeholder="PROJECT TITLE"
+                        />
+                    </div>
                 </div>
 
                 <div className="flex items-center gap-3">
@@ -144,10 +249,10 @@ function EditorContent() {
                 {/* Left Sidebar Menu */}
                 <nav className="flex w-20 flex-col items-center border-r border-white/5 bg-[#181a20] py-6 z-40">
                     <SidebarNavItem icon={<LayersIcon className="h-5 w-5" />} label="Templates" active={activeTab === "templates"} onClick={() => setActiveTab("templates")} />
-                    <SidebarNavItem icon={<ImageIcon className="h-5 w-5" />} label="Assets" active={activeTab === "assets"} onClick={() => setActiveTab("assets")} />
-                    <SidebarNavItem icon={<Type className="h-5 w-5" />} label="Text" active={activeTab === "text"} onClick={() => setActiveTab("text")} />
-                    <SidebarNavItem icon={<Shapes className="h-5 w-5" />} label="Shapes" active={activeTab === "shapes"} onClick={() => setActiveTab("shapes")} />
                     <SidebarNavItem icon={<Palette className="h-5 w-5" />} label="Brands" active={activeTab === "brands"} onClick={() => setActiveTab("brands")} />
+                    <SidebarNavItem icon={<Type className="h-5 w-5" />} label="Text" active={activeTab === "text"} onClick={() => setActiveTab("text")} />
+                    <SidebarNavItem icon={<ImageIcon className="h-5 w-5" />} label="Assets" active={activeTab === "assets"} onClick={() => setActiveTab("assets")} />
+                    <SidebarNavItem icon={<Shapes className="h-5 w-5" />} label="Shapes" active={activeTab === "shapes"} onClick={() => setActiveTab("shapes")} />
 
                     <div className="w-8 h-px bg-white/5 my-4" />
                     <SidebarNavItem icon={<LayersIcon className="h-5 w-5" />} label="Layers" active={activeTab === "layers"} onClick={() => setActiveTab("layers")} />
@@ -156,9 +261,7 @@ function EditorContent() {
                 {/* Secondary Sidebar (Tab Content) */}
                 <aside className="w-80 border-r border-white/5 bg-[#181a20] z-30 shadow-2xl flex flex-col h-full">
                     {activeTab === "templates" && <TemplatePanel />}
-                    {activeTab === "assets" && <AssetPanel />}
                     {activeTab === "brands" && <BrandPanel />}
-                    {activeTab === "layers" && <LayersPanel />}
 
                     {activeTab === "text" && (
                         <div className="flex h-full flex-col">
@@ -179,6 +282,8 @@ function EditorContent() {
                         </div>
                     )}
 
+                    {activeTab === "assets" && <AssetPanel />}
+
                     {activeTab === "shapes" && (
                         <div className="flex h-full flex-col p-6">
                             <h2 className="mb-6 text-[10px] font-black uppercase tracking-widest text-gray-500">Basic Shapes</h2>
@@ -197,6 +302,8 @@ function EditorContent() {
                             </div>
                         </div>
                     )}
+
+                    {activeTab === "layers" && <LayersPanel />}
                 </aside>
 
                 {/* Main Canvas Area */}
@@ -210,7 +317,6 @@ function EditorContent() {
                             }}
                         >
                             <FabricCanvas />
-                            <Toolbar />
                         </div>
                     </div>
 
@@ -253,6 +359,10 @@ function EditorContent() {
                         className={`absolute right-0 top-0 h-full w-80 border-l border-white/5 bg-[#181a20]/95 backdrop-blur-2xl z-[60] transition-all duration-500 ease-in-out shadow-[-20px_0_50px_rgba(0,0,0,0.3)]
                             ${selectedObject ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0 pointer-events-none'}`}
                     >
+                        {/* Pinned Toolbar - To the left of the panel */}
+                        <div className="absolute right-full top-6 translate-x-3 pointer-events-auto">
+                            <Toolbar />
+                        </div>
                         <PropertiesPanel />
                     </aside>
                 </section>

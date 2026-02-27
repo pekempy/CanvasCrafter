@@ -4,7 +4,7 @@ import { useCanvas } from "@/store/useCanvasStore";
 import { GOOGLE_FONTS } from "@/lib/fonts";
 import {
     Plus, Palette, Type, Shield, Trash2,
-    ChevronRight, Hash, Edit3, Save, X,
+    ChevronRight, Hash, Edit3, Save, X, Search,
     Check, PlusCircle, MinusCircle, ChevronLeft, Image as ImageIcon,
     ChevronDown, Layout, Clock
 } from "lucide-react";
@@ -19,6 +19,15 @@ export default function BrandPanel() {
     const [activeTab, setActiveTab] = useState<"colours" | "images" | "templates">("colours");
     const [editingBrandName, setEditingBrandName] = useState(false);
     const [isFontPickerOpen, setIsFontPickerOpen] = useState(false);
+    const [expandedMasters, setExpandedMasters] = useState<Set<string>>(new Set());
+    const [assetSearch, setAssetSearch] = useState("");
+
+    const toggleMaster = (id: string) => {
+        const next = new Set(expandedMasters);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        setExpandedMasters(next);
+    };
 
     const activeKit = brandKits.find(k => k.id === activeBrandId);
 
@@ -225,26 +234,54 @@ export default function BrandPanel() {
                     {/* IMAGES TAB */}
                     {activeTab === 'images' && (
                         <div className="space-y-6">
+                            <div className="relative group px-1">
+                                <Search className="absolute left-4 top-2.5 h-3.5 w-3.5 text-gray-500 transition-colors group-focus-within:text-blue-500" />
+                                <input
+                                    type="text"
+                                    placeholder="Search brand assets by tags..."
+                                    value={assetSearch}
+                                    onChange={(e) => setAssetSearch(e.target.value)}
+                                    className="w-full bg-white/5 border border-white/5 rounded-xl py-2 pl-10 pr-4 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-white transition-all"
+                                />
+                            </div>
+
                             {/* Folders tied to this brand */}
-                            {assetFolders.filter(f => activeKit.assetFolderIds?.includes(f.id)).map(folder => (
-                                <div key={folder.id}>
-                                    <div className="flex items-center justify-between mb-3 px-1">
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">{folder.name}</p>
+                            {assetFolders.filter(f => activeKit.assetFolderIds?.includes(f.id)).map(folder => {
+                                const filteredAssets = folder.assets.filter(asset =>
+                                    !assetSearch || (asset.tags && asset.tags.some(tag => tag.toLowerCase().includes(assetSearch.toLowerCase())))
+                                );
+
+                                if (assetSearch && filteredAssets.length === 0) return null;
+
+                                return (
+                                    <div key={folder.id}>
+                                        <div className="flex items-center justify-between mb-3 px-1">
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">{folder.name}</p>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {filteredAssets.map((asset) => (
+                                                <CustomAssetItem key={asset.id} asset={asset} folderId={folder.id} />
+                                            ))}
+                                        </div>
                                     </div>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        {folder.assets.map((asset) => (
-                                            <CustomAssetItem key={asset.id} asset={asset} folderId={folder.id} />
-                                        ))}
-                                    </div>
-                                </div>
-                            ))}
+                                );
+                            })}
 
                             {/* Unassigned images or placeholder */}
-                            {(!activeKit.assetFolderIds || activeKit.assetFolderIds.length === 0) && (
+                            {(!activeKit.assetFolderIds || activeKit.assetFolderIds.length === 0) ? (
                                 <div className="flex flex-col items-center justify-center py-10 text-center opacity-30 px-4">
                                     <ImageIcon className="h-8 w-8 mb-3" />
                                     <p className="text-[9px] font-black uppercase tracking-widest leading-relaxed">No asset folders linked to this brand kit yet.</p>
                                 </div>
+                            ) : (
+                                assetSearch && !assetFolders
+                                    .filter(f => activeKit.assetFolderIds?.includes(f.id))
+                                    .some(f => f.assets.some(a => a.tags?.some(t => t.toLowerCase().includes(assetSearch.toLowerCase())))) && (
+                                    <div className="flex flex-col items-center justify-center py-10 text-center opacity-30 px-4">
+                                        <Search className="h-8 w-8 mb-3" />
+                                        <p className="text-[9px] font-black uppercase tracking-widest leading-relaxed">No assets found with matching tags.</p>
+                                    </div>
+                                )
                             )}
                         </div>
                     )}
@@ -252,32 +289,122 @@ export default function BrandPanel() {
                     {/* TEMPLATES TAB */}
                     {activeTab === 'templates' && (
                         <div className="space-y-4">
-                            <div className="grid grid-cols-2 gap-3">
-                                {savedDesigns.filter(d => d.brandId === activeKit.id).map((design) => (
-                                    <div
-                                        key={design.id}
-                                        onClick={() => loadTemplate(design.data)}
-                                        className="group relative cursor-pointer overflow-hidden rounded-2xl border border-white/5 bg-white/5 p-2 transition-all hover:bg-white/10 active:scale-95 flex flex-col"
-                                    >
-                                        <div className="aspect-[4/3] w-full overflow-hidden rounded-xl bg-black/50 border border-white/5 flex items-center justify-center relative">
-                                            <img src={design.thumbnail} alt={design.name} className="h-full w-full object-contain" />
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); if (confirm("Delete design?")) deleteDesign(design.id); }}
-                                                className="absolute top-2 right-2 p-1.5 rounded-lg bg-red-500/80 text-white hover:bg-red-500 backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity"
-                                            >
-                                                <Trash2 className="h-3.5 w-3.5" />
-                                            </button>
+                            {(() => {
+                                const brandMasters = savedDesigns
+                                    .filter(d => d.brandId === activeKit.id && !d.parentId)
+                                    .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+                                const brandVersionsWithoutMasters = savedDesigns
+                                    .filter(d => d.brandId === activeKit.id && d.parentId && !brandMasters.find(m => m.id === d.parentId))
+                                    .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+
+                                if (brandMasters.length === 0 && brandVersionsWithoutMasters.length === 0) {
+                                    return (
+                                        <div className="flex flex-col items-center justify-center py-10 text-center opacity-30 px-4">
+                                            <Layout className="h-8 w-8 mb-3" />
+                                            <p className="text-[9px] font-black uppercase tracking-widest leading-relaxed">No templates saved for this brand.</p>
                                         </div>
-                                        <p className="mt-2 text-[10px] font-black text-gray-200 truncate px-1">{design.name}</p>
+                                    );
+                                }
+
+                                return (
+                                    <div className="space-y-3">
+                                        {/* Render Masters and their versions */}
+                                        {brandMasters.map(master => {
+                                            const versions = savedDesigns
+                                                .filter(v => v.parentId === master.id)
+                                                .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+                                            const isExpanded = expandedMasters.has(master.id);
+
+                                            return (
+                                                <div key={master.id} className="space-y-1">
+                                                    <div
+                                                        onClick={() => loadTemplate(master.data, master.name)}
+                                                        className="group relative flex items-center gap-3 bg-white/5 border border-white/5 rounded-2xl p-2.5 cursor-pointer hover:bg-white/10 transition-all border-l-4 border-l-blue-500"
+                                                    >
+                                                        <div className="h-10 w-12 overflow-hidden rounded-lg bg-black border border-white/5 shrink-0">
+                                                            <img src={master.thumbnail} alt={master.name} className="h-full w-full object-contain" />
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-[10px] font-black text-white uppercase tracking-wider truncate">{master.name}</p>
+                                                            <p className="text-[7px] font-bold text-gray-500 uppercase tracking-widest">
+                                                                MASTER • {versions.length} VERSIONS
+                                                            </p>
+                                                        </div>
+                                                        <div className="flex items-center gap-1">
+                                                            {versions.length > 0 && (
+                                                                <button
+                                                                    onClick={(e) => { e.stopPropagation(); toggleMaster(master.id); }}
+                                                                    className={`p-1.5 rounded-lg hover:bg-white/10 transition-colors ${isExpanded ? 'rotate-180 text-blue-400' : 'text-gray-500'}`}
+                                                                >
+                                                                    <ChevronDown className="h-3.5 w-3.5" />
+                                                                </button>
+                                                            )}
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); if (confirm("Delete master and all its versions?")) deleteDesign(master.id); }}
+                                                                className="p-1.5 rounded-lg text-gray-500 hover:text-red-500 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all"
+                                                            >
+                                                                <Trash2 className="h-3.5 w-3.5" />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Versions of this Master */}
+                                                    {isExpanded && versions.length > 0 && (
+                                                        <div className="ml-5 space-y-1 mt-1 border-l border-white/10 pl-3">
+                                                            {versions.map(version => (
+                                                                <div
+                                                                    key={version.id}
+                                                                    onClick={() => loadTemplate(version.data, version.name)}
+                                                                    className="group flex items-center gap-3 bg-white/2 p-2 rounded-xl cursor-pointer hover:bg-white/5 transition-all text-xs"
+                                                                >
+                                                                    <div className="h-7 w-9 overflow-hidden rounded-md bg-black/40 shrink-0">
+                                                                        <img src={version.thumbnail} alt={version.name} className="h-full w-full object-contain opacity-70 group-hover:opacity-100" />
+                                                                    </div>
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <p className="text-[8px] font-bold text-gray-400 truncate group-hover:text-gray-200">{version.name}</p>
+                                                                        <p className="text-[7px] text-gray-600 font-black uppercase tracking-widest">{new Date(version.timestamp).toLocaleDateString()}</p>
+                                                                    </div>
+                                                                    <button
+                                                                        onClick={(e) => { e.stopPropagation(); if (confirm("Delete this version?")) deleteDesign(version.id); }}
+                                                                        className="p-1 rounded-md text-gray-700 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
+                                                                    >
+                                                                        <Trash2 className="h-3 w-3" />
+                                                                    </button>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+
+                                        {/* Individual Versions (if master belongs to another brand but version is tagged for this brand) */}
+                                        {brandVersionsWithoutMasters.map(version => (
+                                            <div
+                                                key={version.id}
+                                                onClick={() => loadTemplate(version.data, version.name)}
+                                                className="group relative flex items-center gap-3 bg-white/5 border border-white/5 rounded-2xl p-2.5 cursor-pointer hover:bg-white/10 transition-all"
+                                            >
+                                                <div className="h-10 w-12 overflow-hidden rounded-lg bg-black border border-white/5 shrink-0">
+                                                    <img src={version.thumbnail} alt={version.name} className="h-full w-full object-contain" />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-[10px] font-black text-white uppercase tracking-wider truncate">{version.name}</p>
+                                                    <p className="text-[7px] font-bold text-gray-500 uppercase tracking-widest">
+                                                        LINKED VERSION
+                                                    </p>
+                                                </div>
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); if (confirm("Unlink design from brand?")) deleteDesign(version.id); }}
+                                                    className="p-1.5 rounded-lg text-gray-500 hover:text-red-500 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all"
+                                                >
+                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                </button>
+                                            </div>
+                                        ))}
                                     </div>
-                                ))}
-                            </div>
-                            {savedDesigns.filter(d => d.brandId === activeKit.id).length === 0 && (
-                                <div className="flex flex-col items-center justify-center py-10 text-center opacity-30 px-4">
-                                    <Layout className="h-8 w-8 mb-3" />
-                                    <p className="text-[9px] font-black uppercase tracking-widest leading-relaxed">No templates saved for this brand.</p>
-                                </div>
-                            )}
+                                );
+                            })()}
                         </div>
                     )}
                 </div>

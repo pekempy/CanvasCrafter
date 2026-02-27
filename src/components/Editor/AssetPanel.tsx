@@ -4,16 +4,16 @@ import { useCanvas } from "@/store/useCanvasStore";
 import {
     Upload, Image as ImageIcon, X, Search, Loader2, FolderPlus,
     Folder, MoreVertical, Plus, ChevronRight, Hash, ExternalLink,
-    Globe, Cloud, AlertCircle, Info, Trash2, Shield, ChevronDown
+    Globe, Cloud, AlertCircle, Info, Trash2, Shield, ChevronDown, Star
 } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 
 import CustomAssetItem from "./CustomAssetItem";
 
 export default function AssetPanel() {
     const { addImage, assetFolders, setAssetFolders, maskShapeWithImage, selectedObject, brandKits, setBrandKits, apiConfig, setBackgroundImage } = useCanvas();
     const [isUploading, setIsUploading] = useState(false);
-    const [activeTab, setActiveTab] = useState<"library" | "stock" | "clipart">("stock");
+    const [activeTab, setActiveTab] = useState<"library" | "stock" | "clipart">("library");
     const [activeFolderId, setActiveFolderId] = useState("default");
     const [search, setSearch] = useState("");
     const [stockPhotos, setStockPhotos] = useState<any[]>([]);
@@ -22,6 +22,21 @@ export default function AssetPanel() {
     const [librarySearch, setLibrarySearch] = useState("");
     const [error, setError] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const assetsToDisplay = useMemo(() => {
+        if (activeFolderId === "favorites") {
+            return assetFolders.flatMap(f => f.assets.filter(a => a.isFavorite).map(a => ({ ...a, folderId: f.id })));
+        }
+        if (activeFolderId === "default") {
+            return assetFolders.flatMap(f => f.assets.map(a => ({ ...a, folderId: f.id })));
+        }
+        const folder = assetFolders.find(f => f.id === activeFolderId);
+        return folder ? folder.assets.map(a => ({ ...a, folderId: activeFolderId })) : [];
+    }, [assetFolders, activeFolderId]);
+
+    const filteredAssets = assetsToDisplay.filter(asset =>
+        !librarySearch || (asset.tags && asset.tags.some(tag => tag.toLowerCase().includes(librarySearch.toLowerCase())))
+    );
 
     const searchStock = async () => {
         if (!search) return;
@@ -171,16 +186,35 @@ export default function AssetPanel() {
         if (!file) return;
         setIsUploading(true);
         const reader = new FileReader();
-        reader.onload = (event) => {
+        reader.onload = async (event) => {
             const dataUrl = event.target?.result as string;
+            const assetId = Date.now();
+            let finalUrl = dataUrl;
+
+            try {
+                const res = await fetch('/api/images', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        id: assetId.toString(),
+                        url: dataUrl,
+                        metadata: { folderId: activeFolderId }
+                    })
+                });
+                const data = await res.json();
+                if (data.url) finalUrl = data.url;
+            } catch (e) {
+                console.error("Failed to upload image during manual upload", e);
+            }
+
             const updated = assetFolders.map(f => {
                 if (f.id === activeFolderId) {
-                    return { ...f, assets: [{ id: Date.now(), url: dataUrl }, ...f.assets] };
+                    return { ...f, assets: [{ id: assetId, url: finalUrl }, ...f.assets] };
                 }
                 return f;
             });
             setAssetFolders(updated);
-            addImage(dataUrl);
+            addImage(finalUrl);
             setIsUploading(false);
         };
         reader.readAsDataURL(file);
@@ -190,6 +224,12 @@ export default function AssetPanel() {
         <div className="flex h-full w-full flex-col bg-[#181a20]">
             {/* Tabs */}
             <div className="flex px-4 py-2 border-b border-white/5 gap-4">
+                <button
+                    onClick={() => setActiveTab('library')}
+                    className={`text-[10px] font-black uppercase tracking-widest pb-2 border-b-2 transition-all ${activeTab === 'library' ? 'border-blue-500 text-blue-500' : 'border-transparent text-gray-500 hover:text-gray-400'}`}
+                >
+                    My Library
+                </button>
                 <button
                     onClick={() => setActiveTab('stock')}
                     className={`text-[10px] font-black uppercase tracking-widest pb-2 border-b-2 transition-all ${activeTab === 'stock' ? 'border-blue-500 text-blue-500' : 'border-transparent text-gray-500 hover:text-gray-400'}`}
@@ -201,12 +241,6 @@ export default function AssetPanel() {
                     className={`text-[10px] font-black uppercase tracking-widest pb-2 border-b-2 transition-all ${activeTab === 'clipart' ? 'border-blue-500 text-blue-500' : 'border-transparent text-gray-500 hover:text-gray-400'}`}
                 >
                     Clipart
-                </button>
-                <button
-                    onClick={() => setActiveTab('library')}
-                    className={`text-[10px] font-black uppercase tracking-widest pb-2 border-b-2 transition-all ${activeTab === 'library' ? 'border-blue-500 text-blue-500' : 'border-transparent text-gray-500 hover:text-gray-400'}`}
-                >
-                    My Library
                 </button>
             </div>
 
@@ -325,8 +359,12 @@ export default function AssetPanel() {
                                         onChange={(e) => setActiveFolderId(e.target.value)}
                                         className="w-full bg-white/10 text-xs font-black uppercase tracking-widest text-white border border-white/10 rounded-xl pl-3 pr-10 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/50 appearance-none transition-all hover:bg-white/20"
                                     >
+                                        <option value="favorites" className="bg-[#181a20]">Favourite Assets</option>
+                                        <hr className="border-white/5" />
                                         {assetFolders.map(f => (
-                                            <option key={f.id} value={f.id}>{f.name}</option>
+                                            <option key={f.id} value={f.id} className="bg-[#181a20]">
+                                                {f.name}
+                                            </option>
                                         ))}
                                     </select>
                                     <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-500 pointer-events-none" />
@@ -378,11 +416,11 @@ export default function AssetPanel() {
 
                             {/* Brand Kit Linking */}
                             {activeFolderId !== "default" && (
-                                <div className="flex items-center gap-2 mt-1">
-                                    <Shield className="h-3 w-3 text-blue-500" />
+                                <div className="flex items-center gap-2 mt-1 px-1">
+                                    <Shield className="h-2.5 w-2.5 text-blue-500/70" />
                                     <div className="relative flex-1">
                                         <select
-                                            className="w-full bg-transparent text-[10px] font-bold text-gray-400 focus:outline-none appearance-none pr-6 hover:text-white transition-colors"
+                                            className="w-full bg-white/5 text-[8px] font-black uppercase tracking-[0.15em] text-gray-400 border border-white/5 rounded-md pl-2 pr-6 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500/30 appearance-none transition-all hover:bg-white/10 hover:text-white hover:border-white/10 cursor-pointer"
                                             onChange={(e) => {
                                                 const brandId = e.target.value;
                                                 if (brandId === "none") {
@@ -406,12 +444,12 @@ export default function AssetPanel() {
                                             }}
                                             value={brandKits.find((k: any) => k.assetFolderIds?.includes(activeFolderId))?.id || "none"}
                                         >
-                                            <option value="none">Link to Brand Kit...</option>
+                                            <option value="none" className="bg-[#181a20]">No Brand Kit Linked</option>
                                             {brandKits.map((kit: any) => (
-                                                <option key={kit.id} value={kit.id}>{kit.name}</option>
+                                                <option key={kit.id} value={kit.id} className="bg-[#181a20]">{kit.name}</option>
                                             ))}
                                         </select>
-                                        <ChevronDown className="absolute right-0 top-1/2 -translate-y-1/2 h-2.5 w-2.5 text-gray-600 pointer-events-none" />
+                                        <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 h-2.5 w-2.5 text-gray-600 pointer-events-none group-hover:text-gray-400 transition-colors" />
                                     </div>
                                 </div>
                             )}
@@ -440,20 +478,27 @@ export default function AssetPanel() {
                         </div>
 
                         <div className="grid grid-cols-2 gap-3 pb-20 overflow-y-auto w-full">
-                            {assetFolders.find(f => f.id === activeFolderId)?.assets
-                                .filter(asset => !librarySearch || (asset.tags && asset.tags.some(tag => tag.toLowerCase().includes(librarySearch.toLowerCase()))))
-                                .map(asset => (
-                                    <CustomAssetItem key={asset.id} asset={asset} folderId={activeFolderId} />
-                                ))}
-                            {assetFolders.find(f => f.id === activeFolderId)?.assets.length === 0 && (
+                            {filteredAssets.map(asset => (
+                                <CustomAssetItem key={`${asset.folderId}-${asset.id}`} asset={asset} folderId={asset.folderId} />
+                            ))}
+                            {assetsToDisplay.length === 0 && (
                                 <div className="col-span-2 flex flex-col items-center justify-center py-10 opacity-30 text-center">
-                                    <Folder className="h-8 w-8 mb-2" />
-                                    <p className="text-[9px] font-black uppercase tracking-widest leading-relaxed">Folder is empty</p>
+                                    {activeFolderId === "favorites" ? (
+                                        <>
+                                            <Star className="h-10 w-10 mb-3 text-yellow-500/50 fill-current" />
+                                            <p className="text-[10px] font-black uppercase tracking-[0.2em] leading-relaxed">No favourite assets yet.<br />Click the heart icon to start!</p>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Folder className="h-8 w-8 mb-2" />
+                                            <p className="text-[9px] font-black uppercase tracking-widest leading-relaxed">Folder is empty</p>
+                                        </>
+                                    )}
                                 </div>
                             )}
-                            {assetFolders.find(f => f.id === activeFolderId)?.assets.length !== 0 &&
+                            {assetsToDisplay.length !== 0 &&
                                 librarySearch &&
-                                !assetFolders.find(f => f.id === activeFolderId)?.assets.some(asset => asset.tags && asset.tags.some(tag => tag.toLowerCase().includes(librarySearch.toLowerCase()))) && (
+                                filteredAssets.length === 0 && (
                                     <div className="col-span-2 flex flex-col items-center justify-center py-10 opacity-30 text-center">
                                         <Search className="h-8 w-8 mb-2" />
                                         <p className="text-[9px] font-black uppercase tracking-widest leading-relaxed">No matching tags</p>

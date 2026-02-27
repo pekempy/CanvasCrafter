@@ -25,79 +25,6 @@ export default function Toolbar() {
 
     const [showSmartResize, setShowSmartResize] = useState(false);
     const [showApiSettings, setShowApiSettings] = useState(false);
-    const [toolbarPos, setToolbarPos] = useState({ top: -100, left: 0 });
-    const [userOffset, setUserOffset] = useState({ x: 0, y: -55 });
-    const [isDocked, setIsDocked] = useState(false);
-
-    useEffect(() => {
-        if (selectedObject && !isDocked) {
-            const updatePos = () => {
-                const rect = selectedObject.getBoundingRect();
-                // Find global canvas position
-                const canvasEl = selectedObject.canvas?.getElement();
-                if (!canvasEl) return;
-                const canvasRect = canvasEl.getBoundingClientRect();
-
-                // Position toolbar above object + apply custom user offset
-                setToolbarPos({
-                    top: canvasRect.top + rect.top + userOffset.y,
-                    left: canvasRect.left + rect.left + rect.width / 2 + userOffset.x
-                });
-            };
-
-            updatePos();
-            selectedObject.canvas?.on('object:moving', updatePos);
-            selectedObject.canvas?.on('object:scaling', updatePos);
-
-            // Re-calc on window resize
-            window.addEventListener('resize', updatePos);
-
-            return () => {
-                selectedObject.canvas?.off('object:moving', updatePos);
-                selectedObject.canvas?.off('object:scaling', updatePos);
-                window.removeEventListener('resize', updatePos);
-            };
-        }
-    }, [selectedObject, userOffset, isDocked]);
-
-    const handleDragStart = (e: React.MouseEvent | React.TouchEvent) => {
-        e.preventDefault();
-
-        const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-        const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-
-        const startX = clientX;
-        const startY = clientY;
-        const startOffsetX = userOffset.x;
-        const startOffsetY = userOffset.y;
-
-        const onMouseMove = (moveEvObj: MouseEvent | TouchEvent) => {
-            const moveX = 'touches' in moveEvObj ? (moveEvObj as TouchEvent).touches[0].clientX : (moveEvObj as MouseEvent).clientX;
-            const moveY = 'touches' in moveEvObj ? (moveEvObj as TouchEvent).touches[0].clientY : (moveEvObj as MouseEvent).clientY;
-
-            if (moveY < 60) {
-                setIsDocked(true);
-            } else {
-                setIsDocked(false);
-                setUserOffset({
-                    x: startOffsetX + (moveX - startX),
-                    y: startOffsetY + (moveY - startY)
-                });
-            }
-        };
-
-        const onMouseUp = () => {
-            document.removeEventListener('mousemove', onMouseMove);
-            document.removeEventListener('mouseup', onMouseUp);
-            document.removeEventListener('touchmove', onMouseMove);
-            document.removeEventListener('touchend', onMouseUp);
-        };
-
-        document.addEventListener('mousemove', onMouseMove);
-        document.addEventListener('mouseup', onMouseUp);
-        document.addEventListener('touchmove', onMouseMove);
-        document.addEventListener('touchend', onMouseUp);
-    };
 
     if (!selectedObject) return null;
 
@@ -107,33 +34,15 @@ export default function Toolbar() {
 
     return (
         <>
-            <div
-                className={`fixed z-[200] flex items-center gap-1 bg-[#181a20]/95 backdrop-blur-xl border border-white/10 rounded-2xl p-1.5 shadow-[0_20px_50px_rgba(0,0,0,0.5)] animate-in fade-in zoom-in-95 duration-200 pointer-events-auto transition-all ${isDocked
-                        ? 'top-4 left-1/2 -translate-x-1/2 w-auto max-w-[90vw]'
-                        : ''
-                    }`}
-                style={!isDocked ? {
-                    top: `${toolbarPos.top}px`,
-                    left: `${toolbarPos.left}px`,
-                    transform: 'translateX(-50%)',
-                } : {}}
-            >
-                <div
-                    className="flex items-center gap-1 px-2 border-r border-white/5 mr-1 cursor-grab active:cursor-grabbing"
-                    onMouseDown={handleDragStart}
-                    onTouchStart={handleDragStart}
-                    title="Drag to move toolbar"
-                >
-                    <GripVertical className="h-4 w-4 text-gray-500 hover:text-white transition-colors" />
-                </div>
-                <div className="flex items-center gap-1 px-2 border-r border-white/5 mr-1">
-                    <div className="flex h-5 w-5 items-center justify-center rounded-lg bg-blue-500/20 text-blue-500 shadow-inner">
-                        {selectedObject.type === 'activeSelection' ? <MousePointer2 className="h-3 w-3" /> : (isText ? <CaseSensitive className="h-3 w-3" /> : (isImage ? <Sparkles className="h-3 w-3" /> : <Palette className="h-3 w-3" />))}
-                    </div>
+            <div className="flex flex-col items-center gap-1 bg-[#181a20]/95 backdrop-blur-xl border border-white/10 rounded-2xl p-1.5 shadow-[0_20px_50px_rgba(0,0,0,0.5)] pointer-events-auto transition-all w-12">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/20 text-blue-500 shadow-inner mb-2">
+                    {selectedObject.type === 'activeSelection' ? <MousePointer2 className="h-4 w-4" /> : (isText ? <CaseSensitive className="h-4 w-4" /> : (isImage ? <Sparkles className="h-4 w-4" /> : <Palette className="h-4 w-4" />))}
                 </div>
 
+                <div className="w-full h-px bg-white/5 mb-1" />
+
                 {isText ? (
-                    <div className="flex items-center gap-0.5">
+                    <div className="flex flex-col items-center gap-0.5">
                         <ToolbarButton
                             icon={<Bold className="h-3.5 w-3.5" />}
                             onClick={() => updateSelectedObject({ fontWeight: (selectedObject as fabric.IText).fontWeight === 'bold' ? 'normal' : 'bold' })}
@@ -152,13 +61,13 @@ export default function Toolbar() {
                             active={(selectedObject as fabric.IText).underline}
                             label="Underline"
                         />
-                        <div className="h-4 w-px bg-white/5 mx-1" />
+                        <div className="w-4 h-px bg-white/5 my-1" />
                         <ToolbarButton icon={<AlignLeft className="h-3.5 w-3.5" />} onClick={() => updateSelectedObject({ textAlign: 'left' })} label="Left" />
                         <ToolbarButton icon={<AlignCenter className="h-3.5 w-3.5" />} onClick={() => updateSelectedObject({ textAlign: 'center' })} label="Centre" />
                         <ToolbarButton icon={<AlignRight className="h-3.5 w-3.5" />} onClick={() => updateSelectedObject({ textAlign: 'right' })} label="Right" />
                     </div>
                 ) : (
-                    <div className="flex items-center gap-0.5">
+                    <div className="flex flex-col items-center gap-0.5">
                         <ToolbarButton
                             icon={<FlipHorizontal className="h-3.5 w-3.5" />}
                             onClick={() => updateSelectedObject({ flipX: !selectedObject.flipX })}
@@ -192,15 +101,14 @@ export default function Toolbar() {
                 )}
 
                 {isCropMode && (
-                    <div className="flex items-center gap-1 bg-blue-600/10 rounded-xl px-2">
-                        <span className="text-[8px] font-black text-blue-500 uppercase mx-2">Crop Mode</span>
+                    <div className="flex flex-col items-center gap-1 bg-blue-600/10 rounded-xl p-1 my-1">
                         <ToolbarButton icon={<Check className="h-3.5 w-3.5 text-green-500" />} onClick={confirmCrop} label="Confirm Crop" />
                         <ToolbarButton icon={<XCircle className="h-3.5 w-3.5 text-red-500" />} onClick={cancelCrop} label="Cancel" />
                     </div>
                 )}
 
                 {/* Grouping Tools */}
-                <div className="h-4 w-px bg-white/5 mx-1" />
+                <div className="w-4 h-px bg-white/5 my-1" />
                 {selectedObject.type === 'activeSelection' && (
                     <ToolbarButton icon={<Group className="h-3.5 w-3.5" />} onClick={groupSelected} label="Group" />
                 )}
@@ -209,21 +117,21 @@ export default function Toolbar() {
                 )}
 
                 {/* Alignment Tools (Condensed) */}
-                <div className="flex items-center gap-0.5 px-1 bg-white/5 rounded-xl">
+                <div className="flex flex-col items-center gap-0.5 px-1 py-1 bg-white/5 rounded-xl">
                     <ToolbarButton icon={<AlignLeftIcon className="h-3.5 w-3.5" />} onClick={() => alignSelected('left')} label="Align Left" />
                     <ToolbarButton icon={<AlignCenterIcon className="h-3.5 w-3.5" />} onClick={() => alignSelected('center')} label="Align Centre" />
                     <ToolbarButton icon={<AlignRightIcon className="h-3.5 w-3.5" />} onClick={() => alignSelected('right')} label="Align Right" />
                 </div>
-                <div className="flex items-center gap-0.5 px-1 bg-white/5 rounded-xl ml-0.5">
+                <div className="flex flex-col items-center gap-0.5 px-1 py-1 bg-white/5 rounded-xl mt-1">
                     <ToolbarButton icon={<AlignTop className="h-3.5 w-3.5" />} onClick={() => alignSelected('top')} label="Align Top" />
                     <ToolbarButton icon={<AlignMiddle className="h-3.5 w-3.5" />} onClick={() => alignSelected('middle')} label="Align Middle" />
                     <ToolbarButton icon={<AlignBottom className="h-3.5 w-3.5" />} onClick={() => alignSelected('bottom')} label="Align Bottom" />
                 </div>
 
-                <div className="h-4 w-px bg-white/5 mx-1" />
+                <div className="w-4 h-px bg-white/5 my-1" />
 
-                <div className="flex items-center gap-0.5">
-                    <div className="flex items-center bg-white/5 rounded-xl border border-white/5 px-0.5">
+                <div className="flex flex-col items-center gap-0.5">
+                    <div className="flex flex-col items-center bg-white/5 rounded-xl border border-white/5 p-0.5">
                         <ToolbarButton icon={<ChevronUp className="h-3.5 w-3.5" />} onClick={bringToFront} label="Bring Front" />
                         <ToolbarButton icon={<ChevronDown className="h-3.5 w-3.5" />} onClick={sendToBack} label="Send Back" />
                     </div>
@@ -272,11 +180,11 @@ function ToolbarButton({
         ${active ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-white/10 hover:text-white'} ${className}`}
         >
             {icon}
-            <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all pointer-events-none z-[300]">
+            <div className="absolute right-full mr-3 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all pointer-events-none z-[300]">
                 <div className="bg-[#1e2229] text-[8px] font-black uppercase tracking-widest text-white px-2 py-1.5 rounded-lg border border-white/20 shadow-2xl whitespace-nowrap">
                     {label}
                 </div>
-                <div className="w-1.5 h-1.5 bg-[#1e2229] border-r border-b border-white/20 rotate-45 absolute -bottom-0.5 left-1/2 -translate-x-1/2" />
+                <div className="w-1.5 h-1.5 bg-[#1e2229] border-t border-r border-white/20 rotate-45 absolute top-1/2 -translate-y-1/2 -right-1" />
             </div>
         </button>
     );
