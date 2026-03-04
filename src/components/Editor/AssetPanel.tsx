@@ -21,6 +21,7 @@ export default function AssetPanel() {
     const [isSearching, setIsSearching] = useState(false);
     const [librarySearch, setLibrarySearch] = useState("");
     const [error, setError] = useState<string | null>(null);
+    const [confirmingFolderDeleteId, setConfirmingFolderDeleteId] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const assetsToDisplay = useMemo(() => {
@@ -420,15 +421,23 @@ export default function AssetPanel() {
                                         </button>
                                         <button
                                             onClick={() => {
-                                                if (confirm("Delete this folder and all its contents?")) {
+                                                if (confirmingFolderDeleteId === activeFolderId) {
                                                     setAssetFolders(assetFolders.filter(f => f.id !== activeFolderId));
                                                     setActiveFolderId("default");
+                                                    setConfirmingFolderDeleteId(null);
+                                                } else {
+                                                    setConfirmingFolderDeleteId(activeFolderId);
+                                                    setTimeout(() => setConfirmingFolderDeleteId(prev => prev === activeFolderId ? null : prev), 3000);
                                                 }
                                             }}
-                                            className="p-2 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-colors"
+                                            className={`transition-all px-2 py-1 rounded-xl flex items-center gap-1.5 ${confirmingFolderDeleteId === activeFolderId ? 'bg-red-500 text-white animate-pulse' : 'bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white'}`}
                                             title="Delete Folder"
                                         >
-                                            <Trash2 className="h-4 w-4" />
+                                            {confirmingFolderDeleteId === activeFolderId ? (
+                                                <span className="text-[8px] font-black uppercase">CONFIRM?</span>
+                                            ) : (
+                                                <Trash2 className="h-4 w-4" />
+                                            )}
                                         </button>
                                     </>
                                 )}

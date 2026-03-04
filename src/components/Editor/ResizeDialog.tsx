@@ -13,7 +13,7 @@ const ICON_MAP: Record<string, any> = {
 };
 
 export default function ResizeDialog({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-    const { canvasSize, setCanvasSize, canvas, presets, setPresets } = useCanvas();
+    const { canvasSize, setCanvasSize, canvas, presets, setPresets, deletePreset } = useCanvas();
     const [width, setWidth] = useState(canvasSize.width);
     const [height, setHeight] = useState(canvasSize.height);
     const [smartScale, setSmartScale] = useState(true);
@@ -71,9 +71,17 @@ export default function ResizeDialog({ isOpen, onClose }: { isOpen: boolean; onC
         setNewTemplateName("");
     };
 
-    const deletePreset = (id: string, e: React.MouseEvent) => {
+    const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
+
+    const handleDeletePreset = (id: string, e: React.MouseEvent) => {
         e.stopPropagation();
-        setPresets(presets.filter(p => p.id !== id));
+        if (confirmingDeleteId === id) {
+            deletePreset(id);
+            setConfirmingDeleteId(null);
+        } else {
+            setConfirmingDeleteId(id);
+            setTimeout(() => setConfirmingDeleteId(prev => prev === id ? null : prev), 3000);
+        }
     };
 
     return (
@@ -112,11 +120,18 @@ export default function ResizeDialog({ isOpen, onClose }: { isOpen: boolean; onC
                                             <p className="text-[9px] font-bold opacity-60 tracking-tighter">{preset.width} × {preset.height} px</p>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button onClick={(e) => deletePreset(preset.id, e)} className="p-2 hover:text-red-500 transition-colors">
-                                            <Trash2 className="h-3 w-3" />
+                                    <div className="flex items-center gap-2 opacity-40 group-hover:opacity-100 transition-opacity">
+                                        <button
+                                            onClick={(e) => handleDeletePreset(preset.id, e)}
+                                            className={`transition-all flex items-center gap-1.5 px-2 py-1 rounded-lg ${confirmingDeleteId === preset.id ? 'bg-red-500 text-white animate-pulse' : 'hover:text-red-500'}`}
+                                        >
+                                            {confirmingDeleteId === preset.id ? (
+                                                <span className="text-[8px] font-black uppercase tracking-widest">CONFIRM?</span>
+                                            ) : (
+                                                <Trash2 className="h-3.5 w-3.5" />
+                                            )}
                                         </button>
-                                        <ArrowRight className="h-4 w-4 opacity-30" />
+                                        {confirmingDeleteId !== preset.id && <ArrowRight className="h-4 w-4 opacity-30" />}
                                     </div>
                                 </button>
                             ))}

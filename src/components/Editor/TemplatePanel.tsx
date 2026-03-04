@@ -22,12 +22,21 @@ export default function TemplatePanel() {
         setTimeout(() => setLastSaved(false), 2000);
     };
 
+    const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
+
     const handleDelete = (id: string, e: React.MouseEvent) => {
         e.stopPropagation();
-        if (confirm("Delete this design? This will also delete any versions if it's a master.")) {
+        if (confirmingDeleteId === id) {
+            console.log("[UI] Deletion confirmed for design:", id);
             deleteDesign(id);
-            // Also delete versions if it's a master? The store deleteDesign should handle that or we can filter here.
-            // For now let's assume flat deletion or manual.
+            setConfirmingDeleteId(null);
+        } else {
+            console.log("[UI] Deletion requested for design:", id);
+            setConfirmingDeleteId(id);
+            // Auto-reset after 3 seconds if not confirmed
+            setTimeout(() => {
+                setConfirmingDeleteId(prev => prev === id ? null : prev);
+            }, 3000);
         }
     };
 
@@ -172,7 +181,7 @@ export default function TemplatePanel() {
                                                 }));
                                             }
                                         }}
-                                        className={`p-1.5 rounded-lg hover:bg-white/10 transition-all opacity-0 group-hover:opacity-100 ${master.visibility === 'global' ? 'text-blue-500' : 'text-gray-500'}`}
+                                        className={`p-1.5 rounded-lg hover:bg-white/10 transition-all opacity-40 group-hover:opacity-100 ${master.visibility === 'global' ? 'text-blue-500' : 'text-gray-500'}`}
                                         title={master.visibility === 'global' ? "Shared Globally" : "Private (Click to Share)"}
                                     >
                                         <Globe className="h-4 w-4" />
@@ -187,9 +196,13 @@ export default function TemplatePanel() {
                                     )}
                                     <button
                                         onClick={(e) => handleDelete(master.id, e)}
-                                        className="p-1.5 rounded-lg text-gray-500 hover:text-red-500 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all"
+                                        className={`transition-all flex items-center gap-1.5 px-2 py-1 rounded-lg ${confirmingDeleteId === master.id ? 'bg-red-500 text-white animate-pulse' : 'text-gray-500 hover:text-red-500 hover:bg-red-500/10 opacity-40 group-hover:opacity-100'}`}
                                     >
-                                        <Trash2 className="h-3.5 w-3.5" />
+                                        {confirmingDeleteId === master.id ? (
+                                            <span className="text-[9px] font-black uppercase">CONFIRM?</span>
+                                        ) : (
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                        )}
                                     </button>
                                 </div>
                             </div>
@@ -212,9 +225,13 @@ export default function TemplatePanel() {
                                             </div>
                                             <button
                                                 onClick={(e) => handleDelete(version.id, e)}
-                                                className="p-1 rounded-md text-gray-700 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
+                                                className={`transition-all flex items-center gap-1 px-1.5 py-0.5 rounded-md ${confirmingDeleteId === version.id ? 'bg-red-500 text-white' : 'text-gray-700 hover:text-red-500 opacity-0 group-hover:opacity-100'}`}
                                             >
-                                                <Trash2 className="h-3 w-3" />
+                                                {confirmingDeleteId === version.id ? (
+                                                    <span className="text-[7px] font-black uppercase">CONFIRM?</span>
+                                                ) : (
+                                                    <Trash2 className="h-3 w-3" />
+                                                )}
                                             </button>
                                         </div>
                                     ))}

@@ -20,6 +20,7 @@ export default function BrandPanel() {
     const [editingBrandName, setEditingBrandName] = useState(false);
     const [isFontPickerOpen, setIsFontPickerOpen] = useState(false);
     const [expandedMasters, setExpandedMasters] = useState<Set<string>>(new Set());
+    const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
     const [assetSearch, setAssetSearch] = useState("");
 
     const toggleMaster = (id: string) => {
@@ -49,10 +50,17 @@ export default function BrandPanel() {
         setEditingBrandName(true);
     };
 
-    const deleteKit = (id: string) => {
-        if (confirm("Delete this brand kit?")) {
+    const [confirmingKitDeleteId, setConfirmingKitDeleteId] = useState<string | null>(null);
+
+    const deleteKit = (id: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (confirmingKitDeleteId === id) {
             setBrandKits(brandKits.filter(k => k.id !== id));
             if (activeBrandId === id) setActiveBrandId(null);
+            setConfirmingKitDeleteId(null);
+        } else {
+            setConfirmingKitDeleteId(id);
+            setTimeout(() => setConfirmingKitDeleteId(prev => prev === id ? null : prev), 3000);
         }
     };
 
@@ -131,26 +139,25 @@ export default function BrandPanel() {
                             <button
                                 onClick={() => {
                                     const isGlobal = (activeKit as any).visibility === 'global';
-                                    if (confirm(isGlobal ? "Make this brand kit private?" : "Share this brand kit globally? This will also share all associated images.")) {
-                                        const nextVisibility = isGlobal ? 'private' : 'global';
+                                    // Removed confirm() call
+                                    const nextVisibility = isGlobal ? 'private' : 'global';
 
-                                        // Update Kit
-                                        updateKit(activeKit.id, { visibility: nextVisibility });
+                                    // Update Kit
+                                    updateKit(activeKit.id, { visibility: nextVisibility });
 
-                                        // Cascade to Asset Folders & Assets
-                                        if (activeKit.assetFolderIds && activeKit.assetFolderIds.length > 0) {
-                                            setAssetFolders(assetFolders.map(f => {
-                                                if (activeKit.assetFolderIds.includes(f.id)) {
-                                                    return {
-                                                        ...f,
-                                                        visibility: nextVisibility,
-                                                        assets: f.assets.map(a => ({ ...a, visibility: nextVisibility })),
-                                                        updatedAt: Date.now()
-                                                    };
-                                                }
-                                                return f;
-                                            }));
-                                        }
+                                    // Cascade to Asset Folders & Assets
+                                    if (activeKit.assetFolderIds && activeKit.assetFolderIds.length > 0) {
+                                        setAssetFolders(assetFolders.map(f => {
+                                            if (activeKit.assetFolderIds.includes(f.id)) {
+                                                return {
+                                                    ...f,
+                                                    visibility: nextVisibility,
+                                                    assets: f.assets.map(a => ({ ...a, visibility: nextVisibility })),
+                                                    updatedAt: Date.now()
+                                                };
+                                            }
+                                            return f;
+                                        }));
                                     }
                                 }}
                                 className={`p-1.5 rounded-lg transition-all ${(activeKit as any).visibility === 'global' ? 'text-blue-500 bg-blue-500/10' : 'text-gray-500 hover:bg-white/5'}`}
@@ -158,8 +165,15 @@ export default function BrandPanel() {
                             >
                                 <Globe className="h-3.5 w-3.5" />
                             </button>
-                            <button onClick={() => deleteKit(activeKit.id)} className="p-1.5 text-gray-500 hover:text-red-500 transition-colors">
-                                <Trash2 className="h-3.5 w-3.5" />
+                            <button
+                                onClick={(e) => deleteKit(activeKit.id, e)}
+                                className={`transition-all flex items-center gap-1.5 px-2 py-1 rounded-lg ${confirmingKitDeleteId === activeKit.id ? 'bg-red-500 text-white animate-pulse' : 'text-gray-500 hover:text-red-500'}`}
+                            >
+                                {confirmingKitDeleteId === activeKit.id ? (
+                                    <span className="text-[9px] font-black uppercase">CONFIRM?</span>
+                                ) : (
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                )}
                             </button>
                         </div>
                     </div>
@@ -389,10 +403,23 @@ export default function BrandPanel() {
                                                                 </button>
                                                             )}
                                                             <button
-                                                                onClick={(e) => { e.stopPropagation(); if (confirm("Delete master and all its versions?")) deleteDesign(master.id); }}
-                                                                className="p-1.5 rounded-lg text-gray-500 hover:text-red-500 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    if (confirmingDeleteId === master.id) {
+                                                                        deleteDesign(master.id);
+                                                                        setConfirmingDeleteId(null);
+                                                                    } else {
+                                                                        setConfirmingDeleteId(master.id);
+                                                                        setTimeout(() => setConfirmingDeleteId(prev => prev === master.id ? null : prev), 3000);
+                                                                    }
+                                                                }}
+                                                                className={`transition-all flex items-center gap-1.5 px-2 py-1 rounded-lg ${confirmingDeleteId === master.id ? 'bg-red-500 text-white animate-pulse' : 'text-gray-500 hover:text-red-500 hover:bg-red-500/10 opacity-0 group-hover:opacity-100'}`}
                                                             >
-                                                                <Trash2 className="h-3.5 w-3.5" />
+                                                                {confirmingDeleteId === master.id ? (
+                                                                    <span className="text-[9px] font-black uppercase">CONFIRM?</span>
+                                                                ) : (
+                                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                                )}
                                                             </button>
                                                         </div>
                                                     </div>
@@ -414,10 +441,23 @@ export default function BrandPanel() {
                                                                         <p className="text-[7px] text-gray-600 font-black uppercase tracking-widest">{new Date(version.timestamp).toLocaleDateString()}</p>
                                                                     </div>
                                                                     <button
-                                                                        onClick={(e) => { e.stopPropagation(); if (confirm("Delete this version?")) deleteDesign(version.id); }}
-                                                                        className="p-1 rounded-md text-gray-700 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            if (confirmingDeleteId === version.id) {
+                                                                                deleteDesign(version.id);
+                                                                                setConfirmingDeleteId(null);
+                                                                            } else {
+                                                                                setConfirmingDeleteId(version.id);
+                                                                                setTimeout(() => setConfirmingDeleteId(prev => prev === version.id ? null : prev), 3000);
+                                                                            }
+                                                                        }}
+                                                                        className={`transition-all flex items-center gap-1 px-1.5 py-0.5 rounded-md ${confirmingDeleteId === version.id ? 'bg-red-500 text-white' : 'text-gray-700 hover:text-red-500 opacity-0 group-hover:opacity-100'}`}
                                                                     >
-                                                                        <Trash2 className="h-3 w-3" />
+                                                                        {confirmingDeleteId === version.id ? (
+                                                                            <span className="text-[7px] font-black uppercase">CONFIRM?</span>
+                                                                        ) : (
+                                                                            <Trash2 className="h-3 w-3" />
+                                                                        )}
                                                                     </button>
                                                                 </div>
                                                             ))}

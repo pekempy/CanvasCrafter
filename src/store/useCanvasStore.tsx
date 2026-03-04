@@ -139,6 +139,7 @@ interface CanvasContextType {
     setBackgroundImage: (url: string) => void;
     presets: { id: string; name: string; width: number; height: number; iconType?: string }[];
     setPresets: (presets: { id: string; name: string; width: number; height: number; iconType?: string }[]) => void;
+    deletePreset: (id: string) => Promise<void>;
 }
 
 const CanvasContext = createContext<CanvasContextType | null>(null);
@@ -251,28 +252,46 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         canvas.requestRenderAll();
     }, [canvas, canvasSize.width, canvasSize.height]);
 
+    const lastRemoteState = useRef<{ [key: string]: Set<string> }>({});
+    const lastActionTime = useRef(0);
+
     useEffect(() => {
         const load = async () => {
+            console.log("[Store] Initializing store data...");
+            const authRes = await fetch('/api/auth/status').then(r => r.json().catch(() => null));
+            if (authRes?.username) setCurrentUser(authRes.username);
+
             const keys = ["designs", "brandkits", "folders", "canvas_size", "custom_fonts", "presets", "template_folders", "canvas_name", "api_config", "theme"];
             const results = await Promise.all(keys.map(k => fetch(`/api/storage?key=${k}`).then(r => r.json().catch(() => null))));
 
-            if (results[0]) setSavedDesigns(results[0]);
-            if (results[1]) setBrandKits(results[1]);
-            if (results[2]) setAssetFolders(results[2]);
+            if (results[0]) {
+                setSavedDesigns(results[0]);
+                lastRemoteState.current["designs"] = new Set(results[0].map((d: any) => d.id));
+            }
+            if (results[1]) {
+                setBrandKits(results[1]);
+                lastRemoteState.current["brandkits"] = new Set(results[1].map((b: any) => b.id));
+            }
+            if (results[2]) {
+                setAssetFolders(results[2]);
+                lastRemoteState.current["folders"] = new Set(results[2].map((f: any) => f.id));
+            }
             if (results[3]) setCanvasSize(results[3]);
             if (results[4]) setCustomFonts(results[4]);
-            if (results[5] && Array.isArray(results[5])) setPresets(results[5]);
+            if (results[5] && Array.isArray(results[5])) {
+                setPresets(results[5]);
+                lastRemoteState.current["presets"] = new Set(results[5].map((p: any) => p.id));
+            }
             if (results[6]) setTemplateFolders(results[6]);
             if (results[7]) setCanvasName(results[7]);
             if (results[8]) setApiConfig(prev => ({ ...prev, ...results[8] }));
             if (results[9]) setTheme(results[9]);
 
             isLoaded.current = true;
+            console.log("[Store] Initial load complete. Owner:", authRes?.username);
         };
         load();
     }, []);
-
-    const lastActionTime = useRef(0);
 
     // --- Collaboration Sync Engine ---
     useEffect(() => {
@@ -280,25 +299,43 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
 
         const pollTeamData = async () => {
             try {
-                // Poll for shared collections
-                const keys = ["brandkits", "folders", "designs"];
+                // Prevent polling if we just made a local change (20s silence for safety)
+                if (Date.now() - lastActionTime.current < 20000) return;
+
+                const keys = ["brandkits", "folders", "designs", "presets"];
                 const results = await Promise.all(keys.map(k => fetch(`/api/storage?key=${k}`).then(r => r.json().catch(() => null))));
 
-                const smartSync = (local: any[], remote: any[]) => {
+                const smartSync = (key: string, local: any[], remote: any[]) => {
                     if (!Array.isArray(remote)) return local;
-                    const localMap = new Map(local.map(item => [item.id, item]));
                     const remoteIds = new Set(remote.map((r: any) => r.id));
+                    const lastSeen = lastRemoteState.current[key] || new Set();
 
-                    // Keep local-only items (prevent dropping fresh local folders)
-                    const localOnly = local.filter(item => !remoteIds.has(item.id));
+                    // Track what was deleted on remote since we last saw it
+                    const deletedOnRemote = new Set(
+                        local.filter(l => lastSeen.has(l.id) && !remoteIds.has(l.id)).map(l => l.id)
+                    );
+
+                    // Track local only items (newly created and not yet synced)
+                    const localOnly = local.filter(l => !remoteIds.has(l.id) && !lastSeen.has(l.id));
 
                     const merged = remote.map(remoteItem => {
-                        const localItem = localMap.get(remoteItem.id);
-                        // Base overwrite rule
+                        const localItem = local.find(l => l.id === remoteItem.id);
+
+                        // DELETION LOGIC: 
+                        // If it's on remote but not local, we only consider it 'deleted' if we actually SAW it on remote before.
+                        // This prevents ignoring new items from other tabs.
+                        const wasSeen = lastSeen.has(remoteItem.id);
+                        if (!localItem && wasSeen && (remoteItem.owner === currentUser || !remoteItem.owner)) {
+                            console.log(`[Store] Sync: Skipping locally-deleted item ${remoteItem.id} (${remoteItem.name})`);
+                            return null;
+                        }
+
+                        // Base overwrite rule: prefer newer updatedAt
                         if (localItem && (localItem.updatedAt || 0) > (remoteItem.updatedAt || 0)) {
                             return localItem;
                         }
-                        // Deep asset merge fallback for fresh local assets inside remote folders
+
+                        // Special Folder Asset Merge (for newly uploaded assets hitting a central folder)
                         if (localItem && localItem.assets && remoteItem.assets) {
                             const remoteAssetIds = new Set(remoteItem.assets.map((a: any) => a.id));
                             const uniqueLocalAssets = localItem.assets.filter((a: any) => !remoteAssetIds.has(a.id));
@@ -306,26 +343,38 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
                                 return { ...remoteItem, assets: [...remoteItem.assets, ...uniqueLocalAssets] };
                             }
                         }
-                        return remoteItem;
-                    });
 
-                    return [...merged, ...localOnly];
+                        return remoteItem;
+                    }).filter(Boolean);
+
+                    // Update the last seen state
+                    lastRemoteState.current[key] = remoteIds;
+
+                    // Filter out local items that were actually deleted on remote
+                    const finalLocalOnly = localOnly.filter(l => !deletedOnRemote.has(l.id));
+
+                    return [...merged, ...finalLocalOnly] as any[];
                 };
 
                 // 1. Sync Brands
                 if (results[0]) {
-                    const merged = smartSync(brandKits, results[0]);
+                    const merged = smartSync("brandkits", brandKits, results[0]);
                     if (JSON.stringify(merged) !== JSON.stringify(brandKits)) setBrandKits(merged);
                 }
                 // 2. Sync Folders
                 if (results[1]) {
-                    const merged = smartSync(assetFolders, results[1]);
+                    const merged = smartSync("folders", assetFolders, results[1]);
                     if (JSON.stringify(merged) !== JSON.stringify(assetFolders)) setAssetFolders(merged);
                 }
                 // 3. Sync Designs
                 if (results[2]) {
-                    const merged = smartSync(savedDesigns, results[2]);
+                    const merged = smartSync("designs", savedDesigns, results[2]);
                     if (JSON.stringify(merged) !== JSON.stringify(savedDesigns)) setSavedDesigns(merged);
+                }
+                // 4. Sync Presets
+                if (results[3]) {
+                    const merged = smartSync("presets", presets, results[3]);
+                    if (JSON.stringify(merged) !== JSON.stringify(presets)) setPresets(merged);
                 }
             } catch (e) {
                 console.error("Collaboration sync error:", e);
@@ -334,17 +383,17 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
 
         const interval = setInterval(pollTeamData, 5000); // 5s Heartbeat
         return () => clearInterval(interval);
-    }, [brandKits, assetFolders, savedDesigns]);
+    }, [brandKits, assetFolders, savedDesigns, presets, currentUser]);
 
     useEffect(() => {
         if (!isLoaded.current) return;
 
         // Use a hidden string ref to prevent infinite POST loops during polling
-        const currentDataString = JSON.stringify({ brandKits, assetFolders, canvasSize, customFonts, presets, templateFolders, canvasName, apiConfig, theme });
+        const currentDataString = JSON.stringify({ brandKits, assetFolders, canvasSize, customFonts, presets, templateFolders, canvasName, apiConfig, theme, savedDesigns });
         if ((window as any).__lastSyncedData === currentDataString) return;
         (window as any).__lastSyncedData = currentDataString;
 
-        // Mark that we just performed a local action to prevent poll-reversal
+        // Mark that we just performed a local action to prevent poll-reversal (20s silence)
         lastActionTime.current = Date.now();
 
         fetch("/api/storage?key=brandkits", { method: 'POST', body: JSON.stringify(brandKits) }).catch(() => { });
@@ -356,7 +405,8 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         fetch("/api/storage?key=canvas_name", { method: 'POST', body: JSON.stringify(canvasName) }).catch(() => { });
         fetch("/api/storage?key=api_config", { method: 'POST', body: JSON.stringify(apiConfig) }).catch(() => { });
         fetch("/api/storage?key=theme", { method: 'POST', body: JSON.stringify(theme) }).catch(() => { });
-    }, [brandKits, assetFolders, canvasSize, customFonts, presets, templateFolders, canvasName, apiConfig, theme]);
+        fetch("/api/storage?key=designs", { method: 'POST', body: JSON.stringify(savedDesigns) }).catch(() => { });
+    }, [brandKits, assetFolders, canvasSize, customFonts, presets, templateFolders, canvasName, apiConfig, theme, savedDesigns]);
 
     // Global Event Listeners (Moved to bottom of Provider)
 
@@ -587,15 +637,36 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
             updatedAt: Date.now()
         };
         const updated = [newDesign, ...savedDesigns];
+        lastActionTime.current = Date.now();
         setSavedDesigns(updated);
         fetch("/api/storage?key=designs", { method: 'POST', body: JSON.stringify(updated) }).catch(() => { });
         return id;
     }, [canvas, savedDesigns]);
 
-    const deleteDesign = useCallback((id: string) => {
+    const deletePreset = useCallback(async (id: string) => {
+        console.log("[Store] Deleting preset:", id);
+        const updated = presets.filter(p => p.id !== id);
+        lastActionTime.current = Date.now();
+        setPresets(updated);
+        try {
+            await fetch("/api/storage?key=presets", { method: 'POST', body: JSON.stringify(updated) });
+            console.log("[Store] Preset deletion success:", id);
+        } catch (e) {
+            console.error("[Store] Preset deletion failed:", e);
+        }
+    }, [presets]);
+
+    const deleteDesign = useCallback(async (id: string) => {
+        console.log("[Store] Deleting design:", id);
         const updated = savedDesigns.filter(d => d.id !== id && d.parentId !== id);
+        lastActionTime.current = Date.now();
         setSavedDesigns(updated);
-        fetch("/api/storage?key=designs", { method: 'POST', body: JSON.stringify(updated) }).catch(() => { });
+        try {
+            await fetch("/api/storage?key=designs", { method: 'POST', body: JSON.stringify(updated) });
+            console.log("[Store] Deletion POST success for:", id);
+        } catch (e) {
+            console.error("[Store] Deletion POST failed:", e);
+        }
     }, [savedDesigns]);
 
     const loadTemplate = useCallback((json: string, name?: string) => {
@@ -1307,7 +1378,7 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         undo, redo, canUndo: history.length > 0, canRedo: redoStack.length > 0,
         smartResizeSelected: smartResize,
         apiConfig, setApiConfig,
-        presets, setPresets
+        presets, setPresets, deletePreset
     }), [
         canvas, selectedObject, theme, canvasSize, zoom, panOffset, fitToScreen,
         currentUser, setCurrentUser,
@@ -1319,7 +1390,7 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         maskShapeWithImage, saveToTemplate, loadTemplate, deleteDesign, exportAsFormat,
         addCustomFont, removeCustomFont, removeBackground, setBackgroundImage,
         showGrid, enterCropMode, confirmCrop, cancelCrop, isCropMode, applyAIEdgeStroke, smartResize,
-        setPresets
+        setPresets, deletePreset
     ]);
 
     return (

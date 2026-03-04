@@ -8,6 +8,7 @@ export default function CustomAssetItem({ asset, folderId }: { asset: CustomAsse
     const { addImage, maskShapeWithImage, selectedObject, assetFolders, setAssetFolders, setBackgroundImage } = useCanvas();
     const [isEditingTags, setIsEditingTags] = useState(false);
     const [newTag, setNewTag] = useState("");
+    const [confirmingDelete, setConfirmingDelete] = useState(false);
 
     const updateAsset = (updates: Partial<CustomAsset>) => {
         setAssetFolders(assetFolders.map(f => {
@@ -39,7 +40,7 @@ export default function CustomAssetItem({ asset, folderId }: { asset: CustomAsse
     };
 
     const handleDelete = async () => {
-        if (confirm("Delete this asset?")) {
+        if (confirmingDelete) {
             // Physical deletion from disk
             try {
                 await fetch(`/api/images?id=${asset.id}`, { method: 'DELETE' });
@@ -53,6 +54,10 @@ export default function CustomAssetItem({ asset, folderId }: { asset: CustomAsse
                 }
                 return f;
             }));
+            setConfirmingDelete(false);
+        } else {
+            setConfirmingDelete(true);
+            setTimeout(() => setConfirmingDelete(false), 3000);
         }
     };
 
@@ -88,9 +93,9 @@ export default function CustomAssetItem({ asset, folderId }: { asset: CustomAsse
                     </button>
                     <button
                         onClick={handleDelete}
-                        className="p-1.5 rounded-xl bg-black/40 backdrop-blur-md border border-white/5 text-gray-400 hover:text-red-500 hover:bg-black/60 transition-all"
+                        className={`transition-all p-1.5 rounded-xl backdrop-blur-md border border-white/5 ${confirmingDelete ? 'bg-red-500 text-white animate-pulse' : 'bg-black/40 text-gray-400 hover:text-red-500 hover:bg-black/60'}`}
                     >
-                        <Trash2 className="h-3 w-3" />
+                        {confirmingDelete ? <span className="text-[8px] font-black px-1">CONFIRM?</span> : <Trash2 className="h-3 w-3" />}
                     </button>
                 </div>
             </div>
@@ -182,18 +187,17 @@ export default function CustomAssetItem({ asset, folderId }: { asset: CustomAsse
                             <button
                                 onClick={() => {
                                     const isGlobal = (asset as any).visibility === 'global';
-                                    if (confirm(isGlobal ? "Remove this asset from global library?" : "Share this asset globally with all users?")) {
-                                        setAssetFolders(assetFolders.map(f => {
-                                            if (f.id === folderId) {
-                                                return {
-                                                    ...f,
-                                                    assets: f.assets.map(a => a.id === asset.id ? { ...a, visibility: isGlobal ? 'private' : 'global', updatedAt: Date.now() } : a),
-                                                    updatedAt: Date.now()
-                                                };
-                                            }
-                                            return f;
-                                        }));
-                                    }
+                                    const nextVisibility = isGlobal ? 'private' : 'global';
+                                    setAssetFolders(assetFolders.map(f => {
+                                        if (f.id === folderId) {
+                                            return {
+                                                ...f,
+                                                assets: f.assets.map(a => a.id === asset.id ? { ...a, visibility: nextVisibility, updatedAt: Date.now() } : a),
+                                                updatedAt: Date.now()
+                                            };
+                                        }
+                                        return f;
+                                    }));
                                 }}
                                 className={`p-1.5 rounded-lg transition-all ${(asset as any).visibility === 'global' ? 'text-blue-500 bg-blue-500/10' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}
                                 title={(asset as any).visibility === 'global' ? "Shared Globally" : "Share Globally"}
@@ -240,6 +244,6 @@ export default function CustomAssetItem({ asset, folderId }: { asset: CustomAsse
                     </div>
                 )}
             </div>
-        </div>
+        </div >
     );
 }
