@@ -1216,7 +1216,9 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         };
 
         const handleMoving = (e: any) => {
-            // Snapping disabled for smoother movement as per plan
+            if (e.target && (e.target.type === 'textbox' || e.target.type === 'i-text')) {
+                handleObjectSnapping(canvas, e.target);
+            }
         };
 
         const handleMouseDown = (opt: any) => {
