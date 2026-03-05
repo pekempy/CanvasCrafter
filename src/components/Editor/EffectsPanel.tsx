@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import * as fabric from "fabric";
+import CustomColorPicker from "./CustomColorPicker";
 
 export default function EffectsPanel({ inline = false }: { inline?: boolean }) {
     const {
@@ -143,11 +144,9 @@ export default function EffectsPanel({ inline = false }: { inline?: boolean }) {
                     <div className="space-y-4 rounded-2xl bg-white/5 border border-white/5 p-4 animate-in fade-in zoom-in-95 duration-200">
                         <div className="flex items-center justify-between mb-2">
                             <label className="text-[9px] font-black text-gray-400 uppercase tracking-tight text-center">Color</label>
-                            <input
-                                type="color"
-                                value={((selectedObject.shadow as fabric.Shadow)?.color as string) || '#000000'}
-                                onChange={(e) => handleShadowChange('color', e.target.value)}
-                                className="w-10 h-6 rounded cursor-pointer border border-white/10 bg-transparent p-0 overflow-hidden"
+                            <CustomColorPicker
+                                color={((selectedObject.shadow as fabric.Shadow)?.color as string) || '#000000'}
+                                onChange={(color) => handleShadowChange('color', color)}
                             />
                         </div>
                         <EffectSlider

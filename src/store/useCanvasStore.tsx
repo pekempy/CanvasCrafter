@@ -88,6 +88,14 @@ interface CanvasContextType {
     redo: () => void;
     canUndo: boolean;
     canRedo: boolean;
+    isDrawingMode: boolean;
+    setIsDrawingMode: (val: boolean) => void;
+    brushSize: number;
+    setBrushSize: (size: number) => void;
+    brushColor: string;
+    setBrushColor: (color: string) => void;
+    brushSmoothing: number;
+    setBrushSmoothing: (val: number) => void;
 
     // Manipulation
     clearCanvas: () => void;
@@ -244,6 +252,7 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         const availableWidth = window.innerWidth - 400 - padding;
         const availableHeight = window.innerHeight - 100 - padding;
 
+        if (!canvasSize.width || !canvasSize.height) return;
         const scaleX = availableWidth / canvasSize.width;
         const scaleY = availableHeight / canvasSize.height;
         let scale = Math.min(scaleX, scaleY);
@@ -292,8 +301,10 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
                 setAssetFolders(results[2]);
                 lastRemoteState.current["folders"] = new Set(results[2].map((f: any) => f.id));
             }
-            if (results[3]) setCanvasSize(results[3]);
-            if (results[4]) setCustomFonts(results[4]);
+            if (results[3] && typeof results[3] === 'object' && results[3].width && results[3].height) {
+                setCanvasSize(results[3]);
+            }
+            if (results[4] && Array.isArray(results[4])) setCustomFonts(results[4]);
             if (results[5] && Array.isArray(results[5])) {
                 setPresets(results[5]);
                 lastRemoteState.current["presets"] = new Set(results[5].map((p: any) => p.id));
@@ -1243,10 +1254,12 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         canvas.on('object:modified', saveHistory);
         canvas.on('object:added', saveHistory);
         canvas.on('object:removed', saveHistory);
+        canvas.on('path:created', saveHistory);
         return () => {
             canvas.off('object:modified', saveHistory);
             canvas.off('object:added', saveHistory);
             canvas.off('object:removed', saveHistory);
+            canvas.off('path:created', saveHistory);
         };
     }, [canvas, saveHistory]);
 
@@ -1463,6 +1476,11 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         };
     }, [canvas, undo, redo, copySelected, pasteSelected, duplicateSelected, cutSelected, groupSelected, ungroupSelected, bringToFront, sendToBack, deleteSelected, addImage, clipboard]);
 
+    const [isDrawingMode, setIsDrawingMode] = useState(false);
+    const [brushSize, setBrushSize] = useState(5);
+    const [brushColor, setBrushColor] = useState("#3b82f6");
+    const [brushSmoothing, setBrushSmoothing] = useState(25);
+
     const contextValue = useMemo(() => ({
         canvas, setCanvas, selectedObject, theme, setTheme, canvasSize, setCanvasSize, zoom, setZoom, panOffset, setPanOffset, fitToScreen,
         currentUser, setCurrentUser,
@@ -1483,7 +1501,9 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         smartResizeSelected: smartResize,
         apiConfig, setApiConfig,
         presets, setPresets, deletePreset,
-        isResizeOpen, setIsResizeOpen
+        isResizeOpen, setIsResizeOpen,
+        isDrawingMode, setIsDrawingMode, brushSize, setBrushSize, brushColor, setBrushColor,
+        brushSmoothing, setBrushSmoothing
     }), [
         canvas, selectedObject, theme, canvasSize, zoom, panOffset, fitToScreen,
         currentUser, setCurrentUser,
@@ -1496,7 +1516,7 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         addCustomFont, removeCustomFont, removeBackground, setBackgroundImage,
         showGrid, enterCropMode, confirmCrop, cancelCrop, isCropMode, applyEdgeStroke, smartResize,
         setPresets, deletePreset,
-        isResizeOpen
+        isResizeOpen, isDrawingMode, brushSize, brushColor, brushSmoothing, setIsDrawingMode, setBrushSize, setBrushColor, setBrushSmoothing
     ]);
 
     return (

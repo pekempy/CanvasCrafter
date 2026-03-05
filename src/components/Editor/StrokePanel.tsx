@@ -5,6 +5,7 @@ import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import * as fabric from "fabric";
 import BrandColorPicker from "./BrandColorPicker";
+import CustomColorPicker from "./CustomColorPicker";
 
 export default function StrokePanel() {
     const { selectedObject, updateSelectedObject } = useCanvas();
@@ -18,8 +19,9 @@ export default function StrokePanel() {
         });
     };
 
-    const handleColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        updateSelectedObject({ stroke: e.target.value });
+    const handleColorChange = (e: React.ChangeEvent<HTMLInputElement> | string) => {
+        const color = typeof e === 'string' ? e : e.target.value;
+        updateSelectedObject({ stroke: color });
     };
 
     const handleStyleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -77,16 +79,7 @@ export default function StrokePanel() {
 
                     <div className="flex items-center justify-between gap-4">
                         <span className="text-[10px] font-black uppercase text-gray-400">Colour</span>
-                        <div className="h-8 w-8 rounded-full border border-white/10 relative overflow-hidden group">
-                            <div className="absolute inset-0 z-10 pointer-events-none rounded-full shadow-inner" />
-                            <input
-                                type="color"
-                                value={currentColor}
-                                onChange={handleColorChange}
-                                className="absolute -top-2 -left-2 w-12 h-12 cursor-pointer z-0 opacity-0"
-                            />
-                            <div className="w-full h-full" style={{ backgroundColor: currentColor }} />
-                        </div>
+                        <CustomColorPicker color={currentColor} onChange={handleColorChange} />
                     </div>
 
                     <BrandColorPicker

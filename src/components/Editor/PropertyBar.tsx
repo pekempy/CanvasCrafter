@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import * as fabric from "fabric";
 import { useState } from "react";
+import CustomColorPicker from "./CustomColorPicker";
 
 export default function PropertyBar() {
     const {
@@ -129,51 +130,39 @@ export default function PropertyBar() {
     };
 
     return (
-        <div className="h-12 w-full border-b border-white/5 bg-[#181a20] flex items-center px-4 gap-4 z-50 overflow-x-auto scrollbar-hide">
-            {/* Selection Info */}
-            <div className="flex items-center gap-3 pr-4 border-r border-white/5 shrink-0">
-                <div className="p-1.5 rounded-lg bg-blue-500/10 text-blue-500">
+        <div className="h-14 w-full border-b border-white/5 bg-[#12141a] flex items-center px-4 gap-6 z-50 overflow-x-auto scrollbar-hide shadow-lg">
+            {/* Selection Type Indicator */}
+            <div className="flex items-center gap-3 pr-6 border-r border-white/10 shrink-0">
+                <div className="p-2 rounded-xl bg-blue-500/10 text-blue-500 shadow-inner">
                     {isText ? <TypeIcon className="h-4 w-4" /> : isImage ? <ImageIcon className="h-4 w-4" /> : <Shapes className="h-4 w-4" />}
+                </div>
+                <div className="flex flex-col">
+                    <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40">Selection</span>
+                    <span className="text-[10px] font-bold text-white uppercase tracking-wider">{isText ? 'Text' : isImage ? 'Image' : 'Shape'}</span>
                 </div>
             </div>
 
             {/* Core Appearance (Fill/Stroke) */}
             {!hideFillStroke && (
-                <div className="flex items-center gap-4 pr-4 border-r border-white/5 shrink-0">
-                    <div className="flex items-center gap-2">
-                        <span className="text-[9px] font-black uppercase tracking-wider text-gray-500">Fill</span>
-                        <div className="h-6 w-8 rounded-md border border-white/10 relative overflow-hidden group">
-                            <input
-                                type="color"
-                                value={typeof selectedObject.fill === 'string' ? selectedObject.fill : '#3b82f6'}
-                                onChange={(e) => updateSelectedObject({ fill: e.target.value })}
-                                className="absolute inset-0 opacity-0 cursor-pointer z-10"
-                            />
-                            <div className="w-full h-full" style={{ backgroundColor: typeof selectedObject.fill === 'string' ? selectedObject.fill : 'transparent' }} />
-                            {selectedObject.fill instanceof fabric.Gradient && (
-                                <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-500" />
-                            )}
-                        </div>
+                <div className="flex items-center gap-6 pr-6 border-r border-white/10 shrink-0">
+                    <div className="flex items-center gap-3">
+                        <CustomColorPicker
+                            color={typeof selectedObject.fill === 'string' ? selectedObject.fill : '#3b82f6'}
+                            onChange={(color) => updateSelectedObject({ fill: color })}
+                        />
                         <button
                             onClick={toggleGradient}
-                            className={`p-1.5 rounded-lg transition-all ${selectedObject.fill instanceof fabric.Gradient ? 'bg-blue-500/20 text-blue-500' : 'text-gray-500 hover:text-gray-300'}`}
-                            title="Toggle Gradient"
+                            className={`p-2 rounded-xl transition-all ${selectedObject.fill instanceof fabric.Gradient ? 'bg-blue-500 text-white shadow-lg' : 'bg-white/5 text-gray-500 hover:text-white'}`}
                         >
-                            <Palette className="h-3.5 w-3.5" />
+                            <Palette className="h-4 w-4" />
                         </button>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                        <span className="text-[9px] font-black uppercase tracking-wider text-gray-500">Stroke</span>
-                        <div className="h-6 w-8 rounded-md border border-white/10 relative overflow-hidden flex items-center justify-center">
-                            <input
-                                type="color"
-                                value={typeof selectedObject.stroke === 'string' ? selectedObject.stroke : '#ffffff'}
-                                onChange={(e) => updateSelectedObject({ stroke: e.target.value })}
-                                className="absolute inset-0 opacity-0 cursor-pointer z-10"
-                            />
-                            <div className="w-full h-full" style={{ backgroundColor: typeof selectedObject.stroke === 'string' ? selectedObject.stroke : 'transparent' }} />
-                        </div>
+                    <div className="flex items-center gap-3">
+                        <CustomColorPicker
+                            color={typeof selectedObject.stroke === 'string' ? selectedObject.stroke : '#ffffff'}
+                            onChange={(color) => updateSelectedObject({ stroke: color })}
+                        />
                         <CompactNumberInput
                             value={selectedObject.strokeWidth || 0}
                             onChange={(v) => updateSelectedObject({ strokeWidth: v })}
@@ -184,153 +173,153 @@ export default function PropertyBar() {
 
             {/* Typography Controls */}
             {isText && (
-                <div className="flex items-center gap-2 pr-4 border-r border-white/5 shrink-0">
-                    <button
-                        onClick={() => updateSelectedObject({ fontWeight: selectedObject.fontWeight === 'bold' ? 'normal' : 'bold' })}
-                        className={`p-2 rounded-lg transition-all ${selectedObject.fontWeight === 'bold' ? 'bg-blue-500/20 text-blue-500' : 'text-gray-500 hover:text-white'}`}
-                    >
-                        <Bold className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                        onClick={() => updateSelectedObject({ fontStyle: selectedObject.fontStyle === 'italic' ? 'normal' : 'italic' })}
-                        className={`p-2 rounded-lg transition-all ${selectedObject.fontStyle === 'italic' ? 'bg-blue-500/20 text-blue-500' : 'text-gray-500 hover:text-white'}`}
-                    >
-                        <Italic className="h-3.5 w-3.5" />
-                    </button>
-                    <div className="w-px h-4 bg-white/5 mx-1" />
-                    <button
-                        onClick={() => updateSelectedObject({ textAlign: 'left' })}
-                        className={`p-2 rounded-lg transition-all ${selectedObject.textAlign === 'left' ? 'bg-blue-500/20 text-blue-500' : 'text-gray-500 hover:text-white'}`}
-                    >
-                        <AlignLeft className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                        onClick={() => updateSelectedObject({ textAlign: 'center' })}
-                        className={`p-2 rounded-lg transition-all ${selectedObject.textAlign === 'center' ? 'bg-blue-500/20 text-blue-500' : 'text-gray-500 hover:text-white'}`}
-                    >
-                        <AlignCenter className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                        onClick={() => updateSelectedObject({ textAlign: 'right' })}
-                        className={`p-2 rounded-lg transition-all ${selectedObject.textAlign === 'right' ? 'bg-blue-500/20 text-blue-500' : 'text-gray-500 hover:text-white'}`}
-                    >
-                        <AlignRight className="h-3.5 w-3.5" />
-                    </button>
+                <div className="flex items-center gap-2 pr-6 border-r border-white/10 shrink-0">
+                    <div className="flex bg-white/5 rounded-xl p-1 gap-1">
+                        <button
+                            onClick={() => updateSelectedObject({ fontWeight: selectedObject.fontWeight === 'bold' ? 'normal' : 'bold' })}
+                            className={`p-2 rounded-lg transition-all ${selectedObject.fontWeight === 'bold' ? 'bg-blue-500 text-white shadow-lg' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}
+                        >
+                            <Bold className="h-4 w-4" />
+                        </button>
+                        <button
+                            onClick={() => updateSelectedObject({ fontStyle: selectedObject.fontStyle === 'italic' ? 'normal' : 'italic' })}
+                            className={`p-2 rounded-lg transition-all ${selectedObject.fontStyle === 'italic' ? 'bg-blue-500 text-white shadow-lg' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}
+                        >
+                            <Italic className="h-4 w-4" />
+                        </button>
+                    </div>
+                    <div className="flex bg-white/5 rounded-xl p-1 gap-1">
+                        <button
+                            onClick={() => updateSelectedObject({ textAlign: 'left' })}
+                            className={`p-2 rounded-lg transition-all ${selectedObject.textAlign === 'left' ? 'bg-blue-500 text-white shadow-lg' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}
+                        >
+                            <AlignLeft className="h-4 w-4" />
+                        </button>
+                        <button
+                            onClick={() => updateSelectedObject({ textAlign: 'center' })}
+                            className={`p-2 rounded-lg transition-all ${selectedObject.textAlign === 'center' ? 'bg-blue-500 text-white shadow-lg' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}
+                        >
+                            <AlignCenter className="h-4 w-4" />
+                        </button>
+                        <button
+                            onClick={() => updateSelectedObject({ textAlign: 'right' })}
+                            className={`p-2 rounded-lg transition-all ${selectedObject.textAlign === 'right' ? 'bg-blue-500 text-white shadow-lg' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}
+                        >
+                            <AlignRight className="h-4 w-4" />
+                        </button>
+                    </div>
                 </div>
             )}
 
             {/* Opacity */}
-            <div className="flex items-center gap-2 pr-4 border-r border-white/5 shrink-0">
-                <Ghost className="h-3.5 w-3.5 text-gray-500" />
-                <input
-                    type="range"
-                    min={0} max={1} step={0.01}
-                    value={selectedObject.opacity || 1}
-                    onChange={(e) => updateSelectedObject({ opacity: parseFloat(e.target.value) })}
-                    className="w-16 h-1 bg-white/10 rounded-full appearance-none cursor-pointer accent-blue-500"
-                />
-                <span className="text-[9px] font-black text-blue-500 w-8">{Math.round((selectedObject.opacity || 1) * 100)}%</span>
+            <div className="flex items-center gap-4 pr-6 border-r border-white/10 shrink-0">
+                <div className="flex items-center gap-3 bg-white/5 px-3 py-1.5 rounded-xl border border-white/5">
+                    <Ghost className="h-4 w-4 text-gray-500" />
+                    <input
+                        type="range"
+                        min={0} max={1} step={0.01}
+                        value={selectedObject.opacity || 1}
+                        onChange={(e) => updateSelectedObject({ opacity: parseFloat(e.target.value) })}
+                        className="w-24 h-1 bg-white/10 rounded-full appearance-none cursor-pointer accent-blue-500"
+                    />
+                    <span className="text-[10px] font-black text-blue-500 w-10 text-right">{Math.round((selectedObject.opacity || 1) * 100)}%</span>
+                </div>
             </div>
 
             {/* Effects */}
-            <div className="flex items-center gap-2 pr-4 border-r border-white/5 shrink-0">
+            <div className="flex items-center gap-2 pr-6 border-r border-white/10 shrink-0">
                 <button
                     onClick={toggleShadow}
-                    className={`flex items-center gap-2 px-3 h-8 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${selectedObject.shadow ? 'bg-blue-500 text-white' : 'bg-white/10 text-gray-500 hover:text-gray-300'}`}
+                    className={`flex items-center gap-2 px-4 h-9 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${selectedObject.shadow ? 'bg-blue-500 text-white shadow-[0_0_20px_rgba(59,130,246,0.3)]' : 'bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 border border-white/5'}`}
                 >
-                    <BoxSelect className="h-3.5 w-3.5" />
+                    <BoxSelect className="h-4 w-4" />
                     Shadow
                 </button>
                 {selectedObject.shadow && (
-                    <div className="h-6 w-8 rounded-md border border-white/10 relative overflow-hidden flex items-center justify-center shrink-0">
-                        <input
-                            type="color"
-                            value={((selectedObject.shadow as fabric.Shadow)?.color as string) || '#000000'}
-                            onChange={(e) => {
-                                const s = selectedObject.shadow as fabric.Shadow;
-                                updateSelectedObject({
-                                    shadow: new fabric.Shadow({
-                                        color: e.target.value,
-                                        blur: s?.blur || 15,
-                                        offsetX: s?.offsetX || 8,
-                                        offsetY: s?.offsetY || 8
-                                    })
-                                });
-                            }}
-                            className="absolute inset-0 opacity-0 cursor-pointer z-10"
-                        />
-                        <div className="w-full h-full" style={{ backgroundColor: ((selectedObject.shadow as fabric.Shadow)?.color as string) || '#000000' }} />
-                    </div>
+                    <CustomColorPicker
+                        color={((selectedObject.shadow as fabric.Shadow)?.color as string) || '#000000'}
+                        onChange={(color) => {
+                            const s = selectedObject.shadow as fabric.Shadow;
+                            updateSelectedObject({
+                                shadow: new fabric.Shadow({
+                                    color: color,
+                                    blur: s?.blur || 15,
+                                    offsetX: s?.offsetX || 8,
+                                    offsetY: s?.offsetY || 8
+                                })
+                            });
+                        }}
+                    />
                 )}
 
                 {isImage && (
-                    <>
+                    <div className="flex items-center gap-2">
                         <button
                             onClick={handleRemoveBG}
                             disabled={isRemovingBG}
-                            className={`flex items-center gap-2 px-3 h-8 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${isRemovingBG ? 'bg-white/5 text-gray-500 opacity-50' : 'bg-blue-600/10 text-blue-400 hover:bg-blue-600/20'}`}
+                            className={`flex items-center gap-2 px-4 h-9 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isRemovingBG ? 'bg-white/5 text-gray-500 opacity-50' : 'bg-blue-600/10 text-blue-400 border border-blue-500/20 hover:bg-blue-600/20 shadow-sm'}`}
                         >
-                            <Eraser className="h-3.5 w-3.5" />
-                            {isRemovingBG ? 'Removing...' : 'Background remover'}
+                            <Eraser className="h-4 w-4" />
+                            {isRemovingBG ? 'Removing...' : 'BG Remove'}
                         </button>
                         <button
                             onClick={applyEdgeStroke}
-                            className={`flex items-center gap-2 px-3 h-8 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${isEdgeBorderGroup ? 'bg-purple-500 text-white' : 'bg-purple-500/10 text-purple-400 hover:bg-purple-500/20'}`}
+                            className={`flex items-center gap-2 px-4 h-9 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isEdgeBorderGroup ? 'bg-purple-500 text-white shadow-[0_0_20px_rgba(168,85,247,0.4)]' : 'bg-purple-500/10 text-purple-400 border border-purple-500/20 hover:bg-purple-500/20 shadow-sm'}`}
                         >
-                            <Sparkles className="h-3.5 w-3.5" />
-                            Edge detect border
+                            <Sparkles className="h-4 w-4" />
+                            Edge Detect
                         </button>
 
-                        {isEdgeBorderGroup && (
-                            <div className="flex items-center gap-2 pl-2 border-l border-white/10 animate-in fade-in slide-in-from-left-2 duration-200">
-                                <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest">Adjust in Properties Panel 👉</span>
-                            </div>
-                        )}
-
-                        <div className="w-px h-4 bg-white/5 mx-1" />
-                        <button
-                            onClick={() => applyFilter('grayscale', !((selectedObject as any).filters?.find((f: any) => f.type === 'Grayscale')))}
-                            className={`px-3 h-8 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${(selectedObject as any).filters?.find((f: any) => f.type === 'Grayscale') ? 'bg-white text-black' : 'bg-white/5 text-gray-500 hover:text-white'}`}
-                        >
-                            B&W
-                        </button>
-                        <button
-                            onClick={() => applyFilter('sepia', !((selectedObject as any).filters?.find((f: any) => f.type === 'Sepia')))}
-                            className={`px-3 h-8 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${(selectedObject as any).filters?.find((f: any) => f.type === 'Sepia') ? 'bg-orange-500/20 text-orange-400' : 'bg-white/5 text-gray-500 hover:text-white'}`}
-                        >
-                            Sepia
-                        </button>
-                    </>
+                        <div className="flex bg-white/5 rounded-xl p-1 gap-1 border border-white/5">
+                            <button
+                                onClick={() => applyFilter('grayscale', !((selectedObject as any).filters?.find((f: any) => f.type === 'Grayscale')))}
+                                className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${(selectedObject as any).filters?.find((f: any) => f.type === 'Grayscale') ? 'bg-white text-black shadow-lg' : 'text-gray-500 hover:text-white'}`}
+                            >
+                                B&W
+                            </button>
+                            <button
+                                onClick={() => applyFilter('sepia', !((selectedObject as any).filters?.find((f: any) => f.type === 'Sepia')))}
+                                className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${(selectedObject as any).filters?.find((f: any) => f.type === 'Sepia') ? 'bg-orange-500/20 text-orange-400' : 'text-gray-500 hover:text-white'}`}
+                            >
+                                Sepia
+                            </button>
+                        </div>
+                    </div>
                 )}
             </div>
 
             {/* Transform & Arrangement */}
-            <div className="flex items-center gap-1 shrink-0">
-                <button onClick={() => updateSelectedObject({ flipX: !selectedObject.flipX })} className="p-2 hover:bg-white/5 rounded-lg text-gray-500 hover:text-white transition-all">
-                    <FlipHorizontal className="h-3.5 w-3.5" />
-                </button>
-                <button onClick={() => updateSelectedObject({ flipY: !selectedObject.flipY })} className="p-2 hover:bg-white/5 rounded-lg text-gray-500 hover:text-white transition-all">
-                    <FlipVertical className="h-3.5 w-3.5" />
-                </button>
-                <div className="w-px h-4 bg-white/5 mx-1" />
-                <button onClick={bringForward} className="p-2 hover:bg-white/5 rounded-lg text-gray-500 hover:text-white transition-all" title="Bring Forward">
-                    <BringToFront className="h-3.5 w-3.5" />
-                </button>
-                <button onClick={sendBackwards} className="p-2 hover:bg-white/5 rounded-lg text-gray-500 hover:text-white transition-all" title="Send Backward">
-                    <SendToBack className="h-3.5 w-3.5" />
-                </button>
-                <div className="w-px h-4 bg-white/5 mx-1" />
-                <button onClick={duplicateSelected} className="p-2 hover:bg-white/5 rounded-lg text-gray-500 hover:text-white transition-all">
-                    <Copy className="h-3.5 w-3.5" />
-                </button>
-                <button onClick={deleteSelected} className="p-2 hover:bg-red-500/10 rounded-lg text-gray-500 hover:text-red-400 transition-all">
-                    <Trash2 className="h-3.5 w-3.5" />
-                </button>
-                <div className="w-px h-4 bg-white/5 mx-2" />
-                <button onClick={clearEffects} className="h-8 px-3 hover:bg-white/5 rounded-xl text-[9px] font-black uppercase tracking-widest text-gray-500 hover:text-white transition-all flex items-center gap-2">
-                    <RotateCcw className="h-3.5 w-3.5" />
-                    Reset All
-                </button>
+            <div className="flex items-center gap-2 ml-auto">
+                <div className="flex bg-white/5 rounded-xl p-1 gap-1 border border-white/5">
+                    <button onClick={() => updateSelectedObject({ flipX: !selectedObject.flipX })} className="p-2 hover:bg-white/10 rounded-lg text-gray-500 hover:text-white transition-all" title="Flip Horizontal">
+                        <FlipHorizontal className="h-4 w-4" />
+                    </button>
+                    <button onClick={() => updateSelectedObject({ flipY: !selectedObject.flipY })} className="p-2 hover:bg-white/10 rounded-lg text-gray-500 hover:text-white transition-all" title="Flip Vertical">
+                        <FlipVertical className="h-4 w-4" />
+                    </button>
+                </div>
+
+                <div className="flex bg-white/5 rounded-xl p-1 gap-1 border border-white/5">
+                    <button onClick={bringForward} className="p-2 hover:bg-white/10 rounded-lg text-gray-500 hover:text-white transition-all" title="Bring Forward">
+                        <BringToFront className="h-4 w-4" />
+                    </button>
+                    <button onClick={sendBackwards} className="p-2 hover:bg-white/10 rounded-lg text-gray-500 hover:text-white transition-all" title="Send Backward">
+                        <SendToBack className="h-4 w-4" />
+                    </button>
+                </div>
+
+                <div className="flex items-center gap-2 ml-2">
+                    <button onClick={duplicateSelected} className="p-2.5 bg-white/5 hover:bg-blue-500/10 rounded-xl text-gray-500 hover:text-blue-400 transition-all border border-white/5" title="Duplicate">
+                        <Copy className="h-4 w-4" />
+                    </button>
+                    <button onClick={deleteSelected} className="p-2.5 bg-white/5 hover:bg-red-500/10 rounded-xl text-gray-500 hover:text-red-400 transition-all border border-white/5" title="Delete">
+                        <Trash2 className="h-4 w-4" />
+                    </button>
+                    <button onClick={clearEffects} className="h-10 px-4 bg-white/5 hover:bg-orange-500/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-gray-500 hover:text-orange-400 transition-all border border-white/5 flex items-center gap-2">
+                        <RotateCcw className="h-4 w-4" />
+                        Reset
+                    </button>
+                </div>
             </div>
         </div>
     );

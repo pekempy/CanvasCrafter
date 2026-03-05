@@ -17,6 +17,23 @@ export default function FabricCanvas() {
     const setPanOffsetRef = useRef(setPanOffset);
     const fitToScreenRef = useRef(fitToScreen);
 
+    const isShiftPressed = useRef(false);
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === "Shift") isShiftPressed.current = true;
+        };
+        const handleKeyUp = (e: KeyboardEvent) => {
+            if (e.key === "Shift") isShiftPressed.current = false;
+        };
+        window.addEventListener("keydown", handleKeyDown);
+        window.addEventListener("keyup", handleKeyUp);
+        return () => {
+            window.removeEventListener("keydown", handleKeyDown);
+            window.removeEventListener("keyup", handleKeyUp);
+        };
+    }, []);
+
     useEffect(() => {
         zoomRef.current = zoom;
         setZoomRef.current = setZoom;
@@ -163,6 +180,39 @@ export default function FabricCanvas() {
             }
         });
 
+        const lastPathRef = { current: null as any };
+
+        instance.on('path:created', function (opt: any) {
+            const path = opt.path;
+            if (!path) return;
+
+            // SHIFT Logic: Straight Lines
+            if (isShiftPressed.current && path.path && path.path.length > 2) {
+                const start = path.path[0];
+                const end = path.path[path.path.length - 1];
+                const straightPathData = [start, ['L', end[1], end[2]]];
+
+                const straightPath = new fabric.Path(straightPathData, {
+                    fill: 'transparent',
+                    stroke: path.stroke,
+                    strokeWidth: path.strokeWidth,
+                    strokeLineCap: 'round',
+                    strokeLineJoin: 'round',
+                    left: path.left,
+                    top: path.top
+                });
+
+                instance.remove(path);
+                instance.add(straightPath);
+                instance.setActiveObject(straightPath);
+                instance.renderAll();
+                lastPathRef.current = straightPath;
+                return;
+            }
+
+            lastPathRef.current = path;
+        });
+
         const canvasEl = canvasRef.current;
         const preventMiddlePaste = (e: MouseEvent) => {
             if (e.button === 1) {
@@ -202,6 +252,27 @@ export default function FabricCanvas() {
             canvasInstance.requestRenderAll();
         }
     }, [canvasSize.width, canvasSize.height, zoom]);
+
+    const { isDrawingMode, brushSize, brushColor, brushSmoothing } = useCanvas();
+
+    useEffect(() => {
+        if (!canvas || !(canvas as any)._isAlive) return;
+
+        canvas.isDrawingMode = isDrawingMode;
+        if (isDrawingMode) {
+            const pencilBrush = new fabric.PencilBrush(canvas);
+            pencilBrush.width = brushSize;
+            pencilBrush.color = brushColor;
+
+            // Use the smoothing state from the store
+            pencilBrush.decimate = brushSmoothing;
+
+            // Allow for a cleaner look
+            canvas.freeDrawingBrush = pencilBrush;
+        }
+
+        canvas.requestRenderAll();
+    }, [canvas, isDrawingMode, brushSize, brushColor, brushSmoothing]);
 
     return (
         <canvas ref={canvasRef} className="shadow-2xl" />

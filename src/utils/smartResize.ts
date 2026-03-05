@@ -18,8 +18,8 @@ export function smartResizeSelected(
     const obj: any = selectedObject;
     const originalWidth = obj.getScaledWidth ? obj.getScaledWidth() : obj.width;
     const originalHeight = obj.getScaledHeight ? obj.getScaledHeight() : obj.height;
-    const newWidth = width || (height * originalWidth) / originalHeight;
-    const newHeight = height || (width * originalHeight) / originalWidth;
+    const newWidth = width || (originalHeight > 0 ? (height * originalWidth) / originalHeight : originalWidth);
+    const newHeight = height || (originalWidth > 0 ? (width * originalHeight) / originalWidth : originalHeight);
     if (obj.setScaleX && obj.setScaleY) {
         obj.setScaleX(newWidth / obj.width);
         obj.setScaleY(newHeight / obj.height);

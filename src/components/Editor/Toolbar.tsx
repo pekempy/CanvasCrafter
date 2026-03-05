@@ -52,67 +52,65 @@ export default function Toolbar() {
 
     return (
         <>
-            <div className="flex flex-col items-center gap-1 bg-[#181a20]/95 backdrop-blur-xl border border-white/10 rounded-2xl p-1.5 shadow-[0_20px_50px_rgba(0,0,0,0.5)] pointer-events-auto transition-all w-12">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/20 text-blue-500 shadow-inner mb-2">
+            <div className="flex flex-col items-center gap-2 bg-[#12141a]/95 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-2 shadow-[0_30px_60px_rgba(0,0,0,0.6)] pointer-events-auto transition-all w-14 py-4">
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-500 text-white shadow-[0_0_20px_rgba(59,130,246,0.4)] mb-4">
                     {selectedObject.type === 'activeSelection' && !isMultiImage ? (
-                        <MousePointer2 className="h-4 w-4" />
-                    ) : (isText ? <CaseSensitive className="h-4 w-4" /> : (isImage || isMultiImage ? <Sparkles className="h-4 w-4" /> : <Palette className="h-4 w-4" />))}
+                        <MousePointer2 className="h-5 w-5" />
+                    ) : (isText ? <CaseSensitive className="h-5 w-5" /> : (isImage || isMultiImage ? <Sparkles className="h-5 w-5" /> : <Palette className="h-5 w-5" />))}
                 </div>
 
-                <div className="w-full h-px bg-white/5 mb-1" />
-
                 {isText ? (
-                    <div className="flex flex-col items-center gap-0.5">
+                    <div className="flex flex-col items-center gap-1.5">
                         <ToolbarButton
-                            icon={<Bold className="h-3.5 w-3.5" />}
+                            icon={<Bold className="h-4 w-4" />}
                             onClick={() => updateSelectedObject({ fontWeight: (selectedObject as fabric.IText).fontWeight === 'bold' ? 'normal' : 'bold' })}
                             active={(selectedObject as fabric.IText).fontWeight === 'bold'}
                             label="Bold"
                         />
                         <ToolbarButton
-                            icon={<Italic className="h-3.5 w-3.5" />}
+                            icon={<Italic className="h-4 w-4" />}
                             onClick={() => updateSelectedObject({ fontStyle: (selectedObject as fabric.IText).fontStyle === 'italic' ? 'normal' : 'italic' })}
                             active={(selectedObject as fabric.IText).fontStyle === 'italic'}
                             label="Italic"
                         />
                         <ToolbarButton
-                            icon={<Underline className="h-3.5 w-3.5" />}
+                            icon={<Underline className="h-4 w-4" />}
                             onClick={() => updateSelectedObject({ underline: !(selectedObject as fabric.IText).underline })}
                             active={(selectedObject as fabric.IText).underline}
                             label="Underline"
                         />
-                        <div className="w-4 h-px bg-white/5 my-1" />
-                        <ToolbarButton icon={<AlignLeft className="h-3.5 w-3.5" />} onClick={() => updateSelectedObject({ textAlign: 'left' })} label="Left" />
-                        <ToolbarButton icon={<AlignCenter className="h-3.5 w-3.5" />} onClick={() => updateSelectedObject({ textAlign: 'center' })} label="Centre" />
-                        <ToolbarButton icon={<AlignRight className="h-3.5 w-3.5" />} onClick={() => updateSelectedObject({ textAlign: 'right' })} label="Right" />
+                        <div className="w-6 h-px bg-white/10 my-2" />
+                        <ToolbarButton icon={<AlignLeft className="h-4 w-4" />} onClick={() => updateSelectedObject({ textAlign: 'left' })} label="Left" />
+                        <ToolbarButton icon={<AlignCenter className="h-4 w-4" />} onClick={() => updateSelectedObject({ textAlign: 'center' })} label="Centre" />
+                        <ToolbarButton icon={<AlignRight className="h-4 w-4" />} onClick={() => updateSelectedObject({ textAlign: 'right' })} label="Right" />
                     </div>
                 ) : (
-                    <div className="flex flex-col items-center gap-0.5">
+                    <div className="flex flex-col items-center gap-1.5">
                         <ToolbarButton
-                            icon={<FlipHorizontal className="h-3.5 w-3.5" />}
+                            icon={<FlipHorizontal className="h-4 w-4" />}
                             onClick={() => updateSelectedObject({ flipX: !selectedObject.flipX })}
                             label="Flip Horizontal"
                         />
                         <ToolbarButton
-                            icon={<FlipVertical className="h-3.5 w-3.5" />}
+                            icon={<FlipVertical className="h-4 w-4" />}
                             onClick={() => updateSelectedObject({ flipY: !selectedObject.flipY })}
                             label="Flip Vertical"
                         />
                         {hasMask && (
                             <ToolbarButton
-                                icon={<Scissors className="h-3.5 w-3.5 text-blue-500" />}
+                                icon={<Scissors className="h-4 w-4 text-blue-400" />}
                                 onClick={releaseMask}
                                 label="Release Mask"
                             />
                         )}
                         <ToolbarButton
-                            icon={<Maximize2 className="h-3.5 w-3.5 text-blue-400" />}
+                            icon={<Maximize2 className="h-4 w-4 text-blue-400" />}
                             onClick={() => setShowSmartResize(true)}
                             label="Smart Resize"
                         />
                         {isImage && (
                             <ToolbarButton
-                                icon={<Crop className="h-3.5 w-3.5 text-blue-500" />}
+                                icon={<Crop className="h-4 w-4 text-blue-500" />}
                                 onClick={enterCropMode}
                                 label="Crop Image"
                             />
@@ -121,53 +119,45 @@ export default function Toolbar() {
                 )}
 
                 {isCropMode && (
-                    <div className="flex flex-col items-center gap-1 bg-blue-600/10 rounded-xl p-1 my-1">
-                        <ToolbarButton icon={<Check className="h-3.5 w-3.5 text-green-500" />} onClick={confirmCrop} label="Confirm Crop" />
-                        <ToolbarButton icon={<XCircle className="h-3.5 w-3.5 text-red-500" />} onClick={cancelCrop} label="Cancel" />
+                    <div className="flex flex-col items-center gap-2 bg-blue-600/10 rounded-2xl p-2 my-2 border border-blue-500/20">
+                        <ToolbarButton icon={<Check className="h-4 w-4 text-green-500" />} onClick={confirmCrop} label="Confirm Crop" />
+                        <ToolbarButton icon={<XCircle className="h-4 w-4 text-red-500" />} onClick={cancelCrop} label="Cancel" />
                     </div>
                 )}
 
                 {/* Grouping Tools */}
-                <div className="w-4 h-px bg-white/5 my-1" />
-                {selectedObject.type === 'activeSelection' && (
-                    <ToolbarButton icon={<Group className="h-3.5 w-3.5" />} onClick={groupSelected} label="Group" />
-                )}
-                {selectedObject.type === 'group' && (
-                    <ToolbarButton icon={<Ungroup className="h-3.5 w-3.5" />} onClick={ungroupSelected} label="Ungroup" />
-                )}
+                <div className="w-6 h-px bg-white/10 my-2" />
+                <div className="flex flex-col items-center gap-1.5">
+                    {selectedObject.type === 'activeSelection' && (
+                        <ToolbarButton icon={<Group className="h-4 w-4" />} onClick={groupSelected} label="Group" />
+                    )}
+                    {selectedObject.type === 'group' && (
+                        <ToolbarButton icon={<Ungroup className="h-4 w-4" />} onClick={ungroupSelected} label="Ungroup" />
+                    )}
 
-                {/* Alignment Tools (Condensed) */}
-                <div className="flex flex-col items-center gap-0.5 px-1 py-1 bg-white/5 rounded-xl">
-                    <ToolbarButton icon={<AlignLeftIcon className="h-3.5 w-3.5" />} onClick={() => alignSelected('left')} label="Align Left" />
-                    <ToolbarButton icon={<AlignCenterIcon className="h-3.5 w-3.5" />} onClick={() => alignSelected('center')} label="Align Centre" />
-                    <ToolbarButton icon={<AlignRightIcon className="h-3.5 w-3.5" />} onClick={() => alignSelected('right')} label="Align Right" />
-                </div>
-                <div className="flex flex-col items-center gap-0.5 px-1 py-1 bg-white/5 rounded-xl mt-1">
-                    <ToolbarButton icon={<AlignTop className="h-3.5 w-3.5" />} onClick={() => alignSelected('top')} label="Align Top" />
-                    <ToolbarButton icon={<AlignMiddle className="h-3.5 w-3.5" />} onClick={() => alignSelected('middle')} label="Align Middle" />
-                    <ToolbarButton icon={<AlignBottom className="h-3.5 w-3.5" />} onClick={() => alignSelected('bottom')} label="Align Bottom" />
+                    <ToolbarButton icon={<AlignLeftIcon className="h-4 w-4" />} onClick={() => alignSelected('left')} label="Align Left" />
+                    <ToolbarButton icon={<AlignCenterIcon className="h-4 w-4" />} onClick={() => alignSelected('center')} label="Align Centre" />
+                    <ToolbarButton icon={<AlignRightIcon className="h-4 w-4" />} onClick={() => alignSelected('right')} label="Align Right" />
                 </div>
 
-                <div className="w-4 h-px bg-white/5 my-1" />
+                <div className="w-6 h-px bg-white/10 my-2" />
 
-                <div className="flex flex-col items-center gap-0.5">
-                    <div className="flex flex-col items-center bg-white/5 rounded-xl border border-white/5 p-0.5">
-                        <ToolbarButton icon={<ChevronUp className="h-3.5 w-3.5" />} onClick={bringForward} label="Bring Forward" />
-                        <ToolbarButton icon={<ChevronDown className="h-3.5 w-3.5" />} onClick={sendBackwards} label="Send Backward" />
-                    </div>
+                <div className="flex flex-col items-center gap-1.5">
+                    <ToolbarButton icon={<ChevronUp className="h-4 w-4" />} onClick={bringForward} label="Bring Forward" />
+                    <ToolbarButton icon={<ChevronDown className="h-4 w-4" />} onClick={sendBackwards} label="Send Backward" />
                     <ToolbarButton
-                        icon={<Copy className="h-3.5 w-3.5" />}
+                        icon={<Copy className="h-4 w-4" />}
                         onClick={duplicateSelected}
                         label="Duplicate"
                     />
                     <ToolbarButton
-                        icon={<Settings2 className="h-3.5 w-3.5" />}
+                        icon={<Settings2 className="h-4 w-4" />}
                         onClick={() => setShowApiSettings(true)}
                         label="API Settings"
                     />
                     <ToolbarButton
-                        className="text-red-500 hover:bg-red-500/20"
-                        icon={<Trash2 className="h-3.5 w-3.5" />}
+                        className="text-red-500 hover:bg-red-500/10"
+                        icon={<Trash2 className="h-4 w-4" />}
                         onClick={deleteSelected}
                         label="Delete"
                     />

@@ -189,30 +189,53 @@ export default function MenuBar({ setActiveTab }: MenuBarProps) {
     ];
 
     return (
-        <div ref={menuRef} className="flex items-center bg-[#181a20] h-10 border-b border-white/5 shadow-sm select-none z-[1100]">
+        <div ref={menuRef} className="flex items-center bg-[#0d0f14] h-12 border-b border-white/5 shadow-2xl select-none z-[1100] px-4 gap-8">
             <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept="image/*" />
-            <div className="flex items-center gap-1.5">
-                <div className="flex items-center gap-2 px-2 mr-2">
-                    <div className="h-6 w-6 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/20">
-                        <Monitor className="h-3.5 w-3.5 text-white" />
+
+            {/* Project Title & Status */}
+            <div className="flex items-center gap-4 group shrink-0">
+                <div className="flex items-center gap-2 group cursor-pointer">
+                    <div className="p-2 bg-blue-500 rounded-xl shadow-[0_0_20px_rgba(59,130,246,0.5)] transition-transform group-hover:scale-105 active:scale-95">
+                        <Monitor className="h-4 w-4 text-white" />
                     </div>
                 </div>
+
+                <div className="flex items-center gap-3">
+                    <ChevronRight className="h-3 w-3 text-white/10" />
+                    <div className="flex flex-col">
+                        <span className="text-[8px] font-black uppercase text-gray-600 tracking-[0.2em] leading-none mb-1">Current Workspace</span>
+                        <div className="relative group/input">
+                            <input
+                                type="text"
+                                value={canvasName}
+                                onChange={(e) => setCanvasName(e.target.value)}
+                                className="bg-transparent text-[11px] font-black uppercase tracking-[0.1em] text-white/90 focus:text-white focus:outline-none w-auto min-w-[120px] max-w-[200px] border-none p-0 h-4 transition-all"
+                                placeholder="Untitled Project"
+                            />
+                            <div className="absolute -bottom-1 left-0 w-0 h-0.5 bg-blue-500 transition-all duration-500 group-hover/input:w-full opacity-50 shadow-[0_0_10px_rgba(59,130,246,0.5)]" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Menu Items */}
+            <div className="flex items-center gap-2">
                 {menus.map((menu) => (
                     <div key={menu.id} className="relative">
                         <button
                             onClick={() => setActiveMenu(activeMenu === menu.id ? null : menu.id)}
                             onMouseEnter={() => activeMenu && setActiveMenu(menu.id)}
-                            className={`px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider rounded-lg transition-all duration-200
-                                ${activeMenu === menu.id ? 'bg-white/10 text-white shadow-inner' : 'text-gray-400 hover:bg-white/5 hover:text-gray-200'}`}
+                            className={`px-4 py-2 text-[11px] font-black uppercase tracking-widest rounded-xl transition-all duration-200
+                                ${activeMenu === menu.id ? 'bg-white/10 text-white shadow-inner' : 'text-gray-500 hover:bg-white/5 hover:text-gray-200'}`}
                         >
                             {menu.label}
                         </button>
 
                         {activeMenu === menu.id && (
-                            <div className="absolute left-0 top-full mt-1.5 w-60 bg-[#1e2229]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] py-1.5 z-[1200] animate-in fade-in zoom-in-95 duration-150">
+                            <div className="absolute left-0 top-full mt-2 w-64 bg-[#1e2229]/98 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-[0_30px_60px_rgba(0,0,0,0.6)] py-2 z-[1200] animate-in fade-in slide-in-from-top-2 duration-200">
                                 {menu.items.map((item, idx) => (
                                     item.type === "divider" ? (
-                                        <div key={`divider-${idx}`} className="h-px bg-white/5 my-1.5 mx-3" />
+                                        <div key={`divider-${idx}`} className="h-px bg-white/5 my-2 mx-4" />
                                     ) : (
                                         <MenuItem key={item.id} item={item} />
                                     )
@@ -223,24 +246,32 @@ export default function MenuBar({ setActiveTab }: MenuBarProps) {
                 ))}
             </div>
 
-            <div className="flex-1 px-4 flex justify-center">
-                <div className="flex items-center gap-2 bg-white/5 px-3 py-0.5 rounded-full border border-white/5">
-                    <Edit2 className="h-2.5 w-2.5 text-gray-500" />
-                    <input
-                        type="text"
-                        value={canvasName}
-                        onChange={(e) => setCanvasName(e.target.value)}
-                        className="bg-transparent text-[9px] font-black uppercase tracking-widest text-white focus:outline-none w-48 text-center leading-tight"
-                        placeholder="UNTITLED PROJECT"
-                    />
-                </div>
-            </div>
+            <div className="flex-1" />
 
-            <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black text-gray-500 uppercase tracking-tighter mr-2">
-                    {canvasSize.width}x{canvasSize.height}
-                </span>
-                <HelpCircle className="h-4 w-4 text-gray-600 hover:text-gray-400 cursor-pointer" />
+            {/* Canvas Actions & Info */}
+            <div className="flex items-center gap-6">
+                <div className="flex items-center bg-white/5 rounded-xl border border-white/5 px-3 py-1.5 gap-3 shadow-inner">
+                    <div className="flex items-center gap-1.5 px-2 py-0.5 bg-green-500/10 text-green-500 rounded-lg">
+                        <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                        <span className="text-[10px] font-black tracking-tighter">LIVE</span>
+                    </div>
+                    <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.1em]">
+                        {canvasSize.width}x{canvasSize.height}
+                    </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                    <button className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl text-gray-500 hover:text-white transition-all border border-white/5 shadow-sm">
+                        <HelpCircle className="h-4 w-4" />
+                    </button>
+                    <button
+                        onClick={() => exportAsFormat('png')}
+                        className="flex items-center gap-3 px-6 h-10 bg-blue-500 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-blue-400 transition-all shadow-[0_10px_30px_rgba(59,130,246,0.3)] active:scale-95"
+                    >
+                        <Download className="h-4 w-4" />
+                        Export Design
+                    </button>
+                </div>
             </div>
         </div>
     );

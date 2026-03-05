@@ -14,73 +14,19 @@ import BrandColorPicker from "./BrandColorPicker";
 import TypographyEffects from "./TypographyEffects";
 import EdgeBorderPanel from "./EdgeBorderPanel";
 import * as fabric from "fabric";
+import CustomColorPicker from "./CustomColorPicker";
 
 export default function PropertiesPanel() {
     const {
         selectedObject, deleteSelected, bringToFront, sendToBack,
         updateSelectedObject, clearEffects, updateMaskProperties, releaseMask,
         canvasName, setCanvasName, canvasSize, setIsResizeOpen, showGrid, setShowGrid,
-        canvas
+        canvas,
+        isDrawingMode, setIsDrawingMode, brushSize, setBrushSize, brushColor, setBrushColor,
+        brushSmoothing, setBrushSmoothing
     } = useCanvas() as any;
 
-    if (!selectedObject) {
-        return (
-            <div className="flex h-full w-full flex-col bg-[#181a20] overflow-y-auto scrollbar-hide">
-                <div className="flex items-center gap-2 border-b border-white/5 px-4 py-3 bg-[#1e2229]">
-                    <Settings2 className="h-4 w-4 text-blue-500" />
-                    <h3 className="text-xs font-black uppercase tracking-widest text-white">Canvas Settings</h3>
-                </div>
-
-                <div className="p-6 space-y-8">
-                    <section>
-                        <p className="mb-4 text-[10px] font-black uppercase tracking-widest text-gray-500">Project Name</p>
-                        <div className="relative group">
-                            <input
-                                type="text"
-                                value={canvasName}
-                                onChange={(e) => setCanvasName(e.target.value)}
-                                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
-                            />
-                        </div>
-                    </section>
-
-                    <section>
-                        <p className="mb-4 text-[10px] font-black uppercase tracking-widest text-gray-500">Dimensions</p>
-                        <button
-                            onClick={() => setIsResizeOpen(true)}
-                            className="w-full flex items-center justify-between p-4 bg-white/2 hover:bg-white/5 border border-white/5 rounded-2xl transition-all group"
-                        >
-                            <div className="text-left">
-                                <p className="text-xs font-black text-white">{canvasSize.width} × {canvasSize.height}</p>
-                                <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-0.5">Pixels (PX)</p>
-                            </div>
-                            <Palette className="h-4 w-4 text-gray-600 group-hover:text-blue-500 transition-colors" />
-                        </button>
-                    </section>
-
-                    <section>
-                        <p className="mb-4 text-[10px] font-black uppercase tracking-widest text-gray-500">Workspace</p>
-                        <div className="space-y-3">
-                            <div
-                                onClick={() => setShowGrid(!showGrid)}
-                                className="flex items-center justify-between p-4 bg-white/2 rounded-2xl border border-white/5 cursor-pointer hover:bg-white/5 transition-all"
-                            >
-                                <div className="flex items-center gap-3">
-                                    <div className={`p-2 rounded-lg ${showGrid ? 'bg-blue-500 text-white' : 'bg-white/5 text-gray-500'}`}>
-                                        <Layers className="h-3.5 w-3.5" />
-                                    </div>
-                                    <span className="text-[10px] font-black uppercase text-gray-300">Show Layout Grid</span>
-                                </div>
-                                <div className={`w-8 h-4 rounded-full relative transition-colors ${showGrid ? 'bg-blue-500' : 'bg-white/10'}`}>
-                                    <div className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white transition-all ${showGrid ? 'translate-x-4' : 'translate-x-0'}`} />
-                                </div>
-                            </div>
-                        </div>
-                    </section>
-                </div>
-            </div>
-        );
-    }
+    if (!selectedObject) return null;
 
     const isText = !!selectedObject && (
         selectedObject.type === 'text' ||
@@ -138,19 +84,27 @@ export default function PropertiesPanel() {
                             </p>
                         </div>
                         <div className="space-y-4">
-                            <div className="bg-white/5 p-4 rounded-2xl border border-white/5 space-y-4">
-                                <FontPicker inline />
-                                <div className="flex items-center gap-2">
-                                    <div className="flex-1 bg-[#12141a] rounded-xl border border-white/10 px-3 py-2.5 flex items-center justify-between group focus-within:border-blue-500/50 transition-all">
-                                        <span className="text-[9px] font-black text-gray-500 uppercase">Font Size</span>
+                            <div className="space-y-3">
+                                <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
+                                    <FontPicker inline />
+                                </div>
+
+                                <div className="bg-white/2 p-3 rounded-2xl border border-white/5 flex items-center justify-between group transition-all hover:bg-white/5">
+                                    <div className="flex items-center gap-2">
+                                        <div className="p-1.5 rounded-lg bg-blue-500/10 text-blue-500">
+                                            <Type className="h-3 w-3" />
+                                        </div>
+                                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Font Size</span>
+                                    </div>
+                                    <div className="flex items-center bg-[#0a0a0c] rounded-xl border border-white/5 pr-1 focus-within:border-blue-500/30 transition-all">
                                         <input
                                             type="number"
-                                            className="bg-transparent border-none outline-none text-right text-xs font-black text-white w-16"
+                                            className="bg-transparent border-none outline-none text-right text-[11px] font-black text-white w-12 py-1.5 px-2 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                             value={Math.round((selectedObject as any).fontSize || 40)}
-                                            onChange={(e) => updateSelectedObject({ fontSize: parseInt(e.target.value) })}
+                                            onChange={(e) => updateSelectedObject({ fontSize: parseInt(e.target.value) || 1 })}
                                         />
+                                        <span className="text-[8px] font-black text-gray-600 uppercase pr-2">PX</span>
                                     </div>
-                                    <span className="text-[10px] font-black text-gray-600">PX</span>
                                 </div>
                             </div>
                             <TypographyEffects />
@@ -170,16 +124,10 @@ export default function PropertiesPanel() {
                                 <div className="flex items-center justify-between gap-4">
                                     <span className="text-[10px] font-black uppercase text-gray-400">Fixed Colour</span>
                                     <div className="flex items-center gap-2">
-                                        <div className="h-10 w-10 rounded-xl border border-white/10 relative overflow-hidden group">
-                                            <input
-                                                type="color"
-                                                value={typeof selectedObject.fill === 'string' ? selectedObject.fill : "#3b82f6"}
-                                                onChange={(e) => updateSelectedObject({ fill: e.target.value })}
-                                                className="absolute inset-0 h-full w-full cursor-pointer opacity-0 z-10"
-                                            />
-                                            <div className="h-full w-full" style={{ backgroundColor: typeof selectedObject.fill === 'string' ? selectedObject.fill : 'transparent' }} />
-                                            {typeof selectedObject.fill !== 'string' && <div className="h-full w-full bg-gradient-to-tr from-blue-500 via-purple-500 to-pink-500" />}
-                                        </div>
+                                        <CustomColorPicker
+                                            color={typeof selectedObject.fill === 'string' ? selectedObject.fill : "#3b82f6"}
+                                            onChange={(color) => updateSelectedObject({ fill: color })}
+                                        />
                                     </div>
                                 </div>
                                 <BrandColorPicker

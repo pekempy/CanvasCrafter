@@ -22,6 +22,29 @@ export default function TypographyEffects() {
     const strength = (currentShadow as any)?.embossStrength || 15;
     const angle = (currentShadow as any)?.embossAngle || 135; // Top-left light source matches image
 
+    const adjustColor = (color: string, amount: number) => {
+        const clamp = (val: number) => Math.min(Math.max(val, 0), 255);
+
+        // Handle rgba/rgb strings
+        if (color.startsWith('rgb')) {
+            const match = color.match(/\d+/g);
+            if (!match) return color;
+            const [r, g, b] = match.map(Number);
+            return `rgb(${clamp(r + amount)}, ${clamp(g + amount)}, ${clamp(b + amount)})`;
+        }
+
+        // Handle hex
+        let res = color.replace('#', '');
+        if (res.length === 3) res = res.split('').map(c => c + c).join('');
+
+        const num = parseInt(res, 16);
+        const r = clamp((num >> 16) + amount);
+        const g = clamp(((num >> 8) & 0x00FF) + amount);
+        const b = clamp((num & 0x0000FF) + amount);
+
+        return '#' + (0x1000000 + r * 0x10000 + g * 0x100 + b).toString(16).slice(1);
+    };
+
     const applyEffect = (type: 'bevel' | 'emboss' | 'none', s = strength, a = angle) => {
         if (type === 'none') {
             const originalFill = (selectedObject as any)._originalFill || selectedObject.fill;
@@ -32,30 +55,52 @@ export default function TypographyEffects() {
                 shadow: null,
                 fill: originalFill,
                 stroke: originalStroke,
-                strokeWidth: originalStrokeWidth
+                strokeWidth: originalStrokeWidth,
+                paintFirst: 'fill'
             });
             return;
         }
 
-        // Save original state
         if (!(selectedObject as any)._originalFill) {
             (selectedObject as any)._originalFill = selectedObject.fill;
             (selectedObject as any)._originalStroke = selectedObject.stroke;
             (selectedObject as any)._originalStrokeWidth = selectedObject.strokeWidth;
         }
 
-        const angleInRad = (a * Math.PI) / 180;
         const baseColor = typeof (selectedObject as any)._originalFill === 'string'
             ? (selectedObject as any)._originalFill
             : '#ffffff';
 
+        const angleRad = (a * Math.PI) / 180;
+        const ux = Math.cos(angleRad);
+        const uy = Math.sin(angleRad);
+
+        const coords = {
+            x1: 0.5 - ux * 0.5,
+            y1: 0.5 - uy * 0.5,
+            x2: 0.5 + ux * 0.5,
+            y2: 0.5 + uy * 0.5
+        };
+
         if (type === 'bevel') {
-            // BEVEL: Raised plastic/3D look
+            // BEVEL: Raised "Hard Chisel"
+            const bevelStroke = new fabric.Gradient({
+                type: 'linear',
+                gradientUnits: 'percentage',
+                coords,
+                colorStops: [
+                    { offset: 0, color: 'rgba(255,255,255,0.95)' }, // Highlight edge
+                    { offset: 0.45, color: 'rgba(255,255,255,0.1)' },
+                    { offset: 0.55, color: 'rgba(0,0,0,0.1)' },
+                    { offset: 1, color: 'rgba(0,0,0,0.8)' } // Shadow edge
+                ]
+            });
+
             const shadow = new fabric.Shadow({
-                color: 'rgba(0,0,0,0.6)',
-                blur: s * 0.4,
-                offsetX: Math.cos((a + 180) * Math.PI / 180) * (s * 0.45),
-                offsetY: Math.sin((a + 180) * Math.PI / 180) * (s * 0.45),
+                color: 'rgba(0,0,0,0.5)',
+                blur: s * 0.2,
+                offsetX: -ux * (s * 0.15),
+                offsetY: -uy * (s * 0.15),
                 nonScaling: true
             });
 
@@ -66,42 +111,62 @@ export default function TypographyEffects() {
             updateSelectedObject({
                 fill: baseColor,
                 shadow,
-                stroke: 'rgba(255,255,255,0.4)',
-                strokeWidth: Math.max(0.5, s * 0.05),
-                paintFirst: 'stroke'
+                stroke: bevelStroke,
+                strokeWidth: Math.max(1, s * 0.12),
+                paintFirst: 'fill',
+                strokeLineCap: 'round',
+                strokeLineJoin: 'round'
             });
         } else {
-            // EMBOSS: Molded/Pressed into surface
-            // Ensure the text remains visible by blending baseColor into the gradient
-            const internalGradient = new fabric.Gradient({
+            // EMBOSS: Deep Recessed "Stamped"
+            // The fill itself should be a gradient to simulate "pit depth"
+            const pitFill = new fabric.Gradient({
                 type: 'linear',
                 gradientUnits: 'percentage',
-                coords: { x1: 0, y1: 0, x2: 1, y2: 1 },
+                coords,
                 colorStops: [
-                    { offset: 0, color: 'rgba(0,0,0,0.2)' }, // Inner shadow atop base
-                    { offset: 0.3, color: baseColor },       // Actual color starts here
-                    { offset: 1, color: baseColor }
+                    { offset: 0, color: adjustColor(baseColor, -70) }, // Dark occlusion at top-left
+                    { offset: 0.25, color: adjustColor(baseColor, -30) },
+                    { offset: 0.75, color: baseColor },
+                    { offset: 1, color: adjustColor(baseColor, 20) }  // Catch light at bottom-right
                 ]
             });
 
-            const shadow = new fabric.Shadow({
-                color: 'rgba(255,255,255,0.3)', // Material highlight rim
-                blur: s * 0.2,
-                offsetX: Math.cos(a * Math.PI / 180) * (s * 0.2),
-                offsetY: Math.sin(a * Math.PI / 180) * (s * 0.2),
+            // High-contrast internal rim stroke
+            const embossStroke = new fabric.Gradient({
+                type: 'linear',
+                gradientUnits: 'percentage',
+                coords,
+                colorStops: [
+                    { offset: 0, color: 'rgba(0,0,0,0.9)' },    // Deep inner shadow (recess edge)
+                    { offset: 0.4, color: 'rgba(0,0,0,0.2)' },
+                    { offset: 0.6, color: 'rgba(255,255,255,0.2)' },
+                    { offset: 1, color: 'rgba(255,255,255,1)' } // Sharp highlight on bottom rim
+                ]
+            });
+
+            // Outer Lip Highlight: A very thin light shadow offset TOWARDS the light
+            // serves as a "catch light" on the outer corner of the hole.
+            const lipShadow = new fabric.Shadow({
+                color: 'rgba(255,255,255,0.6)',
+                blur: 0,
+                offsetX: ux * 1.5,
+                offsetY: uy * 1.5,
                 nonScaling: true
             });
 
-            (shadow as any).effectType = 'emboss';
-            (shadow as any).embossStrength = s;
-            (shadow as any).embossAngle = a;
+            (lipShadow as any).effectType = 'emboss';
+            (lipShadow as any).embossStrength = s;
+            (lipShadow as any).embossAngle = a;
 
             updateSelectedObject({
-                fill: internalGradient,
-                shadow,
-                stroke: 'rgba(0,0,0,0.2)',
-                strokeWidth: 0.5,
-                paintFirst: 'fill'
+                fill: pitFill,
+                shadow: lipShadow,
+                stroke: embossStroke,
+                strokeWidth: Math.max(1, s * 0.15),
+                paintFirst: 'fill',
+                strokeLineCap: 'round',
+                strokeLineJoin: 'round'
             });
         }
     };

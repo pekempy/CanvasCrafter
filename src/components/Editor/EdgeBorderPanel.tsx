@@ -4,6 +4,7 @@ import { useCanvas } from "@/store/useCanvasStore";
 import { ChevronDown, Palette, Zap } from "lucide-react";
 import * as fabric from "fabric";
 import BrandColorPicker from "./BrandColorPicker";
+import CustomColorPicker from "./CustomColorPicker";
 
 export default function EdgeBorderPanel() {
     const { selectedObject, canvas, updateSelectedObject } = useCanvas();
@@ -122,16 +123,7 @@ export default function EdgeBorderPanel() {
         <div className="space-y-4">
             <div className="flex items-center justify-between gap-4">
                 <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Colour</span>
-                <div className="h-8 w-8 rounded-full border border-white/10 relative overflow-hidden group shrink-0">
-                    <div className="absolute inset-0 z-10 pointer-events-none rounded-full shadow-inner" />
-                    <input
-                        type="color"
-                        value={currentColor}
-                        onChange={handleColorChange}
-                        className="absolute -top-2 -left-2 w-12 h-12 cursor-pointer z-0 opacity-0"
-                    />
-                    <div className="w-full h-full" style={{ backgroundColor: currentColor }} />
-                </div>
+                <CustomColorPicker color={currentColor} onChange={handleColorChange} />
             </div>
 
             <BrandColorPicker

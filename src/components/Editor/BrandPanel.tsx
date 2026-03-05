@@ -12,6 +12,7 @@ import { useState, useEffect } from "react";
 import WebFont from "webfontloader";
 import CustomAssetItem from "./CustomAssetItem";
 import FontPicker from "./FontPicker";
+import CustomColorPicker from "./CustomColorPicker";
 
 export default function BrandPanel() {
     const { brandKits, setBrandKits, assetFolders, setAssetFolders, updateSelectedObject, addImage, maskShapeWithImage, selectedObject, customFonts, savedDesigns, loadTemplate, deleteDesign, currentUser } = useCanvas();
@@ -202,24 +203,17 @@ export default function BrandPanel() {
                                 <div className="flex flex-wrap gap-2 px-1">
                                     {activeKit.colors.map((color, idx) => (
                                         <div key={idx} className="relative group/color">
-                                            <button
-                                                onClick={() => updateSelectedObject({ fill: color })}
-                                                className="h-10 w-10 rounded-xl border border-white/10 shadow-xl transition-transform hover:scale-110 active:scale-90"
-                                                style={{ backgroundColor: color }}
-                                            />
-                                            <input
-                                                type="color"
-                                                value={color}
-                                                onChange={(e) => {
+                                            <CustomColorPicker
+                                                color={color}
+                                                onChange={(newColor) => {
                                                     const newColors = [...activeKit.colors];
-                                                    newColors[idx] = e.target.value;
+                                                    newColors[idx] = newColor;
                                                     updateKit(activeKit.id, { colors: newColors });
                                                 }}
-                                                className="absolute inset-0 opacity-0 cursor-pointer"
                                             />
                                             <button
                                                 onClick={() => removeColor(activeKit.id, idx)}
-                                                className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover/color:opacity-100 transition-opacity scale-75"
+                                                className="absolute -top-1 -right-1 z-20 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover/color:opacity-100 transition-opacity scale-75"
                                             >
                                                 <X className="h-3 w-3" />
                                             </button>

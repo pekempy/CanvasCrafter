@@ -4,6 +4,7 @@ import { useCanvas } from "@/store/useCanvasStore";
 import { Plus, X, Palette, Trash2, Heart, RotateCw, Ghost } from "lucide-react";
 import { useState } from "react";
 import * as fabric from "fabric";
+import CustomColorPicker from "./CustomColorPicker";
 
 const hexToRgba = (hex: string, opacity: number) => {
     let r = parseInt(hex.slice(1, 3), 16);
@@ -167,24 +168,10 @@ export default function GradientPicker({ inline = false }: { inline?: boolean })
                         {stops.map((stop, i) => (
                             <div key={i} className="group relative space-y-2 rounded-xl bg-white/5 border border-white/5 p-3 transition-colors hover:border-white/10">
                                 <div className="flex items-center gap-3">
-                                    <div className="relative h-8 w-8 rounded-lg border border-white/10 overflow-hidden shrink-0"
-                                        style={{
-                                            backgroundImage: `linear-gradient(45deg, #2a2a2a 25%, transparent 25%), 
-                                                              linear-gradient(-45deg, #2a2a2a 25%, transparent 25%), 
-                                                              linear-gradient(45deg, transparent 75%, #2a2a2a 75%), 
-                                                              linear-gradient(-45deg, transparent 75%, #2a2a2a 75%)`,
-                                            backgroundSize: '8px 8px',
-                                            backgroundPosition: '0 0, 0 4px, 4px 4px, 4px 0',
-                                            backgroundColor: '#1a1a1a'
-                                        }}>
-                                        <input
-                                            type="color"
-                                            value={stop.color}
-                                            onChange={(e) => updateStopColor(i, e.target.value)}
-                                            className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-                                        />
-                                        <div className="h-full w-full transition-colors" style={{ backgroundColor: hexToRgba(stop.color, stop.opacity ?? 1) }} />
-                                    </div>
+                                    <CustomColorPicker
+                                        color={stop.color}
+                                        onChange={(color) => updateStopColor(i, color)}
+                                    />
                                     <div className="flex-1 space-y-2">
                                         <div className="flex items-center gap-2">
                                             <input

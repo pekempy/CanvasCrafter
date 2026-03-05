@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useCanvas } from "@/store/useCanvasStore";
 import { X, Monitor, Facebook, Instagram, Twitter, Cloud, Trash2, Plus, ArrowRight } from "lucide-react";
 
@@ -17,16 +17,27 @@ export default function ResizeDialog() {
     const onClose = () => setIsResizeOpen(false);
     const [width, setWidth] = useState(canvasSize.width);
     const [height, setHeight] = useState(canvasSize.height);
+
+    // Sync state when dialog opens to prevent stale values from previous sessions/tabs
+    useEffect(() => {
+        if (isOpen) {
+            setWidth(canvasSize.width || 800);
+            setHeight(canvasSize.height || 800);
+        }
+    }, [isOpen, canvasSize.width, canvasSize.height]);
+
     const [smartScale, setSmartScale] = useState(true);
     const [newTemplateName, setNewTemplateName] = useState("");
+    const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
 
     if (!isOpen) return null;
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
 
-        const finalWidth = Math.max(1, width);
-        const finalHeight = Math.max(1, height);
+        const MAX_SIZE = 5000;
+        const finalWidth = Math.min(MAX_SIZE, Math.max(1, width));
+        const finalHeight = Math.min(MAX_SIZE, Math.max(1, height));
 
         if (smartScale && canvas && canvasSize.width > 0 && canvasSize.height > 0) {
             const scaleX = finalWidth / canvasSize.width;
@@ -81,7 +92,6 @@ export default function ResizeDialog() {
         setNewTemplateName("");
     };
 
-    const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
 
     const handleDeletePreset = (id: string, e: React.MouseEvent) => {
         e.stopPropagation();
