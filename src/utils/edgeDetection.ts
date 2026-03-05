@@ -56,12 +56,15 @@ export async function detectEdgesAndAddStroke(canvas: fabric.Canvas, img: fabric
         originX: 'center',
         originY: 'center',
         evented: false,
-        selectable: false
-    });
+        selectable: false,
+        objectCaching: false
+    } as any);
+    outline.set({ name: 'edge-border-outline' });
 
 
     const clone = await img.clone() as fabric.Image;
-    clone.set({
+    (clone as any).set({
+        name: 'edge-border-image',
         originX: 'center',
         originY: 'center',
         left: 0,
@@ -71,7 +74,7 @@ export async function detectEdgesAndAddStroke(canvas: fabric.Canvas, img: fabric
         angle: 0
     });
 
-    const group = new fabric.Group([outline, clone], {
+    const group = new fabric.Group([clone, outline], {
         left: img.left,
         top: img.top,
         scaleX: img.scaleX,
@@ -82,8 +85,12 @@ export async function detectEdgesAndAddStroke(canvas: fabric.Canvas, img: fabric
         originX: img.originX,
         originY: img.originY,
         clipPath: img.clipPath,
-        shadow: img.shadow
+        shadow: img.shadow,
+        objectCaching: false,
+        subTargetCheck: false
     });
+    // Assign custom properties using Fabric's set to ensure they are serialized
+    group.set({ name: 'edge-border-wrapper', isEdgeBorderGroup: true });
 
     canvas.remove(img);
     canvas.add(group);

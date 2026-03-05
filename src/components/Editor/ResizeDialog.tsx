@@ -12,8 +12,9 @@ const ICON_MAP: Record<string, any> = {
     cloud: <Cloud className="h-4 w-4" />,
 };
 
-export default function ResizeDialog({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-    const { canvasSize, setCanvasSize, canvas, presets, setPresets, deletePreset } = useCanvas();
+export default function ResizeDialog() {
+    const { canvasSize, setCanvasSize, canvas, presets, setPresets, deletePreset, isResizeOpen: isOpen, setIsResizeOpen } = useCanvas();
+    const onClose = () => setIsResizeOpen(false);
     const [width, setWidth] = useState(canvasSize.width);
     const [height, setHeight] = useState(canvasSize.height);
     const [smartScale, setSmartScale] = useState(true);
@@ -24,22 +25,31 @@ export default function ResizeDialog({ isOpen, onClose }: { isOpen: boolean; onC
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (smartScale && canvas) {
-            const scaleX = width / canvasSize.width;
-            const scaleY = height / canvasSize.height;
+        const finalWidth = Math.max(1, width);
+        const finalHeight = Math.max(1, height);
+
+        if (smartScale && canvas && canvasSize.width > 0 && canvasSize.height > 0) {
+            const scaleX = finalWidth / canvasSize.width;
+            const scaleY = finalHeight / canvasSize.height;
+
             canvas.getObjects().forEach(obj => {
+                const oldLeft = obj.left || 0;
+                const oldTop = obj.top || 0;
+                const oldScaleX = obj.scaleX || 1;
+                const oldScaleY = obj.scaleY || 1;
+
                 obj.set({
-                    left: (obj.left || 0) * scaleX,
-                    top: (obj.top || 0) * scaleY,
-                    scaleX: (obj.scaleX || 1) * scaleX,
-                    scaleY: (obj.scaleY || 1) * scaleY
+                    left: oldLeft * scaleX,
+                    top: oldTop * scaleY,
+                    scaleX: oldScaleX * scaleX,
+                    scaleY: oldScaleY * scaleY
                 });
                 obj.setCoords();
             });
             canvas.renderAll();
         }
 
-        setCanvasSize({ width, height });
+        setCanvasSize({ width: finalWidth, height: finalHeight });
         onClose();
     };
 
@@ -147,9 +157,13 @@ export default function ResizeDialog({ isOpen, onClose }: { isOpen: boolean; onC
                                     <label className="text-[9px] font-black uppercase tracking-tight text-gray-500 pl-1">Width</label>
                                     <div className="relative group">
                                         <input
-                                            type="number"
+                                            type="text"
+                                            inputMode="numeric"
                                             value={width}
-                                            onChange={(e) => setWidth(parseInt(e.target.value) || 0)}
+                                            onChange={(e) => {
+                                                const val = e.target.value.replace(/[^0-9]/g, '');
+                                                setWidth(parseInt(val) || 0);
+                                            }}
                                             className="w-full rounded-2xl border border-white/5 bg-white/5 p-4 text-xl font-black text-white transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50 group-hover:bg-white/10"
                                         />
                                         <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-gray-600">PX</span>
@@ -159,9 +173,13 @@ export default function ResizeDialog({ isOpen, onClose }: { isOpen: boolean; onC
                                     <label className="text-[9px] font-black uppercase tracking-tight text-gray-500 pl-1">Height</label>
                                     <div className="relative group">
                                         <input
-                                            type="number"
+                                            type="text"
+                                            inputMode="numeric"
                                             value={height}
-                                            onChange={(e) => setHeight(parseInt(e.target.value) || 0)}
+                                            onChange={(e) => {
+                                                const val = e.target.value.replace(/[^0-9]/g, '');
+                                                setHeight(parseInt(val) || 0);
+                                            }}
                                             className="w-full rounded-2xl border border-white/5 bg-white/5 p-4 text-xl font-black text-white transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50 group-hover:bg-white/10"
                                         />
                                         <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-gray-600">PX</span>

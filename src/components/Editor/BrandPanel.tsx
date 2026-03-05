@@ -381,7 +381,7 @@ export default function BrandPanel() {
                                             return (
                                                 <div key={master.id} className="space-y-1">
                                                     <div
-                                                        onClick={() => loadTemplate(master.data, master.name)}
+                                                        onClick={() => loadTemplate(master.data, master.name, master.id)}
                                                         className="group relative flex items-center gap-3 bg-white/5 border border-white/5 rounded-2xl p-2.5 cursor-pointer hover:bg-white/10 transition-all border-l-4 border-l-blue-500"
                                                     >
                                                         <div className="h-10 w-12 overflow-hidden rounded-lg bg-black border border-white/5 shrink-0">
@@ -430,7 +430,7 @@ export default function BrandPanel() {
                                                             {versions.map(version => (
                                                                 <div
                                                                     key={version.id}
-                                                                    onClick={() => loadTemplate(version.data, version.name)}
+                                                                    onClick={() => loadTemplate(version.data, version.name, version.id)}
                                                                     className="group flex items-center gap-3 bg-white/2 p-2 rounded-xl cursor-pointer hover:bg-white/5 transition-all text-xs"
                                                                 >
                                                                     <div className="h-7 w-9 overflow-hidden rounded-md bg-black/40 shrink-0">
@@ -471,7 +471,7 @@ export default function BrandPanel() {
                                         {brandVersionsWithoutMasters.map(version => (
                                             <div
                                                 key={version.id}
-                                                onClick={() => loadTemplate(version.data, version.name)}
+                                                onClick={() => loadTemplate(version.data, version.name, version.id)}
                                                 className="group relative flex items-center gap-3 bg-white/5 border border-white/5 rounded-2xl p-2.5 cursor-pointer hover:bg-white/10 transition-all"
                                             >
                                                 <div className="h-10 w-12 overflow-hidden rounded-lg bg-black border border-white/5 shrink-0">

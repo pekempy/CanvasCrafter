@@ -83,7 +83,7 @@ interface CanvasContextType {
     confirmCrop: () => void;
     cancelCrop: () => void;
     isCropMode: boolean;
-    applyAIEdgeStroke: () => void;
+    applyEdgeStroke: () => void;
     undo: () => void;
     redo: () => void;
     canUndo: boolean;
@@ -97,6 +97,8 @@ interface CanvasContextType {
     updateMaskProperties: (properties: any) => void;
     bringToFront: () => void;
     sendToBack: () => void;
+    bringForward: () => void;
+    sendBackwards: () => void;
     deleteSelected: () => void;
     duplicateSelected: () => void;
     releaseMask: () => void;
@@ -113,14 +115,16 @@ interface CanvasContextType {
     apiConfig: { unsplashAccessKey: string; pexelsKey: string; pixabayKey: string };
     setApiConfig: (config: { unsplashAccessKey: string; pexelsKey: string; pixabayKey: string }) => void;
 
-    saveToTemplate: (name: string, brandId?: string, parentId?: string) => void;
-    loadTemplate: (json: string, name?: string) => void;
+    saveToTemplate: (name: string, brandId?: string, parentId?: string) => string | undefined;
+    loadTemplate: (json: string, name?: string, id?: string) => void;
     deleteDesign: (id: string) => void;
     exportAsFormat: (format: 'png' | 'jpeg' | 'pdf') => void;
     savedDesigns: any[];
     setSavedDesigns: (designs: any[]) => void;
     canvasName: string;
     setCanvasName: (name: string) => void;
+    currentDesignId: string | null;
+    setCurrentDesignId: (id: string | null) => void;
 
     // Organizations
     brandKits: BrandKit[];
@@ -140,6 +144,8 @@ interface CanvasContextType {
     presets: { id: string; name: string; width: number; height: number; iconType?: string }[];
     setPresets: (presets: { id: string; name: string; width: number; height: number; iconType?: string }[]) => void;
     deletePreset: (id: string) => Promise<void>;
+    isResizeOpen: boolean;
+    setIsResizeOpen: (open: boolean) => void;
 }
 
 const CanvasContext = createContext<CanvasContextType | null>(null);
@@ -156,6 +162,7 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
     const [brandKits, setBrandKits] = useState<BrandKit[]>([]);
     const [templateFolders, setTemplateFolders] = useState<{ id: string; name: string; designIds: string[] }[]>([]);
     const [canvasName, setCanvasName] = useState("Untitled Project");
+    const [currentDesignId, setCurrentDesignId] = useState<string | null>(null);
     // API key handling
     const [apiConfig, setApiConfig] = useState({
         unsplashAccessKey: process.env.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY || '',
@@ -171,6 +178,13 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
     ]);
     const [updateTick, setUpdateTick] = useState(0);
     const isLoaded = useRef(false);
+    const designIdRef = useRef<string | null>(null);
+    const canvasNameRef = useRef<string>("Untitled Project");
+
+    useEffect(() => {
+        designIdRef.current = currentDesignId;
+        canvasNameRef.current = canvasName;
+    }, [currentDesignId, canvasName]);
 
     const forceUpdate = useCallback(() => {
         setUpdateTick(t => t + 1);
@@ -187,6 +201,8 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
     const [cropRect, setCropRect] = useState<fabric.Rect | null>(null);
     const [history, setHistory] = useState<string[]>([]);
     const [redoStack, setRedoStack] = useState<string[]>([]);
+    const [isResizeOpen, setIsResizeOpen] = useState(false);
+
 
     useEffect(() => {
         getCustomFonts()
@@ -222,7 +238,7 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
     }, []);
 
     const fitToScreen = useCallback(() => {
-        if (!canvas) return;
+        if (!canvas || !(canvas as any)._isAlive) return;
         const padding = 100;
         // Sidebar width is ~360px (80px + 280px). Assume 400px to be safe.
         const availableWidth = window.innerWidth - 400 - padding;
@@ -541,9 +557,11 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
     }, [canvas]);
 
     const clearCanvas = useCallback(() => {
-        if (!canvas) return;
+        if (!canvas || !(canvas as any)._isAlive) return;
         canvas.clear();
         canvas.set("backgroundColor", "#ffffff");
+        setCurrentDesignId(null);
+        setCanvasName("Untitled Project");
         canvas.renderAll();
     }, [canvas]);
 
@@ -579,34 +597,68 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
     }, [canvas, selectedObject]);
 
     const applyFilter = useCallback((filterType: string, value: any) => {
-        if (!canvas || !selectedObject || !(selectedObject instanceof fabric.Image)) return;
-        const img = selectedObject as fabric.Image;
+        if (!canvas || !selectedObject) return;
+
+        let img = selectedObject as fabric.Image;
+        if ((selectedObject as any).isEdgeBorderGroup) {
+            img = (selectedObject as fabric.Group).getObjects().find(obj => obj instanceof fabric.Image) as fabric.Image;
+        }
+
+        if (!img || !(img instanceof fabric.Image)) return;
+
         const filterMap: any = {
-            Brightness: fabric.filters.Brightness,
-            Contrast: fabric.filters.Contrast,
-            Blur: fabric.filters.Blur,
-            Saturation: fabric.filters.Saturation,
-            HueRotation: fabric.filters.HueRotation,
-            Invert: fabric.filters.Invert
+            'brightness': fabric.filters.Brightness,
+            'contrast': fabric.filters.Contrast,
+            'blur': fabric.filters.Blur,
+            'saturation': fabric.filters.Saturation,
+            'huerotation': fabric.filters.HueRotation,
+            'invert': fabric.filters.Invert,
+            'grayscale': fabric.filters.Grayscale,
+            'sepia': fabric.filters.Sepia,
+            'vintage': fabric.filters.Vintage,
+            'kodachrome': fabric.filters.Kodachrome,
+            'polaroid': fabric.filters.Polaroid,
+            'vibrance': fabric.filters.Vibrance,
+            'noise': fabric.filters.Noise,
+            'pixelate': fabric.filters.Pixelate,
+            'gamma': fabric.filters.Gamma
         };
-        const filterClassType = filterType.charAt(0).toUpperCase() + filterType.slice(1);
-        const FilterClass = filterMap[filterClassType];
+
+        const typeKey = filterType.toLowerCase();
+        const FilterClass = filterMap[typeKey];
 
         if (FilterClass) {
-            const index = img.filters.findIndex(f => f.type === filterClassType);
+            // Find existing filter by class name or internal type
+            const index = img.filters.findIndex(f => f.type.toLowerCase() === typeKey);
 
-            if (value === 0 && filterClassType !== 'Invert') {
-                if (index > -1) img.filters.splice(index, 1);
-            } else if (filterClassType === 'Invert' && !value) {
+            // Logic to remove filter if value is at default
+            let shouldRemove = false;
+            if (typeKey === 'invert' || typeKey === 'grayscale' || typeKey === 'sepia' || typeKey === 'vintage' || typeKey === 'kodachrome' || typeKey === 'polaroid') {
+                shouldRemove = !value;
+            } else if (typeKey === 'pixelate') {
+                shouldRemove = value <= 1;
+            } else if (typeKey === 'gamma') {
+                shouldRemove = value === 1;
+            } else if (value === 0) {
+                shouldRemove = true;
+            }
+
+            if (shouldRemove) {
                 if (index > -1) img.filters.splice(index, 1);
             } else {
                 let options: any = {};
-                if (filterClassType === 'HueRotation') {
+                if (typeKey === 'huerotation') {
                     options = { rotation: value };
-                } else if (filterClassType === 'Invert') {
+                } else if (typeKey === 'pixelate') {
+                    options = { blocksize: value };
+                } else if (typeKey === 'gamma') {
+                    options = { gamma: [value, value, value] };
+                } else if (typeKey === 'noise') {
+                    options = { noise: value };
+                } else if (['invert', 'grayscale', 'sepia', 'vintage', 'kodachrome', 'polaroid'].includes(typeKey)) {
                     options = {};
                 } else {
-                    options = { [filterType.toLowerCase()]: value };
+                    options = { [typeKey]: value };
                 }
 
                 const filter = new FilterClass(options);
@@ -616,32 +668,58 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
 
             img.applyFilters();
             canvas.renderAll();
-
             forceUpdate();
         }
     }, [canvas, selectedObject, forceUpdate]);
 
     const saveToTemplate = useCallback((name: string, brandId?: string, parentId?: string) => {
-        if (!canvas) return;
+        if (!canvas || !(canvas as any)._isAlive) return;
         const json = JSON.stringify(canvas.toJSON());
         const thumbnail = canvas.toDataURL({ format: 'png', multiplier: 0.1 });
-        const id = Math.random().toString(36).substr(2, 9);
-        const newDesign = {
-            id,
-            name: name || "Untitled",
-            thumbnail,
-            data: json,
-            timestamp: Date.now(),
-            brandId,
-            parentId, // for versions
-            updatedAt: Date.now()
-        };
-        const updated = [newDesign, ...savedDesigns];
+
+        let updated: any[];
+        let finalId: string;
+
+        if (currentDesignId) {
+            // Update existing
+            finalId = currentDesignId;
+            updated = savedDesigns.map(d => {
+                if (d.id === currentDesignId) {
+                    return {
+                        ...d,
+                        name: name || d.name,
+                        thumbnail,
+                        data: json,
+                        brandId: brandId || d.brandId,
+                        parentId: parentId || d.parentId,
+                        updatedAt: Date.now()
+                    };
+                }
+                return d;
+            });
+        } else {
+            // Create new
+            const id = Math.random().toString(36).substr(2, 9);
+            finalId = id;
+            const newDesign = {
+                id,
+                name: name || "Untitled",
+                thumbnail,
+                data: json,
+                timestamp: Date.now(),
+                brandId,
+                parentId, // for versions
+                updatedAt: Date.now()
+            };
+            updated = [newDesign, ...savedDesigns];
+            setCurrentDesignId(id);
+        }
+
         lastActionTime.current = Date.now();
         setSavedDesigns(updated);
         fetch("/api/storage?key=designs", { method: 'POST', body: JSON.stringify(updated) }).catch(() => { });
-        return id;
-    }, [canvas, savedDesigns]);
+        return finalId;
+    }, [canvas, savedDesigns, currentDesignId]);
 
     const deletePreset = useCallback(async (id: string) => {
         console.log("[Store] Deleting preset:", id);
@@ -659,6 +737,12 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
     const deleteDesign = useCallback(async (id: string) => {
         console.log("[Store] Deleting design:", id);
         const updated = savedDesigns.filter(d => d.id !== id && d.parentId !== id);
+
+        if (id === currentDesignId) {
+            setCurrentDesignId(null);
+            setCanvasName("Untitled Project");
+        }
+
         lastActionTime.current = Date.now();
         setSavedDesigns(updated);
         try {
@@ -667,11 +751,12 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         } catch (e) {
             console.error("[Store] Deletion POST failed:", e);
         }
-    }, [savedDesigns]);
+    }, [savedDesigns, currentDesignId]);
 
-    const loadTemplate = useCallback((json: string, name?: string) => {
+    const loadTemplate = useCallback((json: string, name?: string, id?: string) => {
         if (!canvas) return;
         if (name) setCanvasName(name);
+        if (id) setCurrentDesignId(id);
         try {
             const data = JSON.parse(json);
             // Sanitize objects to handle expired blob URLs
@@ -685,6 +770,7 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
                 });
             }
             preloadFontsFromJSON(data).then(() => {
+                if (!(canvas as any)._isAlive) return;
                 // Update canvas size from template
                 if (data.width && data.height) {
                     const newSize = { width: data.width, height: data.height };
@@ -694,10 +780,14 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
 
                 canvas.loadFromJSON(data)
                     .then(() => {
+                        if (!(canvas as any)._isAlive) return;
                         canvas.renderAll();
-                        setTimeout(() => fitToScreen(), 100); // Small delay to ensure render is stable
+                        setTimeout(() => {
+                            if ((canvas as any)._isAlive) fitToScreen();
+                        }, 100);
                     })
                     .catch(err => {
+                        if (!(canvas as any)._isAlive) return;
                         console.error("Fabric load error:", err);
                         canvas.renderAll();
                     });
@@ -708,7 +798,7 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
     }, [canvas, fitToScreen]);
 
     const exportAsFormat = useCallback((format: 'png' | 'jpeg' | 'pdf') => {
-        if (!canvas) return;
+        if (!canvas || !(canvas as any)._isAlive) return;
         canvas.discardActiveObject();
         canvas.renderAll();
 
@@ -740,6 +830,8 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
 
     const bringToFront = useCallback(() => { selectedObject && canvas?.bringObjectToFront(selectedObject); canvas?.renderAll(); }, [canvas, selectedObject]);
     const sendToBack = useCallback(() => { selectedObject && canvas?.sendObjectToBack(selectedObject); canvas?.renderAll(); }, [canvas, selectedObject]);
+    const bringForward = useCallback(() => { selectedObject && canvas?.bringObjectForward(selectedObject); canvas?.renderAll(); }, [canvas, selectedObject]);
+    const sendBackwards = useCallback(() => { selectedObject && canvas?.sendObjectBackwards(selectedObject); canvas?.renderAll(); }, [canvas, selectedObject]);
     const deleteSelected = useCallback(() => { selectedObject && canvas?.remove(selectedObject); canvas?.discardActiveObject(); canvas?.renderAll(); }, [canvas, selectedObject]);
 
     const copySelected = useCallback(() => {
@@ -1061,7 +1153,7 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         canvas.renderAll();
     }, [canvas, cropRect, selectedObject]);
 
-    const applyAIEdgeStroke = useCallback(async () => {
+    const applyEdgeStroke = useCallback(async () => {
         if (!canvas || !(selectedObject instanceof fabric.Image)) return;
         const img = selectedObject as fabric.Image;
 
@@ -1167,7 +1259,13 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         };
 
         const debouncedAutoSave = debounce(() => {
-            fetch("/api/storage?key=autosave", { method: 'POST', body: JSON.stringify(canvas.toJSON()) }).catch(() => { });
+            if (!canvas || !(canvas as any)._isAlive) return;
+            const data = {
+                canvas: canvas.toJSON(),
+                currentDesignId: designIdRef.current,
+                canvasName: canvasNameRef.current
+            };
+            fetch("/api/storage?key=autosave", { method: 'POST', body: JSON.stringify(data) }).catch(() => { });
         }, 1000);
 
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -1210,13 +1308,19 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
                         if (activeObj?.type === 'group') ungroupSelected();
                         else if (activeObj?.type === 'activeSelection') groupSelected();
                         return;
+                    case 's':
+                        e.preventDefault();
+                        saveToTemplate(canvasNameRef.current);
+                        return;
                     case ']':
                         e.preventDefault();
-                        bringToFront();
+                        if (e.shiftKey) bringToFront();
+                        else bringForward();
                         return;
                     case '[':
                         e.preventDefault();
-                        sendToBack();
+                        if (e.shiftKey) sendToBack();
+                        else sendBackwards();
                         return;
                 }
             }
@@ -1364,33 +1468,35 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         currentUser, setCurrentUser,
         updateTick, forceUpdate,
         addRect, addText, addCircle, addTriangle, addStar, addHexagon, addDiamond, addArrow, addHeart, addBadge, addCloud, addPolygon, addImage,
-        clearCanvas, updateSelectedObject, applyFilter, clearEffects, updateMaskProperties, bringToFront, sendToBack, deleteSelected,
+        clearCanvas, updateSelectedObject, applyFilter, clearEffects, updateMaskProperties, bringToFront, sendToBack, bringForward, sendBackwards, deleteSelected,
         duplicateSelected, copySelected, cutSelected, pasteSelected, releaseMask, groupSelected, ungroupSelected, alignSelected,
         maskShapeWithImage, saveToTemplate, loadTemplate, deleteDesign, exportAsFormat, savedDesigns, setSavedDesigns,
         canvasName, setCanvasName,
         brandKits, setBrandKits, assetFolders, setAssetFolders,
-        templateFolders, setTemplateFolders,
+        templateFolders, setTemplateFolders, currentDesignId, setCurrentDesignId,
         customFonts, setCustomFonts, addCustomFont, removeCustomFont,
         removeBackground, setBackgroundImage,
         showGrid, setShowGrid,
         enterCropMode, confirmCrop, cancelCrop, isCropMode,
-        applyAIEdgeStroke,
+        applyEdgeStroke,
         undo, redo, canUndo: history.length > 0, canRedo: redoStack.length > 0,
         smartResizeSelected: smartResize,
         apiConfig, setApiConfig,
-        presets, setPresets, deletePreset
+        presets, setPresets, deletePreset,
+        isResizeOpen, setIsResizeOpen
     }), [
         canvas, selectedObject, theme, canvasSize, zoom, panOffset, fitToScreen,
         currentUser, setCurrentUser,
         updateTick, forceUpdate, savedDesigns, setSavedDesigns, canvasName, brandKits, assetFolders, templateFolders,
         customFonts, setCustomFonts, history.length, redoStack.length, apiConfig, presets,
         addRect, addText, addCircle, addTriangle, addStar, addHexagon, addDiamond, addArrow, addHeart, addBadge, addCloud, addPolygon, addImage,
-        clearCanvas, updateSelectedObject, applyFilter, clearEffects, updateMaskProperties, bringToFront, sendToBack, deleteSelected,
+        clearCanvas, updateSelectedObject, applyFilter, clearEffects, updateMaskProperties, bringToFront, sendToBack, bringForward, sendBackwards, deleteSelected,
         duplicateSelected, copySelected, cutSelected, pasteSelected, releaseMask, groupSelected, ungroupSelected, alignSelected,
         maskShapeWithImage, saveToTemplate, loadTemplate, deleteDesign, exportAsFormat,
         addCustomFont, removeCustomFont, removeBackground, setBackgroundImage,
-        showGrid, enterCropMode, confirmCrop, cancelCrop, isCropMode, applyAIEdgeStroke, smartResize,
-        setPresets, deletePreset
+        showGrid, enterCropMode, confirmCrop, cancelCrop, isCropMode, applyEdgeStroke, smartResize,
+        setPresets, deletePreset,
+        isResizeOpen
     ]);
 
     return (

@@ -43,11 +43,12 @@ import PropertiesPanel from "@/components/Editor/PropertiesPanel";
 import ContextMenu from "@/components/Editor/ContextMenu";
 import { CanvasProvider, useCanvas } from "@/store/useCanvasStore";
 import DropAssetDialog from "@/components/Editor/DropAssetDialog";
+import MenuBar from "@/components/Editor/MenuBar";
+import PropertyBar from "@/components/Editor/PropertyBar";
 
 type SidebarTab = "templates" | "assets" | "text" | "shapes" | "layers" | "brands" | "settings";
 
 function EditorContent({ username }: { username?: string }) {
-    const [isResizeOpen, setIsResizeOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<SidebarTab>("templates");
     const [showExportMenu, setShowExportMenu] = useState(false);
     const [droppedImage, setDroppedImage] = useState<string | null>(null);
@@ -61,14 +62,60 @@ function EditorContent({ username }: { username?: string }) {
         theme, setTheme, zoom, setZoom, panOffset, fitToScreen, showGrid, setShowGrid,
         undo, redo, canUndo, canRedo,
         canvasName, setCanvasName,
-        setCurrentUser
+        setCurrentUser,
+        isResizeOpen, setIsResizeOpen
     } = useCanvas();
+
+    const [sidebarWidth, setSidebarWidth] = useState(256); // Default 64rem = 256px
+    const [isResizing, setIsResizing] = useState(false);
 
     useEffect(() => {
         if (username) {
             setCurrentUser(username);
         }
     }, [username, setCurrentUser]);
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
+            if (e.key.toLowerCase() === 's' && !e.ctrlKey && !e.metaKey) {
+                e.preventDefault();
+                setIsResizeOpen(true);
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [setIsResizeOpen]);
+
+    const startResizing = (e: React.MouseEvent) => {
+        e.preventDefault();
+        setIsResizing(true);
+    };
+
+    useEffect(() => {
+        const handleMouseMove = (e: MouseEvent) => {
+            if (!isResizing) return;
+            // Navigation bar is 56px (w-14). Subtract it from the total X position.
+            const newWidth = e.clientX - 56;
+            if (newWidth > 150 && newWidth < 500) {
+                setSidebarWidth(newWidth);
+            }
+        };
+
+        const handleMouseUp = () => {
+            setIsResizing(false);
+        };
+
+        if (isResizing) {
+            window.addEventListener('mousemove', handleMouseMove);
+            window.addEventListener('mouseup', handleMouseUp);
+        }
+
+        return () => {
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+        };
+    }, [isResizing]);
 
     const toggleTheme = () => setTheme(theme === "dark" ? "light" : "dark");
 
@@ -145,7 +192,7 @@ function EditorContent({ username }: { username?: string }) {
             onDrop={handleDrop}
             className={`flex h-screen flex-col overflow-hidden text-[#1a1c1e] transition-colors ${theme} relative`}
         >
-            <ResizeDialog isOpen={isResizeOpen} onClose={() => setIsResizeOpen(false)} />
+            <ResizeDialog />
             <DropAssetDialog
                 isOpen={!!droppedImage}
                 onClose={() => setDroppedImage(null)}
@@ -166,110 +213,12 @@ function EditorContent({ username }: { username?: string }) {
                 </div>
             )}
 
-            {/* Top Navbar */}
-            <header className="flex h-14 items-center justify-between border-b border-white/5 bg-[#181a20] px-4 shadow-sm z-[1000]">
-                <div className="flex items-center gap-6">
-                    <div className="flex items-center gap-2">
-                        <img src="/logo.png" alt="App Logo" className="h-8 w-8 object-contain rounded-xl shadow-lg" />
-                        <h1 className="text-sm font-black uppercase tracking-widest text-white">CanvasCrafter</h1>
-                    </div>
-
-                    <div className="h-4 w-px bg-white/10" />
-
-                    <div className="flex gap-1">
-                        <button
-                            onClick={undo}
-                            disabled={!canUndo}
-                            className="rounded-lg p-2 text-gray-500 hover:bg-white/5 hover:text-white transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
-                            title="Undo (Ctrl+Z)"
-                        >
-                            <Undo2 className="h-4 w-4" />
-                        </button>
-                        <button
-                            onClick={redo}
-                            disabled={!canRedo}
-                            className="rounded-lg p-2 text-gray-500 hover:bg-white/5 hover:text-white transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
-                            title="Redo (Ctrl+Y)"
-                        >
-                            <Redo2 className="h-4 w-4" />
-                        </button>
-                    </div>
-
-                    <div className="h-4 w-px bg-white/10" />
-
-                    <button
-                        onClick={() => setIsResizeOpen(true)}
-                        className="rounded-lg px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:bg-white/5 hover:text-white transition-colors border border-white/5"
-                    >
-                        {canvasSize.width} × {canvasSize.height}
-                    </button>
-
-                    <div className="h-4 w-px bg-white/10" />
-
-                    <button
-                        onClick={() => {
-                            if (confirm("Create a new canvas? This will discard any unsaved edits.")) {
-                                clearCanvas();
-                            }
-                        }}
-                        className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-red-500 hover:bg-red-500/10 transition-colors border border-red-500/20"
-                    >
-                        <Plus className="h-3 w-3" />
-                        New Canvas
-                    </button>
-
-                    <div className="h-4 w-px bg-white/10" />
-
-                    <div className="flex items-center gap-2">
-                        <input
-                            type="text"
-                            value={canvasName}
-                            onChange={(e) => setCanvasName(e.target.value)}
-                            className="bg-transparent text-[10px] font-black uppercase tracking-widest text-white focus:outline-none border-b border-transparent hover:border-white/20 focus:border-blue-500 transition-all w-48 px-1 py-0.5"
-                            placeholder="PROJECT TITLE"
-                        />
-                    </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                    <div className="relative">
-                        <button
-                            onClick={() => setShowExportMenu(!showExportMenu)}
-                            className="flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-[10px] font-black uppercase tracking-widest text-black hover:bg-gray-200 transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:shadow-[0_0_25px_rgba(255,255,255,0.2)]"
-                        >
-                            <Download className="h-3.5 w-3.5" />
-                            Export
-                            <ChevronDown className="h-3 w-3 opacity-50" />
-                        </button>
-
-                        {showExportMenu && (
-                            <div className="absolute right-0 top-full mt-2 w-56 rounded-2xl bg-[#1e2229] p-2 shadow-2xl border border-white/10 z-[1001] animate-in slide-in-from-top-2">
-                                <ExportOption icon={<ImageIcon className="h-4 w-4" />} label="PNG" sub="Best for complex images" onClick={() => exportAsFormat('png')} />
-                                <ExportOption icon={<ImageIcon className="h-4 w-4" />} label="JPEG" sub="Best for sharing" onClick={() => exportAsFormat('jpeg')} />
-                                <div className="h-px w-full bg-white/5 my-1" />
-                                <ExportOption icon={<FileDown className="h-4 w-4" />} label="PDF" sub="Best for printing" onClick={() => exportAsFormat('pdf')} />
-                            </div>
-                        )}
-                    </div>
-
-                    <button
-                        onClick={async () => {
-                            if (confirm("Log out? Any unsaved work may be lost.")) {
-                                await fetch('/api/auth/status', { method: 'DELETE' });
-                                window.location.reload();
-                            }
-                        }}
-                        className="rounded-xl p-2 text-gray-500 hover:bg-white/5 hover:text-red-500 transition-all"
-                        title="Log Out"
-                    >
-                        <LogOut className="h-5 w-5" />
-                    </button>
-                </div>
-            </header>
+            <MenuBar setActiveTab={setActiveTab} />
+            <PropertyBar />
 
             <div className="flex flex-1 overflow-hidden relative">
                 {/* Left Sidebar Menu */}
-                <nav className="flex w-20 flex-col items-center border-r border-white/5 bg-[#181a20] py-6 z-40">
+                <nav className="flex w-14 flex-col items-center border-r border-white/5 bg-[#181a20] py-4 z-40">
                     <SidebarNavItem icon={<LayersIcon className="h-5 w-5" />} label="Templates" active={activeTab === "templates"} onClick={() => setActiveTab("templates")} />
                     <SidebarNavItem icon={<Palette className="h-5 w-5" />} label="Brands" active={activeTab === "brands"} onClick={() => setActiveTab("brands")} />
                     <SidebarNavItem icon={<Type className="h-5 w-5" />} label="Text" active={activeTab === "text"} onClick={() => setActiveTab("text")} />
@@ -283,7 +232,15 @@ function EditorContent({ username }: { username?: string }) {
                 </nav>
 
                 {/* Secondary Sidebar (Tab Content) */}
-                <aside className="w-80 border-r border-white/5 bg-[#181a20] z-30 shadow-2xl flex flex-col h-full">
+                <aside
+                    style={{ width: sidebarWidth }}
+                    className="relative border-r border-white/5 bg-[#181a20] z-30 shadow-2xl flex flex-col h-full transition-[width] duration-0"
+                >
+                    {/* Resize handle */}
+                    <div
+                        onMouseDown={startResizing}
+                        className={`absolute -right-0.5 top-0 w-1 h-full cursor-col-resize z-50 transition-colors hover:bg-blue-500/50 ${isResizing ? 'bg-blue-500' : 'bg-transparent'}`}
+                    />
                     {activeTab === "templates" && <TemplatePanel />}
                     {activeTab === "brands" && <BrandPanel />}
                     {activeTab === "settings" && <SettingsPanel />}
@@ -381,7 +338,7 @@ function EditorContent({ username }: { username?: string }) {
 
                     {/* Right Properties Sidebar (Overlay) */}
                     <aside
-                        className={`absolute right-0 top-0 h-full w-80 border-l border-white/5 bg-[#181a20]/95 backdrop-blur-2xl z-[60] transition-all duration-500 ease-in-out shadow-[-20px_0_50px_rgba(0,0,0,0.3)]
+                        className={`absolute right-0 top-0 h-full w-64 border-l border-white/5 bg-[#181a20]/95 backdrop-blur-2xl z-[60] transition-all duration-500 ease-in-out shadow-[-20px_0_50px_rgba(0,0,0,0.3)]
                             ${selectedObject ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0 pointer-events-none'}`}
                     >
                         {/* Pinned Toolbar - To the left of the panel */}
@@ -408,14 +365,14 @@ function SidebarNavItem({ icon, label, active = false, onClick }: { icon: React.
     return (
         <button
             onClick={onClick}
-            className={`group relative mb-4 flex w-16 flex-col items-center justify-center gap-2 py-3 transition-all
+            className={`group relative mb-2 flex w-12 flex-col items-center justify-center gap-1.5 py-2.5 transition-all
         ${active ? 'text-blue-500' : 'text-gray-600 hover:text-gray-400'}`}
         >
-            <div className={`transition-transform duration-300 ${active ? 'scale-110 translate-x-1' : 'group-hover:scale-110 group-active:scale-95'}`}>
+            <div className={`transition-transform duration-300 ${active ? 'scale-110' : 'group-hover:scale-110 group-active:scale-95'}`}>
                 {icon}
             </div>
-            <span className="text-[9px] font-black uppercase tracking-widest leading-none">{label}</span>
-            {active && <div className="absolute left-0 h-10 w-1.5 rounded-r-full bg-blue-500 shadow-[2px_0_15px_rgba(59,130,246,0.6)]" />}
+            <span className="text-[8px] font-black uppercase tracking-widest leading-none opacity-0 group-hover:opacity-100 transition-opacity">{label}</span>
+            {active && <div className="absolute left-0 h-8 w-1 rounded-r-full bg-blue-500 shadow-[2px_0_15px_rgba(59,130,246,0.6)]" />}
         </button>
     );
 }
@@ -424,24 +381,13 @@ function ToolButton({ icon, label, onClick }: { icon: React.ReactNode; label: st
     return (
         <button
             onClick={onClick}
-            className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-white/5 bg-white/5 p-6 transition-all hover:bg-white/10 hover:-translate-y-1 active:scale-95 group shadow-lg"
+            className="flex flex-col items-center justify-center gap-2 rounded-xl border border-white/5 bg-[#1e2229] p-4 transition-all hover:bg-white/5 hover:-translate-y-0.5 active:scale-95 group shadow-md"
         >
-            <div className="text-blue-500 transition-transform duration-500 group-hover:rotate-[360deg] scale-110">
+            <div className="text-blue-500 transition-transform duration-300 group-hover:scale-110">
                 {icon}
             </div>
-            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 group-hover:text-gray-200">{label}</span>
+            <span className="text-[9px] font-black uppercase tracking-wider text-gray-500 group-hover:text-gray-300 transition-colors">{label}</span>
         </button>
     );
 }
 
-function ExportOption({ icon, label, sub, onClick }: { icon: React.ReactNode; label: string; sub: string; onClick: () => void }) {
-    return (
-        <button onClick={onClick} className="group flex w-full items-center gap-4 rounded-xl px-4 py-3 text-left transition-all hover:bg-white/5 active:scale-95">
-            <div className="rounded-xl bg-[#181a20] p-2.5 text-gray-500 group-hover:text-blue-500 group-hover:bg-[#252831] border border-white/5 transition-all">{icon}</div>
-            <div>
-                <p className="text-xs font-black text-gray-200 group-hover:text-blue-400 transition-colors">{label}</p>
-                <p className="text-[9px] font-black text-gray-600 uppercase tracking-widest">{sub}</p>
-            </div>
-        </button>
-    );
-}

@@ -18,7 +18,7 @@ import APISettingsDialog from "./APISettingsDialog";
 export default function Toolbar() {
     const {
         selectedObject, updateSelectedObject, deleteSelected,
-        bringToFront, sendToBack, duplicateSelected, releaseMask,
+        bringToFront, sendToBack, bringForward, sendBackwards, duplicateSelected, releaseMask,
         groupSelected, ungroupSelected, alignSelected,
         isCropMode, enterCropMode, confirmCrop, cancelCrop
     } = useCanvas();
@@ -28,15 +28,35 @@ export default function Toolbar() {
 
     if (!selectedObject) return null;
 
-    const isText = selectedObject instanceof fabric.IText;
-    const isImage = selectedObject instanceof fabric.Image;
+    const checkIsImage = (obj: any) => {
+        return obj && (
+            obj.type === 'image' ||
+            obj.type === 'FabricImage' ||
+            obj.isAiBorderGroup ||
+            obj instanceof fabric.Image
+        );
+    };
+
+    const isImage = checkIsImage(selectedObject);
+    const isMultiImage = selectedObject?.type === 'activeSelection' &&
+        (selectedObject as any)._objects?.every((obj: any) => checkIsImage(obj));
+
+    const isText = !!selectedObject && (
+        selectedObject.type === 'text' ||
+        selectedObject.type === 'i-text' ||
+        selectedObject.type === 'textbox' ||
+        selectedObject instanceof fabric.IText ||
+        selectedObject instanceof fabric.Textbox
+    );
     const hasMask = !!selectedObject.clipPath;
 
     return (
         <>
             <div className="flex flex-col items-center gap-1 bg-[#181a20]/95 backdrop-blur-xl border border-white/10 rounded-2xl p-1.5 shadow-[0_20px_50px_rgba(0,0,0,0.5)] pointer-events-auto transition-all w-12">
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/20 text-blue-500 shadow-inner mb-2">
-                    {selectedObject.type === 'activeSelection' ? <MousePointer2 className="h-4 w-4" /> : (isText ? <CaseSensitive className="h-4 w-4" /> : (isImage ? <Sparkles className="h-4 w-4" /> : <Palette className="h-4 w-4" />))}
+                    {selectedObject.type === 'activeSelection' && !isMultiImage ? (
+                        <MousePointer2 className="h-4 w-4" />
+                    ) : (isText ? <CaseSensitive className="h-4 w-4" /> : (isImage || isMultiImage ? <Sparkles className="h-4 w-4" /> : <Palette className="h-4 w-4" />))}
                 </div>
 
                 <div className="w-full h-px bg-white/5 mb-1" />
@@ -132,8 +152,8 @@ export default function Toolbar() {
 
                 <div className="flex flex-col items-center gap-0.5">
                     <div className="flex flex-col items-center bg-white/5 rounded-xl border border-white/5 p-0.5">
-                        <ToolbarButton icon={<ChevronUp className="h-3.5 w-3.5" />} onClick={bringToFront} label="Bring Front" />
-                        <ToolbarButton icon={<ChevronDown className="h-3.5 w-3.5" />} onClick={sendToBack} label="Send Back" />
+                        <ToolbarButton icon={<ChevronUp className="h-3.5 w-3.5" />} onClick={bringForward} label="Bring Forward" />
+                        <ToolbarButton icon={<ChevronDown className="h-3.5 w-3.5" />} onClick={sendBackwards} label="Send Backward" />
                     </div>
                     <ToolbarButton
                         icon={<Copy className="h-3.5 w-3.5" />}

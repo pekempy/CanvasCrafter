@@ -97,7 +97,7 @@ export default function StrokePanel() {
                     <div className="space-y-2">
                         <div className="flex justify-between items-center">
                             <label className="text-[10px] font-black uppercase text-gray-400">Thickness</label>
-                            <span className="text-xs font-bold text-gray-300">{currentThickness}px</span>
+                            <span className="text-[10px] font-black text-white bg-blue-600/30 px-2 py-0.5 rounded-lg border border-blue-500/30 min-w-[34px] text-center">{currentThickness}px</span>
                         </div>
                         <input
                             type="range"

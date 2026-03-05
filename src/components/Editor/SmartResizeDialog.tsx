@@ -60,9 +60,13 @@ export default function SmartResizeDialog({
                             <div className="relative">
                                 <Maximize2 className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-600" />
                                 <input
-                                    type="number"
+                                    type="text"
+                                    inputMode="numeric"
                                     value={width}
-                                    onChange={(e) => setWidth(parseInt(e.target.value) || 0)}
+                                    onChange={(e) => {
+                                        const val = e.target.value.replace(/[^0-9]/g, '');
+                                        setWidth(parseInt(val) || 0);
+                                    }}
                                     className="w-full rounded-2xl border border-white/5 bg-white/5 p-4 pl-12 text-lg font-black text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
                                     placeholder="0"
                                 />
@@ -73,9 +77,13 @@ export default function SmartResizeDialog({
                             <div className="relative">
                                 <Maximize2 className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-600 rotate-90" />
                                 <input
-                                    type="number"
+                                    type="text"
+                                    inputMode="numeric"
                                     value={height}
-                                    onChange={(e) => setHeight(parseInt(e.target.value) || 0)}
+                                    onChange={(e) => {
+                                        const val = e.target.value.replace(/[^0-9]/g, '');
+                                        setHeight(parseInt(val) || 0);
+                                    }}
                                     className="w-full rounded-2xl border border-white/5 bg-white/5 p-4 pl-12 text-lg font-black text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
                                     placeholder="0"
                                 />

@@ -12,7 +12,7 @@ export default function ContextMenu() {
     const {
         canvas, selectedObject,
         cutSelected, copySelected, pasteSelected, deleteSelected,
-        bringToFront, sendToBack, duplicateSelected,
+        bringToFront, sendToBack, bringForward, sendBackwards, duplicateSelected,
         groupSelected, ungroupSelected
     } = useCanvas();
 
@@ -124,15 +124,30 @@ export default function ContextMenu() {
 
                 <ContextItem
                     icon={<ChevronUp className="h-3.5 w-3.5" />}
-                    label="Bring to Front"
+                    label="Bring Forward"
                     shortcut="]"
-                    onClick={() => { bringToFront(); setIsVisible(false); }}
+                    onClick={() => { bringForward(); setIsVisible(false); }}
                     disabled={!selectedObject}
                 />
                 <ContextItem
                     icon={<ChevronDown className="h-3.5 w-3.5" />}
-                    label="Send to Back"
+                    label="Send Backward"
                     shortcut="["
+                    onClick={() => { sendBackwards(); setIsVisible(false); }}
+                    disabled={!selectedObject}
+                />
+                <div className="my-1 h-px bg-white/5" />
+                <ContextItem
+                    icon={<Layers className="h-3.5 w-3.5" />}
+                    label="Bring to Front"
+                    shortcut="Shift+]"
+                    onClick={() => { bringToFront(); setIsVisible(false); }}
+                    disabled={!selectedObject}
+                />
+                <ContextItem
+                    icon={<Layers className="h-3.5 w-3.5 -scale-y-100" />}
+                    label="Send to Back"
+                    shortcut="Shift+["
                     onClick={() => { sendToBack(); setIsVisible(false); }}
                     disabled={!selectedObject}
                 />

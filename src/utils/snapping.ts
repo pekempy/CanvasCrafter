@@ -45,6 +45,7 @@ export function handleObjectSnapping(canvas: fabric.Canvas, activeObject: any) {
         obj !== activeObject && obj.visible && !(obj as any).isGuide
     );
 
+    // Use artboard dimensions if available, otherwise canvas size
     const canvasWidth = (canvas.width || 0) / zoom;
     const canvasHeight = (canvas.height || 0) / zoom;
 
