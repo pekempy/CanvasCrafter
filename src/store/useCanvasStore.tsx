@@ -165,9 +165,9 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
     const [currentDesignId, setCurrentDesignId] = useState<string | null>(null);
     // API key handling
     const [apiConfig, setApiConfig] = useState({
-        unsplashAccessKey: process.env.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY || '',
-        pexelsKey: process.env.NEXT_PUBLIC_PEXELS_API_KEY || '',
-        pixabayKey: process.env.NEXT_PUBLIC_PIXABAY_API_KEY || ''
+        unsplashAccessKey: '',
+        pexelsKey: '',
+        pixabayKey: ''
     });
     const [clipboard, setClipboard] = useState<any>(null);
     const [presets, setPresets] = useState<{ id: string; name: string; width: number; height: number; iconType?: string }[]>([

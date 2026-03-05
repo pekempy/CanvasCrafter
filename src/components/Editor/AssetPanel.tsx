@@ -45,55 +45,39 @@ export default function AssetPanel() {
         setError(null);
         setStockPhotos([]);
 
-        const unsplashId = apiConfig.unsplashAccessKey || process.env.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY;
-        const pexelsKey = apiConfig.pexelsKey || process.env.NEXT_PUBLIC_PEXELS_API_KEY;
-
         try {
             const allResults: any[] = [];
-            let unAuth = false;
-            let unLimit = false;
 
-            // 1. Fetch from Unsplash
-            if (unsplashId) {
-                try {
-                    const pages = [1, 2];
-                    const requests = pages.map(page =>
-                        fetch(`https://api.unsplash.com/search/photos?query=${search}&per_page=30&page=${page}`, {
-                            headers: { 'Authorization': `Client-ID ${unsplashId}` }
-                        })
-                    );
-                    const responses = await Promise.all(requests);
-                    for (const res of responses) {
-                        if (res.ok) {
-                            const data = await res.json();
-                            allResults.push(...data.results);
-                        } else {
-                            if (res.status === 401) unAuth = true;
-                            if (res.status === 403) unLimit = true;
-                        }
-                    }
-                } catch (e) { console.error("Unsplash error", e); }
-            }
-
-            // 2. Fetch from Pexels
-            if (pexelsKey) {
-                try {
-                    const res = await fetch(`https://api.pexels.com/v1/search?query=${search}&per_page=40`, {
-                        headers: { 'Authorization': pexelsKey }
-                    });
+            // 1. Fetch from Unsplash via proxy
+            try {
+                const pages = [1, 2];
+                const requests = pages.map(page =>
+                    fetch(`/api/external/search?type=unsplash&query=${encodeURIComponent(search)}&per_page=30&page=${page}`)
+                );
+                const responses = await Promise.all(requests);
+                for (const res of responses) {
                     if (res.ok) {
                         const data = await res.json();
-                        const mapped = data.photos.map((p: any) => ({
-                            id: `pexels-${p.id}`,
-                            urls: { regular: p.src.large2x || p.src.large, small: p.src.medium },
-                            user: { name: p.photographer, links: { html: p.photographer_url } },
-                            links: { html: p.url },
-                            source: 'Pexels'
-                        }));
-                        allResults.push(...mapped);
+                        allResults.push(...data.results);
                     }
-                } catch (e) { console.error("Pexels error", e); }
-            }
+                }
+            } catch (e) { console.error("Unsplash proxy error", e); }
+
+            // 2. Fetch from Pexels via proxy
+            try {
+                const res = await fetch(`/api/external/search?type=pexels&query=${encodeURIComponent(search)}&per_page=40`);
+                if (res.ok) {
+                    const data = await res.json();
+                    const mapped = data.photos.map((p: any) => ({
+                        id: `pexels-${p.id}`,
+                        urls: { regular: p.src.large2x || p.src.large, small: p.src.medium },
+                        user: { name: p.photographer, links: { html: p.photographer_url } },
+                        links: { html: p.url },
+                        source: 'Pexels'
+                    }));
+                    allResults.push(...mapped);
+                }
+            } catch (e) { console.error("Pexels proxy error", e); }
 
             if (allResults.length > 0) {
                 // Shuffle for variety
@@ -112,9 +96,7 @@ export default function AssetPanel() {
                     user: { name: "Nature Contributor", links: { html: "https://unsplash.com" } },
                     links: { html: "https://unsplash.com" }
                 })));
-                if (unAuth) setError("API Authentication Failed.");
-                else if (unLimit) setError("Rate Limit Exceeded.");
-                else if (!unsplashId && !pexelsKey) setError("No API keys configured. Set them in API Settings.");
+                setError("No results found or keys not configured on server.");
             }
         } catch (e) {
             setError("Network issue. Using fallback gallery.");
@@ -128,15 +110,8 @@ export default function AssetPanel() {
         setError(null);
         setClipartPhotos([]);
 
-        const key = apiConfig.pixabayKey || process.env.NEXT_PUBLIC_PIXABAY_API_KEY;
-        if (!key) {
-            setError("Pixabay API key not configured.");
-            setIsSearching(false);
-            return;
-        }
-
         try {
-            const res = await fetch(`https://pixabay.com/api/?key=${key}&q=${encodeURIComponent(search)}&image_type=vector&per_page=50`);
+            const res = await fetch(`/api/external/search?type=pixabay&query=${encodeURIComponent(search)}&per_page=50`);
             if (res.ok) {
                 const data = await res.json();
                 setClipartPhotos(data.hits.map((hit: any) => ({
@@ -148,7 +123,7 @@ export default function AssetPanel() {
                     user: { name: hit.user, links: { html: `https://pixabay.com/users/${hit.user}-${hit.user_id}/` } },
                 })));
             } else {
-                setError("Failed to fetch clipart.");
+                setError("Failed to fetch clipart via proxy.");
             }
         } catch (e) {
             setError("Network issue fetching clipart.");
@@ -158,15 +133,14 @@ export default function AssetPanel() {
 
     const trackDownload = async (photo: any) => {
         if (photo.links?.download_location) {
-            const clientId = apiConfig.unsplashAccessKey || process.env.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY;
             try {
-                await fetch(photo.links.download_location, {
-                    headers: {
-                        'Authorization': `Client-ID ${clientId}`
-                    }
+                await fetch('/api/external/track', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url: photo.links.download_location })
                 });
             } catch (e) {
-                console.error("Failed to track Unsplash download", e);
+                console.error("Failed to track Unsplash download via proxy", e);
             }
         }
     };

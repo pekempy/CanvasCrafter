@@ -84,10 +84,8 @@ export async function detectEdgesAndAddStroke(canvas: fabric.Canvas, img: fabric
         flipY: img.flipY,
         originX: img.originX,
         originY: img.originY,
-        clipPath: img.clipPath,
-        shadow: img.shadow,
         objectCaching: false,
-        subTargetCheck: false
+        subTargetCheck: true
     });
     // Assign custom properties using Fabric's set to ensure they are serialized
     group.set({ name: 'edge-border-wrapper', isEdgeBorderGroup: true });
