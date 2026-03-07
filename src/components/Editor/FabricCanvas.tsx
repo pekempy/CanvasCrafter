@@ -5,7 +5,11 @@ import * as fabric from "fabric";
 import { useCanvas } from "@/store/useCanvasStore";
 import { preloadFontsFromJSON } from "@/utils/fontLoader";
 
-fabric.Object.customProperties = ['id', 'name', 'isEdgeBorderGroup'];
+const PERSISTENT_PROPS = [
+    'id', 'name', 'lockMovementX', 'lockMovementY', 'lockRotation', 
+    'lockScalingX', 'lockScalingY', 'lockSkewingX', 'lockScalingFlip',
+    'hasControls', 'selectable', 'evented', 'editable', 'isEdgeBorderGroup'
+];
 
 export default function FabricCanvas() {
     const canvasRef = useRef<HTMLCanvasElement>(null);

@@ -128,16 +128,19 @@ async function discoverOrphans(user: string, allFolders: any[]) {
 
     // Build a map of existing assets by ID for fast lookup
     const existingAssetIds = new Set();
+    const pngFiles = new Set(files.filter(f => f.endsWith('.png')).map(f => f.replace('.png', '')));
     const foldersById = new Map();
     allFolders.forEach(f => {
         foldersById.set(f.id, f);
-        f.assets?.forEach((a: any) => existingAssetIds.add(String(a.id)));
+        f.assets?.forEach((a: any) => {
+            if (pngFiles.has(String(a.id))) existingAssetIds.add(String(a.id));
+        });
     });
 
-    // OPTIMIZATION: Filter files by ID before reading content
+    // OPTIMIZATION: Filter files by ID before reading content which are definitely new on disk
     const potentialOrphans = jsonFiles.filter(file => {
         const id = file.replace('.json', '');
-        return !existingAssetIds.has(id);
+        return !existingAssetIds.has(id) && pngFiles.has(id);
     });
 
     if (potentialOrphans.length === 0) return [];
@@ -263,6 +266,23 @@ export async function GET(request: Request) {
 
             // Filter data based on user ownership or global visibility
             if (Array.isArray(jsonData)) {
+                // --- ON-THE-FLY PRUNING OF BROKEN ASSETS ---
+                // If the user is fetching folders, ensure we only return assets that actually exist on disk.
+                if (key === 'folders') {
+                    await ensureImagesDir();
+                    const files = await fs.readdir(IMAGES_DIR);
+                    const pngFiles = new Set(files.filter(f => f.endsWith('.png')).map(f => f.replace('.png', '')));
+                    
+                    jsonData.forEach((folder: any) => {
+                        if (folder.assets && Array.isArray(folder.assets)) {
+                            folder.assets = folder.assets.filter((asset: any) => {
+                                const id = String(asset.id);
+                                return pngFiles.has(id);
+                            });
+                        }
+                    });
+                }
+
                 let filtered = jsonData.filter((item: any) => {
                     // Item is visible if:
                     // 1. It belongs to the current user

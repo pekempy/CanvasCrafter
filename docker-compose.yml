@@ -1,7 +1,7 @@
 services:
   canvascrafter:
     build:
-      context: /mnt/storage/disk-1/CanvasCrafter/
+      context: .
       dockerfile: Dockerfile
       network: host
       args:
@@ -13,7 +13,7 @@ services:
     ports:
       - "9654:3000"
     env_file:
-      - /mnt/storage/disk-1/CanvasCrafter/.env
+      - .env
     environment:
       - PORT=3000
       - DATA_DIR=/data

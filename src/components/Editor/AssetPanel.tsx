@@ -15,32 +15,80 @@ export default function AssetPanel() {
     const [isUploading, setIsUploading] = useState(false);
     const [activeTab, setActiveTab] = useState<"library" | "stock" | "clipart">("library");
     const [activeFolderId, setActiveFolderId] = useState("default");
-    const [search, setSearch] = useState("");
+    const [stockSearch, setStockSearch] = useState("");
+    const [clipartSearch, setClipartSearch] = useState("");
     const [stockPhotos, setStockPhotos] = useState<any[]>([]);
     const [clipartPhotos, setClipartPhotos] = useState<any[]>([]);
     const [isSearching, setIsSearching] = useState(false);
     const [librarySearch, setLibrarySearch] = useState("");
     const [error, setError] = useState<string | null>(null);
+
+    // Context Resets: Clear searches when switching tabs to prevent "old results" confusion
+    useEffect(() => {
+        setStockPhotos([]);
+        setClipartPhotos([]);
+        setError(null);
+        // Clear library search when switching tabs, unless it's the library tab itself
+        if (activeTab !== "library") {
+            setLibrarySearch("");
+        }
+    }, [activeTab]);
+
+    useEffect(() => {
+        setLibrarySearch("");
+    }, [activeFolderId]);
     const [confirmingFolderDeleteId, setConfirmingFolderDeleteId] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const assetsToDisplay = useMemo(() => {
+        const uniqueAssets = new Map<string, any>();
+        
+        let sourceAssets: any[] = [];
         if (activeFolderId === "favorites") {
-            return assetFolders.flatMap(f => f.assets.filter(a => a.isFavorite).map(a => ({ ...a, folderId: f.id })));
+            sourceAssets = assetFolders.flatMap(f => f.assets.filter(a => a.isFavorite).map(a => ({ ...a, folderId: f.id })));
+        } else if (activeFolderId === "default") {
+            sourceAssets = assetFolders.flatMap(f => f.assets.map(a => ({ ...a, folderId: f.id })));
+        } else {
+            const folder = assetFolders.find(f => f.id === activeFolderId);
+            if (folder) sourceAssets = folder.assets.map(a => ({ ...a, folderId: activeFolderId }));
         }
-        if (activeFolderId === "default") {
-            return assetFolders.flatMap(f => f.assets.map(a => ({ ...a, folderId: f.id })));
-        }
-        const folder = assetFolders.find(f => f.id === activeFolderId);
-        return folder ? folder.assets.map(a => ({ ...a, folderId: activeFolderId })) : [];
+
+        // Deduplicate by string ID to catch duplicates across folders or type mismatches
+        sourceAssets.forEach((asset: any) => {
+            const sid = String(asset.id);
+            if (!uniqueAssets.has(sid)) {
+                uniqueAssets.set(sid, asset);
+            }
+        });
+
+        return Array.from(uniqueAssets.values());
     }, [assetFolders, activeFolderId]);
 
-    const filteredAssets = assetsToDisplay.filter(asset =>
-        !librarySearch || (asset.tags && asset.tags.some(tag => tag.toLowerCase().includes(librarySearch.toLowerCase())))
-    );
+    const filteredAssets = useMemo(() => {
+        const searchTerms = librarySearch.toLowerCase().trim().split(/\s+/).filter(Boolean);
+        if (searchTerms.length === 0) return assetsToDisplay;
+
+        return assetsToDisplay.filter(asset => {
+            const tags = (asset.tags || []).map((t: string) => t.toLowerCase());
+            
+            return searchTerms.every(term => {
+                const isNumeric = /^\d+$/.test(term);
+                
+                return tags.some((tag: string) => {
+                    if (tag === term) return true;
+                    if (isNumeric) {
+                        // Numeric queries must match an exact number in the tag (e.g., "74" matches "74-bg" but not "73")
+                        return tag.split(/[^0-9]/).some(part => part === term);
+                    }
+                    // Text queries match any substring (e.g., "hehir" matches "6,EHehir")
+                    return tag.includes(term);
+                });
+            });
+        });
+    }, [assetsToDisplay, librarySearch]);
 
     const searchStock = async () => {
-        if (!search) return;
+        if (!stockSearch) return;
         setIsSearching(true);
         setError(null);
         setStockPhotos([]);
@@ -52,7 +100,7 @@ export default function AssetPanel() {
             try {
                 const pages = [1, 2];
                 const requests = pages.map(page =>
-                    fetch(`/api/external/search?type=unsplash&query=${encodeURIComponent(search)}&per_page=30&page=${page}`)
+                    fetch(`/api/external/search?type=unsplash&query=${encodeURIComponent(stockSearch)}&per_page=30&page=${page}`)
                 );
                 const responses = await Promise.all(requests);
                 for (const res of responses) {
@@ -65,7 +113,7 @@ export default function AssetPanel() {
 
             // 2. Fetch from Pexels via proxy
             try {
-                const res = await fetch(`/api/external/search?type=pexels&query=${encodeURIComponent(search)}&per_page=40`);
+                const res = await fetch(`/api/external/search?type=pexels&query=${encodeURIComponent(stockSearch)}&per_page=40`);
                 if (res.ok) {
                     const data = await res.json();
                     const mapped = data.photos.map((p: any) => ({
@@ -104,32 +152,48 @@ export default function AssetPanel() {
         setIsSearching(false);
     };
 
-    const searchClipart = async () => {
-        if (!search) return;
+    const searchClipart = async (query: string) => {
+        if (!query) {
+            setClipartPhotos([]);
+            return;
+        }
         setIsSearching(true);
         setError(null);
-        setClipartPhotos([]);
 
         try {
-            const res = await fetch(`/api/external/search?type=pixabay&query=${encodeURIComponent(search)}&per_page=50`);
+            const res = await fetch(`/api/external/search?type=pixabay&query=${encodeURIComponent(query)}&per_page=50`);
             if (res.ok) {
                 const data = await res.json();
                 setClipartPhotos(data.hits.map((hit: any) => ({
                     id: hit.id,
-                    urls: {
-                        regular: hit.webformatURL,
-                        small: hit.previewURL
-                    },
+                    urls: { regular: hit.webformatURL, small: hit.previewURL },
                     user: { name: hit.user, links: { html: `https://pixabay.com/users/${hit.user}-${hit.user_id}/` } },
+                    links: { html: hit.pageURL },
+                    source: 'Pixabay'
                 })));
             } else {
                 setError("Failed to fetch clipart via proxy.");
             }
         } catch (e) {
-            setError("Network issue fetching clipart.");
+            setError("Pixabay issue.");
         }
         setIsSearching(false);
     };
+
+    // DEBOUNCED LIVE SEARCHING
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (stockSearch) searchStock();
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [stockSearch]);
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (clipartSearch) searchClipart(clipartSearch);
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [clipartSearch]);
 
     const trackDownload = async (photo: any) => {
         if (photo.links?.download_location) {
@@ -239,18 +303,25 @@ export default function AssetPanel() {
                             <Search className="absolute left-3 top-2 h-3.5 w-3.5 text-gray-500 transition-colors group-focus-within:text-blue-500" />
                             <input
                                 type="text"
-                                style={{ paddingLeft: !search ? 'calc(2rem + 3em)' : undefined }}
+                                style={{ paddingLeft: !stockSearch ? 'calc(2rem + 3em)' : undefined }}
                                 placeholder="Search stock photos..."
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                        e.preventDefault();
-                                        searchStock();
-                                    }
+                                value={stockSearch}
+                                onChange={(e) => {
+                                    setStockSearch(e.target.value);
+                                    setStockPhotos([]); // INSTANT CLEAR on ogni character change
+                                    if (e.target.value) setIsSearching(true);
                                 }}
-                                className="w-full bg-white/5 border border-white/5 rounded-xl py-2 pl-10 pr-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-white transition-all"
+                                onKeyDown={(e) => e.key === 'Enter' && searchStock()}
+                                className="w-full bg-white/5 border border-white/5 rounded-xl py-2 pl-10 pr-10 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-white transition-all"
                             />
+                            {stockSearch && (
+                                <button
+                                    onClick={() => { setStockSearch(""); setStockPhotos([]); }}
+                                    className="absolute right-3 top-2.5 p-0.5 rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-all"
+                                >
+                                    <X className="h-3.5 w-3.5" />
+                                </button>
+                            )}
                         </div>
 
                         <div className="px-1 py-3 flex items-start gap-2 opacity-40 hover:opacity-100 transition-opacity">
@@ -267,16 +338,23 @@ export default function AssetPanel() {
                             </div>
                         )}
 
-                        <div className="grid grid-cols-2 gap-3 mt-4">
-                            {stockPhotos.map(photo => (
-                                <AssetItem
-                                    key={photo.id}
-                                    photo={photo}
-                                    onAdd={() => handleAddImage(photo)}
-                                    onMask={() => handleMaskImage(photo)}
-                                />
-                            ))}
-                        </div>
+                        {isSearching ? (
+                            <div className="flex flex-col items-center justify-center py-20 opacity-40">
+                                <Loader2 className="h-8 w-8 animate-spin text-blue-500 mb-4" />
+                                <p className="text-[10px] font-black uppercase tracking-widest leading-relaxed">Searching stock...</p>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-2 gap-3 mt-4">
+                                {stockPhotos.map(photo => (
+                                    <AssetItem
+                                        key={photo.id}
+                                        photo={photo}
+                                        onAdd={() => handleAddImage(photo)}
+                                        onMask={() => handleMaskImage(photo)}
+                                    />
+                                ))}
+                            </div>
+                        )}
 
                         {stockPhotos.length === 0 && !isSearching && (
                             <div className="flex flex-col items-center justify-center py-24 text-center opacity-10">
@@ -291,18 +369,30 @@ export default function AssetPanel() {
                             <Search className="absolute left-3 top-2 h-3.5 w-3.5 text-gray-500 transition-colors group-focus-within:text-blue-500" />
                             <input
                                 type="text"
-                                style={{ paddingLeft: !search ? 'calc(2rem + 3em)' : undefined }}
+                                style={{ paddingLeft: !clipartSearch ? 'calc(2rem + 3em)' : undefined }}
                                 placeholder="Search clipart..."
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
+                                value={clipartSearch}
+                                onChange={(e) => {
+                                    setClipartSearch(e.target.value);
+                                    setClipartPhotos([]); // INSTANT CLEAR on ogni character change
+                                    if (e.target.value) setIsSearching(true);
+                                }}
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter') {
                                         e.preventDefault();
-                                        searchClipart();
+                                        searchClipart(clipartSearch);
                                     }
                                 }}
-                                className="w-full bg-white/5 border border-white/5 rounded-xl py-1.5 pl-9 pr-4 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-white transition-all"
+                                className="w-full bg-white/5 border border-white/5 rounded-xl py-1.5 pl-9 pr-10 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-white transition-all"
                             />
+                            {clipartSearch && (
+                                <button
+                                    onClick={() => { setClipartSearch(""); setClipartPhotos([]); }}
+                                    className="absolute right-3 top-2 p-0.5 rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-all"
+                                >
+                                    <X className="h-3 w-3" />
+                                </button>
+                            )}
                         </div>
 
                         <div className="px-1 py-3 flex items-start gap-2 opacity-40 hover:opacity-100 transition-opacity">
@@ -318,21 +408,28 @@ export default function AssetPanel() {
                             </div>
                         )}
 
-                        <div className="grid grid-cols-2 gap-2 mt-3">
-                            {clipartPhotos.map(photo => (
-                                <AssetItem
-                                    key={photo.id}
-                                    photo={photo}
-                                    onAdd={() => handleAddImage(photo)}
-                                    onMask={() => handleMaskImage(photo)}
-                                />
-                            ))}
-                        </div>
+                        {isSearching ? (
+                            <div className="flex flex-col items-center justify-center py-20 opacity-40">
+                                <Loader2 className="h-8 w-8 animate-spin text-blue-500 mb-4" />
+                                <p className="text-[10px] font-black uppercase tracking-widest leading-relaxed">Searching clipart...</p>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-2 gap-2 mt-3">
+                                {clipartPhotos.map(photo => (
+                                    <AssetItem
+                                        key={photo.id}
+                                        photo={photo}
+                                        onAdd={() => handleAddImage(photo)}
+                                        onMask={() => handleMaskImage(photo)}
+                                    />
+                                ))}
+                            </div>
+                        )}
 
                         {clipartPhotos.length === 0 && !isSearching && (
                             <div className="flex flex-col items-center justify-center py-24 text-center opacity-10">
-                                <ImageIcon className="h-12 w-12 mb-4" />
-                                <p className="text-[10px] font-black uppercase tracking-widest leading-relaxed">Search to explore</p>
+                                <ImageIcon className="h-10 w-10 mb-4" />
+                                <p className="text-[10px] font-black uppercase tracking-widest leading-relaxed">Search clipart assets</p>
                             </div>
                         )}
                     </div>
@@ -492,8 +589,16 @@ export default function AssetPanel() {
                                 placeholder="Search by tags..."
                                 value={librarySearch}
                                 onChange={(e) => setLibrarySearch(e.target.value)}
-                                className="w-full bg-white/5 border border-white/5 rounded-xl py-2 pl-9 pr-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-white transition-all"
+                                className="w-full bg-white/5 border border-white/5 rounded-xl py-2 pl-9 pr-10 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-white transition-all"
                             />
+                            {librarySearch && (
+                                <button
+                                    onClick={() => setLibrarySearch("")}
+                                    className="absolute right-3 top-2.5 p-0.5 rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-all"
+                                >
+                                    <X className="h-4 w-4" />
+                                </button>
+                            )}
                         </div>
 
                         <div className="grid grid-cols-2 gap-3 pb-20 overflow-y-auto w-full">

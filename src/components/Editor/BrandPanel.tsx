@@ -23,6 +23,10 @@ export default function BrandPanel() {
     const [expandedMasters, setExpandedMasters] = useState<Set<string>>(new Set());
     const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
     const [assetSearch, setAssetSearch] = useState("");
+ 
+    useEffect(() => {
+        setAssetSearch("");
+    }, [activeBrandId]);
 
     const toggleMaster = (id: string) => {
         const next = new Set(expandedMasters);
@@ -277,22 +281,46 @@ export default function BrandPanel() {
                     {/* IMAGES TAB */}
                     {activeTab === 'images' && (() => {
                         // 1. Get all assets that are either in a linked folder OR explicitly tagged with this brandId
-                        const linkedFolderIds = new Set(activeKit.assetFolderIds || []);
-                        const brandAssetsWithFolders: { asset: any, folder: any }[] = [];
+                        // 1. Collect all assets that should be in this brand view
+                        const linkedFolderIds = new Set((activeKit.assetFolderIds || []).map(id => String(id)));
+                        const uniqueAssets = new Map<string, { asset: any, folder: any }>();
+                        const searchTerms = assetSearch.toLowerCase().trim().split(/\s+/).filter(Boolean);
 
                         assetFolders.forEach(folder => {
-                            // Exclude 'default' (All Uploads) so it doesn't arbitrarily show up in Brand Kits
                             if (folder.id === 'default' || folder.id?.includes('default_shared')) return;
+                            const fRawId = String((folder as any).originalId || folder.id);
+                            const isLinkedFolder = linkedFolderIds.has(String(folder.id)) || linkedFolderIds.has(fRawId);
 
-                            const isLinkedFolder = linkedFolderIds.has(folder.id) || linkedFolderIds.has((folder as any).originalId);
                             folder.assets.forEach(asset => {
-                                if (isLinkedFolder || asset.brandId === activeKit.id || linkedFolderIds.has((asset as any).folderId)) {
-                                    if (!assetSearch || (asset.tags && asset.tags.some(tag => tag.toLowerCase().includes(assetSearch.toLowerCase())))) {
-                                        brandAssetsWithFolders.push({ asset, folder });
+                                const sid = String(asset.id);
+                                if (uniqueAssets.has(sid)) return;
+
+                                const aFolderId = String((asset as any).folderId || "");
+                                const shouldInclude = isLinkedFolder || asset.brandId === activeKit.id || linkedFolderIds.has(aFolderId);
+                                
+                                if (shouldInclude) {
+                                    const tags = (asset.tags || []).map((t: string) => t.toLowerCase());
+                                    
+                                    const matches = searchTerms.length === 0 || searchTerms.every(term => {
+                                        const isNumeric = /^\d+$/.test(term);
+                                        return tags.some((tag: string) => {
+                                            if (tag === term) return true;
+                                            if (isNumeric) {
+                                                return tag.split(/[^0-9]/).some(part => part === term);
+                                            }
+                                            return tag.includes(term);
+                                        });
+                                    });
+
+                                    if (matches) {
+                                        uniqueAssets.set(sid, { asset, folder });
                                     }
                                 }
                             });
                         });
+
+                        const brandAssetsWithFolders = Array.from(uniqueAssets.values());
+                        console.log("BrandPanel: Total unique assets after filtering:", brandAssetsWithFolders.length);
 
                         // 2. Group by folder for clean UI
                         const groupedByFolder = brandAssetsWithFolders.reduce((acc, { asset, folder }) => {
@@ -312,8 +340,16 @@ export default function BrandPanel() {
                                         placeholder="Search brand assets..."
                                         value={assetSearch}
                                         onChange={(e) => setAssetSearch(e.target.value)}
-                                        className="w-full bg-white/5 border border-white/5 rounded-xl py-2 pl-10 pr-4 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-white transition-all"
+                                        className="w-full bg-white/5 border border-white/5 rounded-xl py-2 pl-10 pr-10 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-white transition-all"
                                     />
+                                    {assetSearch && (
+                                        <button
+                                            onClick={() => setAssetSearch("")}
+                                            className="absolute right-4 top-2 p-1 rounded-full hover:bg-white/10 text-gray-500 hover:text-white transition-all"
+                                        >
+                                            <X className="h-3 w-3" />
+                                        </button>
+                                    )}
                                 </div>
 
                                 {folderIds.length > 0 ? (

@@ -11,6 +11,12 @@ import * as backgroundRemoval from "@imgly/background-removal";
 import { detectEdgesAndAddStroke } from "@/utils/edgeDetection";
 import { preloadFontsFromJSON } from "@/utils/fontLoader";
 
+const PERSISTENT_PROPS = [
+    'id', 'name', 'lockMovementX', 'lockMovementY', 'lockRotation', 
+    'lockScalingX', 'lockScalingY', 'lockSkewingX', 'lockScalingFlip',
+    'hasControls', 'selectable', 'evented', 'editable', 'isEdgeBorderGroup'
+];
+
 interface BrandKit {
     id: string;
     name: string;
@@ -131,6 +137,8 @@ interface CanvasContextType {
     setSavedDesigns: (designs: any[]) => void;
     canvasName: string;
     setCanvasName: (name: string) => void;
+    designName: string;
+    setDesignName: (name: string) => void;
     currentDesignId: string | null;
     setCurrentDesignId: (id: string | null) => void;
 
@@ -170,6 +178,7 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
     const [brandKits, setBrandKits] = useState<BrandKit[]>([]);
     const [templateFolders, setTemplateFolders] = useState<{ id: string; name: string; designIds: string[] }[]>([]);
     const [canvasName, setCanvasName] = useState("Untitled Project");
+    const [designName, setDesignName] = useState("");
     const [currentDesignId, setCurrentDesignId] = useState<string | null>(null);
     // API key handling
     const [apiConfig, setApiConfig] = useState({
@@ -685,28 +694,40 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
 
     const saveToTemplate = useCallback((name: string, brandId?: string, parentId?: string, forceNew?: boolean) => {
         if (!canvas || !(canvas as any)._isAlive) return;
-        const json = JSON.stringify(canvas.toJSON());
+        const json = JSON.stringify(canvas.toObject(PERSISTENT_PROPS));
         const thumbnail = canvas.toDataURL({ format: 'png', multiplier: 0.1 });
 
         let updated: any[];
         let finalId: string;
 
-        // Auto-detect self-parenting loop and force new if so
-        const isSelfParent = currentDesignId && parentId === currentDesignId;
-        const shouldCreateNew = forceNew || !currentDesignId || isSelfParent;
+        // Overwrite check: If not explicitly forcing new, check if a design with this name/brand/folder already exists
+        let existingToOverwrite = null;
+        if (!forceNew) {
+            existingToOverwrite = savedDesigns.find(d => 
+                d.name === name && 
+                d.brandId === brandId && 
+                d.parentId === (parentId === "none" ? undefined : parentId)
+            );
+        }
 
-        if (!shouldCreateNew && currentDesignId) {
+        const targetId = existingToOverwrite ? existingToOverwrite.id : currentDesignId;
+
+        // Auto-detect self-parenting loop and force new if so
+        const isSelfParent = targetId && parentId === targetId;
+        const shouldCreateNew = forceNew || !targetId || isSelfParent;
+
+        if (!shouldCreateNew && targetId) {
             // Update existing
-            finalId = currentDesignId;
+            finalId = targetId;
             updated = savedDesigns.map(d => {
-                if (d.id === currentDesignId) {
+                if (d.id === targetId) {
                     return {
                         ...d,
                         name: name || d.name,
                         thumbnail,
                         data: json,
                         brandId: brandId !== undefined ? brandId : d.brandId,
-                        parentId: parentId !== undefined ? parentId : d.parentId,
+                        parentId: parentId !== undefined ? (parentId === 'none' ? undefined : parentId) : d.parentId,
                         updatedAt: Date.now()
                     };
                 }
@@ -723,15 +744,15 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
                 data: json,
                 timestamp: Date.now(),
                 brandId,
-                parentId, // for versions
+                parentId: parentId === 'none' ? undefined : parentId, // for versions
                 updatedAt: Date.now()
             };
             updated = [newDesign, ...savedDesigns];
-            setCurrentDesignId(id);
         }
 
         lastActionTime.current = Date.now();
         setSavedDesigns(updated);
+        setCurrentDesignId(finalId);
         fetch("/api/storage?key=designs", { method: 'POST', body: JSON.stringify(updated) }).catch(() => { });
         return finalId;
     }, [canvas, savedDesigns, currentDesignId]);
@@ -770,7 +791,10 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
 
     const loadTemplate = useCallback((json: string, name?: string, id?: string) => {
         if (!canvas) return;
-        if (name) setCanvasName(name);
+        if (name) {
+            setCanvasName(name);
+            setDesignName(name);
+        }
         if (id) setCurrentDesignId(id);
         try {
             const data = JSON.parse(json);
@@ -1220,7 +1244,7 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
     const undo = useCallback(() => {
         if (!canvas || history.length === 0) return;
 
-        const current = JSON.stringify(canvas.toJSON());
+        const current = JSON.stringify(canvas.toObject(PERSISTENT_PROPS));
         const past = history[history.length - 1];
         const newHistory = history.slice(0, -1);
 
@@ -1233,7 +1257,7 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
     const redo = useCallback(() => {
         if (!canvas || redoStack.length === 0) return;
 
-        const current = JSON.stringify(canvas.toJSON());
+        const current = JSON.stringify(canvas.toObject(PERSISTENT_PROPS));
         const future = redoStack[0];
         const newRedo = redoStack.slice(1);
 
@@ -1245,7 +1269,7 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
 
     const saveHistory = useCallback(debounce(() => {
         if (!canvas) return;
-        const json = JSON.stringify(canvas.toJSON());
+        const json = JSON.stringify(canvas.toObject(PERSISTENT_PROPS));
         setHistory(prev => {
             if (prev.length > 0 && prev[prev.length - 1] === json) return prev;
             return [...prev, json].slice(-50); // Limit history to 50 steps
@@ -1278,7 +1302,7 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         const debouncedAutoSave = debounce(() => {
             if (!canvas || !(canvas as any)._isAlive) return;
             const data = {
-                canvas: canvas.toJSON(),
+                canvas: canvas.toObject(PERSISTENT_PROPS),
                 currentDesignId: designIdRef.current,
                 canvasName: canvasNameRef.current
             };
@@ -1492,10 +1516,12 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         addRect, addText, addCircle, addTriangle, addStar, addHexagon, addDiamond, addArrow, addHeart, addBadge, addCloud, addPolygon, addImage,
         clearCanvas, updateSelectedObject, applyFilter, clearEffects, updateMaskProperties, bringToFront, sendToBack, bringForward, sendBackwards, deleteSelected,
         duplicateSelected, copySelected, cutSelected, pasteSelected, releaseMask, groupSelected, ungroupSelected, alignSelected,
-        maskShapeWithImage, saveToTemplate, loadTemplate, deleteDesign, exportAsFormat, savedDesigns, setSavedDesigns,
+        maskShapeWithImage, saveToTemplate, loadTemplate, deleteDesign, exportAsFormat,        savedDesigns, setSavedDesigns,
         canvasName, setCanvasName,
+        designName, setDesignName,
+        currentDesignId, setCurrentDesignId,
         brandKits, setBrandKits, assetFolders, setAssetFolders,
-        templateFolders, setTemplateFolders, currentDesignId, setCurrentDesignId,
+        templateFolders, setTemplateFolders,
         customFonts, setCustomFonts, addCustomFont, removeCustomFont,
         removeBackground, setBackgroundImage,
         showGrid, setShowGrid,
@@ -1511,16 +1537,19 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
     }), [
         canvas, selectedObject, theme, canvasSize, zoom, panOffset, fitToScreen,
         currentUser, setCurrentUser,
-        updateTick, forceUpdate, savedDesigns, setSavedDesigns, canvasName, brandKits, assetFolders, templateFolders,
-        customFonts, setCustomFonts, history.length, redoStack.length, apiConfig, presets,
+        updateTick, forceUpdate, savedDesigns, setSavedDesigns, canvasName, setCanvasName, brandKits, setBrandKits, assetFolders, setAssetFolders, templateFolders, setTemplateFolders,
+        designName, setDesignName,
+        currentDesignId, setCurrentDesignId,
+        customFonts, setCustomFonts, history.length, redoStack.length, apiConfig, setApiConfig, presets,
         addRect, addText, addCircle, addTriangle, addStar, addHexagon, addDiamond, addArrow, addHeart, addBadge, addCloud, addPolygon, addImage,
         clearCanvas, updateSelectedObject, applyFilter, clearEffects, updateMaskProperties, bringToFront, sendToBack, bringForward, sendBackwards, deleteSelected,
         duplicateSelected, copySelected, cutSelected, pasteSelected, releaseMask, groupSelected, ungroupSelected, alignSelected,
         maskShapeWithImage, saveToTemplate, loadTemplate, deleteDesign, exportAsFormat,
         addCustomFont, removeCustomFont, removeBackground, setBackgroundImage,
-        showGrid, enterCropMode, confirmCrop, cancelCrop, isCropMode, applyEdgeStroke, smartResize,
+        showGrid, setShowGrid, enterCropMode, confirmCrop, cancelCrop, isCropMode, applyEdgeStroke, smartResize,
         setPresets, deletePreset,
-        isResizeOpen, isDrawingMode, brushSize, brushColor, brushSmoothing, setIsDrawingMode, setBrushSize, setBrushColor, setBrushSmoothing
+        isResizeOpen, setIsResizeOpen, isDrawingMode, setIsDrawingMode, brushSize, setBrushSize, brushColor, setBrushColor, brushSmoothing, setBrushSmoothing,
+        setCanvas, setTheme, setCanvasSize, setZoom, setPanOffset
     ]);
 
     return (

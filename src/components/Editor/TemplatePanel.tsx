@@ -2,11 +2,10 @@
 
 import { useCanvas } from "@/store/useCanvasStore";
 import { Layout, Trash2, Clock, Save, Check, Folder, ChevronDown, Globe } from "lucide-react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 
 export default function TemplatePanel() {
-    const { savedDesigns, setSavedDesigns, saveToTemplate, loadTemplate, deleteDesign, brandKits, canvasName } = useCanvas();
-    const [designName, setDesignName] = useState("");
+    const { savedDesigns, setSavedDesigns, saveToTemplate, loadTemplate, deleteDesign, brandKits, canvasName, designName, setDesignName, currentDesignId } = useCanvas();
     const [selectedBrand, setSelectedBrand] = useState<string>("");
     const [selectedParent, setSelectedParent] = useState<string>("none");
     const [lastSaved, setLastSaved] = useState(false);
@@ -14,10 +13,30 @@ export default function TemplatePanel() {
 
     const masters = useMemo(() => savedDesigns.filter(d => !d.parentId), [savedDesigns]);
 
+    // Sync UI selectors with current design
+    useEffect(() => {
+        if (currentDesignId) {
+            const current = savedDesigns.find(d => d.id === currentDesignId);
+            if (current) {
+                setSelectedBrand(current.brandId || "");
+                setSelectedParent(current.parentId || "none");
+            }
+        }
+    }, [currentDesignId, savedDesigns]);
+
+    const isOverwrite = useMemo(() => {
+        if (!designName.trim()) return false;
+        return savedDesigns.some(d => 
+            d.name.toLowerCase() === designName.trim().toLowerCase() && 
+            d.brandId === (selectedBrand || undefined) && 
+            d.parentId === (selectedParent === "none" ? undefined : selectedParent)
+        );
+    }, [designName, selectedBrand, selectedParent, savedDesigns]);
+
     const handleSave = () => {
         const nameToSave = designName.trim() || canvasName || "Untitled Template";
-        saveToTemplate(nameToSave, selectedBrand || undefined, selectedParent === "none" ? undefined : selectedParent, true);
-        setDesignName("");
+        // If it's an overwrite, we don't forceNew. If it's new, we forceNew (to avoid accidentally updating currentDesignId if they just typed a new name)
+        saveToTemplate(nameToSave, selectedBrand || undefined, selectedParent === "none" ? undefined : selectedParent, !isOverwrite);
         setLastSaved(true);
         setTimeout(() => setLastSaved(false), 3000);
     };
@@ -125,6 +144,11 @@ export default function TemplatePanel() {
                             <>
                                 <Check className="h-4 w-4" />
                                 <span className="text-[10px] font-black uppercase tracking-widest">Saved Successfully</span>
+                            </>
+                        ) : isOverwrite ? (
+                            <>
+                                <Save className="h-4 w-4" />
+                                <span className="text-[10px] font-black uppercase tracking-widest text-blue-200">Overwrite Template</span>
                             </>
                         ) : (
                             <>
