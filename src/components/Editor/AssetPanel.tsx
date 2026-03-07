@@ -21,6 +21,7 @@ export default function AssetPanel() {
     const [clipartPhotos, setClipartPhotos] = useState<any[]>([]);
     const [isSearching, setIsSearching] = useState(false);
     const [librarySearch, setLibrarySearch] = useState("");
+    const [hideBrandAssets, setHideBrandAssets] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     // Context Resets: Clear searches when switching tabs to prevent "old results" confusion
@@ -65,10 +66,19 @@ export default function AssetPanel() {
     }, [assetFolders, activeFolderId]);
 
     const filteredAssets = useMemo(() => {
-        const searchTerms = librarySearch.toLowerCase().trim().split(/\s+/).filter(Boolean);
-        if (searchTerms.length === 0) return assetsToDisplay;
+        let results = assetsToDisplay;
 
-        return assetsToDisplay.filter(asset => {
+        // Apply Brand Filter Toggle
+        if (hideBrandAssets) {
+            // Aggressive Filter: Hide anything with a brandId OR whose folder is linked to ANY Brand Kit
+            const brandLinkedFolderIds = new Set(brandKits.flatMap(k => k.assetFolderIds || []));
+            results = results.filter(a => !a.brandId && !brandLinkedFolderIds.has(a.folderId));
+        }
+
+        const searchTerms = librarySearch.toLowerCase().trim().split(/\s+/).filter(Boolean);
+        if (searchTerms.length === 0) return results;
+
+        return results.filter(asset => {
             const tags = (asset.tags || []).map((t: string) => t.toLowerCase());
             
             return searchTerms.every(term => {
@@ -85,7 +95,7 @@ export default function AssetPanel() {
                 });
             });
         });
-    }, [assetsToDisplay, librarySearch]);
+    }, [assetsToDisplay, librarySearch, hideBrandAssets, brandKits]);
 
     const searchStock = async () => {
         if (!stockSearch) return;
@@ -581,6 +591,17 @@ export default function AssetPanel() {
                             </div>
                             <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 group-hover:text-blue-400">Upload to {assetFolders.find(f => f.id === activeFolderId)?.name}</p>
                         </button>
+
+                        <div className="flex items-center justify-between mb-3 px-1">
+                            <button
+                                onClick={() => setHideBrandAssets(!hideBrandAssets)}
+                                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all active:scale-95
+                                    ${hideBrandAssets ? 'bg-blue-600/10 border-blue-500/50 text-blue-500' : 'bg-white/5 border-white/5 text-gray-500 hover:bg-white/10 hover:text-gray-400'}`}
+                            >
+                                <Shield className={`h-3 w-3 ${hideBrandAssets ? 'fill-current' : ''}`} />
+                                <span className="text-[9px] font-black uppercase tracking-widest">Hide Brand Images</span>
+                            </button>
+                        </div>
 
                         <div className="relative group mb-4">
                             <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-500 transition-colors group-focus-within:text-blue-500" />

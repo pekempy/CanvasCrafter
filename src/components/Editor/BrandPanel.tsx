@@ -6,7 +6,7 @@ import {
     Plus, Palette, Type, Shield, Trash2,
     ChevronRight, Hash, Edit3, Save, X, Search,
     Check, PlusCircle, MinusCircle, ChevronLeft, Image as ImageIcon,
-    ChevronDown, Layout, Clock, Globe
+    ChevronDown, Layout, Clock, Globe, Folder
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import WebFont from "webfontloader";
@@ -20,9 +20,19 @@ export default function BrandPanel() {
     const [activeTab, setActiveTab] = useState<"colours" | "images" | "templates">("colours");
     const [editingBrandName, setEditingBrandName] = useState(false);
     const [isFontPickerOpen, setIsFontPickerOpen] = useState(false);
+    const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
     const [expandedMasters, setExpandedMasters] = useState<Set<string>>(new Set());
     const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
     const [assetSearch, setAssetSearch] = useState("");
+
+    const toggleFolder = (fid: string) => {
+        setExpandedFolders(prev => {
+            const next = new Set(prev);
+            if (next.has(fid)) next.delete(fid);
+            else next.add(fid);
+            return next;
+        });
+    };
  
     useEffect(() => {
         setAssetSearch("");
@@ -353,21 +363,39 @@ export default function BrandPanel() {
                                 </div>
 
                                 {folderIds.length > 0 ? (
-                                    folderIds.map(fid => (
-                                        <div key={fid}>
-                                            <div className="flex items-center justify-between mb-3 px-1">
-                                                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                                                    {groupedByFolder[fid].name}
-                                                    {!linkedFolderIds.has(fid) && <span className="ml-2 text-blue-500/50 italic capitalize leading-none">(Included)</span>}
-                                                </p>
+                                    folderIds.map(fid => {
+                                        const isSearching = assetSearch.length > 0;
+                                        // A folder is "expanded" if it's explicitly in expandedFolders OR if we are searching (search overrides collapse)
+                                        const isExpanded = isSearching || expandedFolders.has(fid);
+                                        
+                                        return (
+                                            <div key={fid} className="space-y-3">
+                                                <button 
+                                                    onClick={() => toggleFolder(fid)}
+                                                    className="w-full flex items-center justify-between group/folder hover:bg-white/5 p-2 rounded-xl transition-all"
+                                                >
+                                                    <div className="flex items-center gap-2">
+                                                        <div className={`p-1 rounded-lg transition-all ${isExpanded ? 'bg-blue-500/20 text-blue-500' : 'bg-white/5 text-gray-500'}`}>
+                                                            <Folder className="h-3 w-3" />
+                                                        </div>
+                                                        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 group-hover/folder:text-white transition-colors">
+                                                            {groupedByFolder[fid].name}
+                                                            <span className="ml-2 text-[8px] opacity-40">({groupedByFolder[fid].assets.length})</span>
+                                                        </p>
+                                                    </div>
+                                                    <ChevronDown className={`h-3 w-3 text-gray-600 transition-transform duration-300 ${isExpanded ? 'rotate-0' : '-rotate-90'}`} />
+                                                </button>
+                                                
+                                                {isExpanded && (
+                                                    <div className="grid grid-cols-2 gap-2 px-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                                                        {groupedByFolder[fid].assets.map((asset) => (
+                                                            <CustomAssetItem key={asset.id} asset={asset} folderId={fid} />
+                                                        ))}
+                                                    </div>
+                                                )}
                                             </div>
-                                            <div className="grid grid-cols-2 gap-2">
-                                                {groupedByFolder[fid].assets.map((asset) => (
-                                                    <CustomAssetItem key={asset.id} asset={asset} folderId={fid} />
-                                                ))}
-                                            </div>
-                                        </div>
-                                    ))
+                                        );
+                                    })
                                 ) : (
                                     <div className="flex flex-col items-center justify-center py-20 text-center opacity-30 px-6">
                                         <ImageIcon className="h-10 w-10 mb-4" />
