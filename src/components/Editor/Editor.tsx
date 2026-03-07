@@ -47,6 +47,7 @@ import DropAssetDialog from "@/components/Editor/DropAssetDialog";
 import MenuBar from "@/components/Editor/MenuBar";
 import PropertyBar from "@/components/Editor/PropertyBar";
 import CustomColorPicker from "@/components/Editor/CustomColorPicker";
+import BrandShortcuts from "@/components/Editor/BrandShortcuts";
 
 type SidebarTab = "templates" | "assets" | "text" | "shapes" | "layers" | "brands" | "settings";
 
@@ -66,7 +67,9 @@ function EditorContent({ username }: { username?: string }) {
         canvasName, setCanvasName,
         setCurrentUser,
         isResizeOpen, setIsResizeOpen,
-        isDrawingMode, setIsDrawingMode, brushSize, setBrushSize, brushColor, setBrushColor, brushSmoothing, setBrushSmoothing
+        isDrawingMode, setIsDrawingMode, brushSize, setBrushSize, brushColor, setBrushColor, brushSmoothing, setBrushSmoothing,
+        addCustomFont, removeCustomFont, removeBackground, setBackgroundImage,
+        savingAssetUrl, setSavingAssetUrl
     } = useCanvas();
 
     const [sidebarWidth, setSidebarWidth] = useState(256); // Default 64rem = 256px
@@ -159,7 +162,6 @@ function EditorContent({ username }: { username?: string }) {
             reader.readAsDataURL(file);
         }
     };
-
     const handleConfirmDrop = async (brandId?: string, folderId?: string, tags?: string[]) => {
         if (!droppedImage) return;
 
@@ -196,6 +198,41 @@ function EditorContent({ username }: { username?: string }) {
         setDroppedImage(null);
     };
 
+    const handleConfirmSave = async (brandId?: string, folderId?: string, tags?: string[]) => {
+        if (!savingAssetUrl) return;
+
+        const assetId = Date.now();
+        let finalUrl = savingAssetUrl;
+
+        try {
+            const res = await fetch('/api/images', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: assetId.toString(),
+                    url: savingAssetUrl,
+                    metadata: { tags, folderId, brandId }
+                })
+            });
+            const data = await res.json();
+            if (data.url) finalUrl = data.url;
+        } catch (e) {
+            console.error("Failed to save asset to server", e);
+        }
+
+        if (folderId) {
+            const updatedFolders = assetFolders.map(f => {
+                if (f.id === folderId) {
+                    return { ...f, assets: [{ id: assetId, url: finalUrl, tags, brandId }, ...f.assets] };
+                }
+                return f;
+            });
+            setAssetFolders(updatedFolders);
+        }
+
+        setSavingAssetUrl(null);
+    };
+
     return (
         <main
             onDragOver={handleDragOver}
@@ -209,6 +246,12 @@ function EditorContent({ username }: { username?: string }) {
                 onClose={() => setDroppedImage(null)}
                 dataUrl={droppedImage}
                 onConfirm={handleConfirmDrop}
+            />
+            <DropAssetDialog
+                isOpen={!!savingAssetUrl}
+                onClose={() => setSavingAssetUrl(null)}
+                dataUrl={savingAssetUrl}
+                onConfirm={handleConfirmSave}
             />
             <ContextMenu />
 
@@ -267,6 +310,7 @@ function EditorContent({ username }: { username?: string }) {
                             <div className="h-px w-full bg-white/5" />
                             <div className="flex-1 overflow-y-auto">
                                 <FontUploader />
+                                <BrandShortcuts />
                             </div>
                         </div>
                     )}

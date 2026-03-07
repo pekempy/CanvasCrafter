@@ -162,6 +162,8 @@ interface CanvasContextType {
     deletePreset: (id: string) => Promise<void>;
     isResizeOpen: boolean;
     setIsResizeOpen: (open: boolean) => void;
+    savingAssetUrl: string | null;
+    setSavingAssetUrl: (url: string | null) => void;
 }
 
 const CanvasContext = createContext<CanvasContextType | null>(null);
@@ -219,6 +221,7 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
     const [history, setHistory] = useState<string[]>([]);
     const [redoStack, setRedoStack] = useState<string[]>([]);
     const [isResizeOpen, setIsResizeOpen] = useState(false);
+    const [savingAssetUrl, setSavingAssetUrl] = useState<string | null>(null);
 
 
     useEffect(() => {
@@ -1510,18 +1513,13 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
     const [brushSmoothing, setBrushSmoothing] = useState(25);
 
     const contextValue = useMemo(() => ({
-        canvas, setCanvas, selectedObject, theme, setTheme, canvasSize, setCanvasSize, zoom, setZoom, panOffset, setPanOffset, fitToScreen,
+        canvas, selectedObject, theme, canvasSize, zoom, panOffset, fitToScreen,
         currentUser, setCurrentUser,
-        updateTick, forceUpdate,
-        addRect, addText, addCircle, addTriangle, addStar, addHexagon, addDiamond, addArrow, addHeart, addBadge, addCloud, addPolygon, addImage,
-        clearCanvas, updateSelectedObject, applyFilter, clearEffects, updateMaskProperties, bringToFront, sendToBack, bringForward, sendBackwards, deleteSelected,
-        duplicateSelected, copySelected, cutSelected, pasteSelected, releaseMask, groupSelected, ungroupSelected, alignSelected,
-        maskShapeWithImage, saveToTemplate, loadTemplate, deleteDesign, exportAsFormat,        savedDesigns, setSavedDesigns,
-        canvasName, setCanvasName,
-        designName, setDesignName,
-        currentDesignId, setCurrentDesignId,
+        updateTick, forceUpdate, savedDesigns, setSavedDesigns, canvasName, setCanvasName,
         brandKits, setBrandKits, assetFolders, setAssetFolders,
         templateFolders, setTemplateFolders,
+        designName, setDesignName,
+        currentDesignId, setCurrentDesignId,
         customFonts, setCustomFonts, addCustomFont, removeCustomFont,
         removeBackground, setBackgroundImage,
         showGrid, setShowGrid,
@@ -1533,23 +1531,35 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         presets, setPresets, deletePreset,
         isResizeOpen, setIsResizeOpen,
         isDrawingMode, setIsDrawingMode, brushSize, setBrushSize, brushColor, setBrushColor,
-        brushSmoothing, setBrushSmoothing
+        brushSmoothing, setBrushSmoothing,
+        addRect, addText, addCircle, addTriangle, addStar, addHexagon, addDiamond, addArrow, addHeart, addBadge, addCloud, addPolygon, addImage,
+        clearCanvas, updateSelectedObject, applyFilter, clearEffects, updateMaskProperties,
+        bringToFront, sendToBack, bringForward, sendBackwards, deleteSelected,
+        duplicateSelected, copySelected, cutSelected, pasteSelected, releaseMask,
+        groupSelected, ungroupSelected, alignSelected,
+        maskShapeWithImage, saveToTemplate, loadTemplate, deleteDesign, exportAsFormat,
+        setCanvas, setTheme, setCanvasSize, setZoom, setPanOffset,
+        savingAssetUrl, setSavingAssetUrl
     }), [
         canvas, selectedObject, theme, canvasSize, zoom, panOffset, fitToScreen,
         currentUser, setCurrentUser,
-        updateTick, forceUpdate, savedDesigns, setSavedDesigns, canvasName, setCanvasName, brandKits, setBrandKits, assetFolders, setAssetFolders, templateFolders, setTemplateFolders,
+        updateTick, forceUpdate, savedDesigns, setSavedDesigns, canvasName, setCanvasName,
+        brandKits, setBrandKits, assetFolders, setAssetFolders, templateFolders, setTemplateFolders,
         designName, setDesignName,
         currentDesignId, setCurrentDesignId,
         customFonts, setCustomFonts, history.length, redoStack.length, apiConfig, setApiConfig, presets,
         addRect, addText, addCircle, addTriangle, addStar, addHexagon, addDiamond, addArrow, addHeart, addBadge, addCloud, addPolygon, addImage,
-        clearCanvas, updateSelectedObject, applyFilter, clearEffects, updateMaskProperties, bringToFront, sendToBack, bringForward, sendBackwards, deleteSelected,
-        duplicateSelected, copySelected, cutSelected, pasteSelected, releaseMask, groupSelected, ungroupSelected, alignSelected,
+        clearCanvas, updateSelectedObject, applyFilter, clearEffects, updateMaskProperties,
+        bringToFront, sendToBack, bringForward, sendBackwards, deleteSelected,
+        duplicateSelected, copySelected, cutSelected, pasteSelected, releaseMask,
+        groupSelected, ungroupSelected, alignSelected,
         maskShapeWithImage, saveToTemplate, loadTemplate, deleteDesign, exportAsFormat,
         addCustomFont, removeCustomFont, removeBackground, setBackgroundImage,
         showGrid, setShowGrid, enterCropMode, confirmCrop, cancelCrop, isCropMode, applyEdgeStroke, smartResize,
         setPresets, deletePreset,
         isResizeOpen, setIsResizeOpen, isDrawingMode, setIsDrawingMode, brushSize, setBrushSize, brushColor, setBrushColor, brushSmoothing, setBrushSmoothing,
-        setCanvas, setTheme, setCanvasSize, setZoom, setPanOffset
+        setCanvas, setTheme, setCanvasSize, setZoom, setPanOffset,
+        savingAssetUrl, setSavingAssetUrl
     ]);
 
     return (

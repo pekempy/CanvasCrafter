@@ -4,16 +4,18 @@ import { useCanvas } from "@/store/useCanvasStore";
 import {
     Scissors, Copy, Clipboard, Trash2,
     ChevronUp, ChevronDown, Layers,
-    Maximize2, Group, Ungroup
+    Maximize2, Group, Ungroup, Save
 } from "lucide-react";
 import React, { useEffect, useState, useRef } from "react";
+import * as fabric from "fabric";
 
 export default function ContextMenu() {
     const {
         canvas, selectedObject,
         cutSelected, copySelected, pasteSelected, deleteSelected,
         bringToFront, sendToBack, bringForward, sendBackwards, duplicateSelected,
-        groupSelected, ungroupSelected
+        groupSelected, ungroupSelected,
+        setSavingAssetUrl
     } = useCanvas();
 
     const [isVisible, setIsVisible] = useState(false);
@@ -162,6 +164,22 @@ export default function ContextMenu() {
                     disabled={!selectedObject}
                     className="text-red-400 hover:bg-red-500/10"
                 />
+
+                {selectedObject?.type === 'image' && (
+                    <>
+                        <div className="my-1 h-px bg-white/5" />
+                        <ContextItem
+                            icon={<Save className="h-3.5 w-3.5 text-blue-400" />}
+                            label="Save to Assets"
+                            onClick={() => {
+                                const img = selectedObject as fabric.Image;
+                                setSavingAssetUrl(img.getSrc());
+                                setIsVisible(false);
+                            }}
+                            className="text-blue-400 hover:bg-blue-500/10"
+                        />
+                    </>
+                )}
             </div>
         </div>
     );

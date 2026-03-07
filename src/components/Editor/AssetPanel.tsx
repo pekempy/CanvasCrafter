@@ -4,7 +4,7 @@ import { useCanvas } from "@/store/useCanvasStore";
 import {
     Upload, Image as ImageIcon, X, Search, Loader2, FolderPlus,
     Folder, MoreVertical, Plus, ChevronRight, Hash, ExternalLink,
-    Globe, Cloud, AlertCircle, Info, Trash2, Shield, ChevronDown, Star
+    Globe, Cloud, AlertCircle, Info, Trash2, Shield, ChevronDown, Star, Heart
 } from "lucide-react";
 import { useState, useRef, useEffect, useMemo } from "react";
 
@@ -22,6 +22,7 @@ export default function AssetPanel() {
     const [isSearching, setIsSearching] = useState(false);
     const [librarySearch, setLibrarySearch] = useState("");
     const [hideBrandAssets, setHideBrandAssets] = useState(false);
+    const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     // Context Resets: Clear searches when switching tabs to prevent "old results" confusion
@@ -75,6 +76,11 @@ export default function AssetPanel() {
             results = results.filter(a => !a.brandId && !brandLinkedFolderIds.has(a.folderId));
         }
 
+        // Apply Favorites Filter
+        if (showOnlyFavorites) {
+            results = results.filter(a => a.isFavorite);
+        }
+
         const searchTerms = librarySearch.toLowerCase().trim().split(/\s+/).filter(Boolean);
         if (searchTerms.length === 0) return results;
 
@@ -95,7 +101,7 @@ export default function AssetPanel() {
                 });
             });
         });
-    }, [assetsToDisplay, librarySearch, hideBrandAssets, brandKits]);
+    }, [assetsToDisplay, librarySearch, hideBrandAssets, showOnlyFavorites, brandKits]);
 
     const searchStock = async () => {
         if (!stockSearch) return;
@@ -592,14 +598,23 @@ export default function AssetPanel() {
                             <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 group-hover:text-blue-400">Upload to {assetFolders.find(f => f.id === activeFolderId)?.name}</p>
                         </button>
 
-                        <div className="flex items-center justify-between mb-3 px-1">
+                        <div className="flex items-center gap-2 mb-3 px-1">
                             <button
                                 onClick={() => setHideBrandAssets(!hideBrandAssets)}
                                 className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all active:scale-95
                                     ${hideBrandAssets ? 'bg-blue-600/10 border-blue-500/50 text-blue-500' : 'bg-white/5 border-white/5 text-gray-500 hover:bg-white/10 hover:text-gray-400'}`}
                             >
                                 <Shield className={`h-3 w-3 ${hideBrandAssets ? 'fill-current' : ''}`} />
-                                <span className="text-[9px] font-black uppercase tracking-widest">Hide Brand Images</span>
+                                <span className="text-[9px] font-black uppercase tracking-widest">Hide Brand</span>
+                            </button>
+
+                            <button
+                                onClick={() => setShowOnlyFavorites(!showOnlyFavorites)}
+                                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all active:scale-95
+                                    ${showOnlyFavorites ? 'bg-pink-600/10 border-pink-500/50 text-pink-500' : 'bg-white/5 border-white/5 text-gray-500 hover:bg-white/10 hover:text-gray-400'}`}
+                            >
+                                <Heart className={`h-3 w-3 ${showOnlyFavorites ? 'fill-current' : ''}`} />
+                                <span className="text-[9px] font-black uppercase tracking-widest">Favorites</span>
                             </button>
                         </div>
 
