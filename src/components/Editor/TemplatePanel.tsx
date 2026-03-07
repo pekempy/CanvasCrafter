@@ -5,7 +5,7 @@ import { Layout, Trash2, Clock, Save, Check, Folder, ChevronDown, Globe } from "
 import { useState, useMemo } from "react";
 
 export default function TemplatePanel() {
-    const { savedDesigns, setSavedDesigns, saveToTemplate, loadTemplate, deleteDesign, brandKits } = useCanvas();
+    const { savedDesigns, setSavedDesigns, saveToTemplate, loadTemplate, deleteDesign, brandKits, canvasName } = useCanvas();
     const [designName, setDesignName] = useState("");
     const [selectedBrand, setSelectedBrand] = useState<string>("");
     const [selectedParent, setSelectedParent] = useState<string>("none");
@@ -15,11 +15,11 @@ export default function TemplatePanel() {
     const masters = useMemo(() => savedDesigns.filter(d => !d.parentId), [savedDesigns]);
 
     const handleSave = () => {
-        if (!designName.trim()) return;
-        saveToTemplate(designName, selectedBrand || undefined, selectedParent === "none" ? undefined : selectedParent);
+        const nameToSave = designName.trim() || canvasName || "Untitled Template";
+        saveToTemplate(nameToSave, selectedBrand || undefined, selectedParent === "none" ? undefined : selectedParent, true);
         setDesignName("");
         setLastSaved(true);
-        setTimeout(() => setLastSaved(false), 2000);
+        setTimeout(() => setLastSaved(false), 3000);
     };
 
     const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);

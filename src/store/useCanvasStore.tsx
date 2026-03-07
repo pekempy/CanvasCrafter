@@ -123,7 +123,7 @@ interface CanvasContextType {
     apiConfig: { unsplashAccessKey: string; pexelsKey: string; pixabayKey: string };
     setApiConfig: (config: { unsplashAccessKey: string; pexelsKey: string; pixabayKey: string }) => void;
 
-    saveToTemplate: (name: string, brandId?: string, parentId?: string) => string | undefined;
+    saveToTemplate: (name: string, brandId?: string, parentId?: string, forceNew?: boolean) => string | undefined;
     loadTemplate: (json: string, name?: string, id?: string) => void;
     deleteDesign: (id: string) => void;
     exportAsFormat: (format: 'png' | 'jpeg' | 'pdf') => void;
@@ -683,7 +683,7 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         }
     }, [canvas, selectedObject, forceUpdate]);
 
-    const saveToTemplate = useCallback((name: string, brandId?: string, parentId?: string) => {
+    const saveToTemplate = useCallback((name: string, brandId?: string, parentId?: string, forceNew?: boolean) => {
         if (!canvas || !(canvas as any)._isAlive) return;
         const json = JSON.stringify(canvas.toJSON());
         const thumbnail = canvas.toDataURL({ format: 'png', multiplier: 0.1 });
@@ -691,7 +691,11 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         let updated: any[];
         let finalId: string;
 
-        if (currentDesignId) {
+        // Auto-detect self-parenting loop and force new if so
+        const isSelfParent = currentDesignId && parentId === currentDesignId;
+        const shouldCreateNew = forceNew || !currentDesignId || isSelfParent;
+
+        if (!shouldCreateNew && currentDesignId) {
             // Update existing
             finalId = currentDesignId;
             updated = savedDesigns.map(d => {
@@ -701,8 +705,8 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
                         name: name || d.name,
                         thumbnail,
                         data: json,
-                        brandId: brandId || d.brandId,
-                        parentId: parentId || d.parentId,
+                        brandId: brandId !== undefined ? brandId : d.brandId,
+                        parentId: parentId !== undefined ? parentId : d.parentId,
                         updatedAt: Date.now()
                     };
                 }
