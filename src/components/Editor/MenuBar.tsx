@@ -26,6 +26,7 @@ import {
     Check
 } from "lucide-react";
 import { useCanvas } from "@/store/useCanvasStore";
+import HelpDialog from "./HelpDialog";
 
 interface MenuBarProps {
     setActiveTab: (tab: any) => void;
@@ -60,12 +61,13 @@ export default function MenuBar({ setActiveTab }: MenuBarProps) {
         canvasName, setCanvasName,
         saveToTemplate, addImage,
         selectedObject, updateSelectedObject, clearEffects,
-        setIsResizeOpen
+        setIsResizeOpen, setIsHelpOpen
     } = useCanvas();
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const [activeMenu, setActiveMenu] = useState<string | null>(null);
+
     const menuRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -261,7 +263,10 @@ export default function MenuBar({ setActiveTab }: MenuBarProps) {
                 </div>
 
                 <div className="flex items-center gap-2">
-                    <button className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl text-gray-500 hover:text-white transition-all border border-white/5 shadow-sm">
+                    <button 
+                        onClick={() => setIsHelpOpen(true)}
+                        className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl text-gray-500 hover:text-white transition-all border border-white/5 shadow-sm"
+                    >
                         <HelpCircle className="h-4 w-4" />
                     </button>
                     <button
@@ -273,6 +278,7 @@ export default function MenuBar({ setActiveTab }: MenuBarProps) {
                     </button>
                 </div>
             </div>
+            <HelpDialog />
         </div>
     );
 }

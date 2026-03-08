@@ -374,11 +374,11 @@ export default function BrandPanel() {
                                                     onClick={() => toggleFolder(fid)}
                                                     className="w-full flex items-center justify-between group/folder hover:bg-white/5 p-2 rounded-xl transition-all"
                                                 >
-                                                    <div className="flex items-center gap-2">
-                                                        <div className={`p-1 rounded-lg transition-all ${isExpanded ? 'bg-blue-500/20 text-blue-500' : 'bg-white/5 text-gray-500'}`}>
+                                                    <div className="flex items-start gap-2 text-left">
+                                                        <div className={`p-1 rounded-lg transition-all shrink-0 ${isExpanded ? 'bg-blue-500/20 text-blue-500' : 'bg-white/5 text-gray-500'}`}>
                                                             <Folder className="h-3 w-3" />
                                                         </div>
-                                                        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 group-hover/folder:text-white transition-colors">
+                                                        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 group-hover/folder:text-white transition-colors mt-1">
                                                             {groupedByFolder[fid].name}
                                                             <span className="ml-2 text-[8px] opacity-40">({groupedByFolder[fid].assets.length})</span>
                                                         </p>
@@ -440,13 +440,13 @@ export default function BrandPanel() {
                                                 <div key={master.id} className="space-y-1">
                                                     <div
                                                         onClick={() => loadTemplate(master.data, master.name, master.id)}
-                                                        className="group relative flex items-center gap-3 bg-white/5 border border-white/5 rounded-2xl p-2.5 cursor-pointer hover:bg-white/10 transition-all border-l-4 border-l-blue-500"
+                                                        className="group relative flex items-start gap-3 bg-white/5 border border-white/5 rounded-2xl p-2.5 cursor-pointer hover:bg-white/10 transition-all border-l-4 border-l-blue-500"
                                                     >
                                                         <div className="h-10 w-12 overflow-hidden rounded-lg bg-black border border-white/5 shrink-0">
                                                             <img src={master.thumbnail} alt={master.name} className="h-full w-full object-contain" />
                                                         </div>
-                                                        <div className="flex-1 min-w-0">
-                                                            <p className="text-[10px] font-black text-white uppercase tracking-wider truncate">{master.name}</p>
+                                                        <div className="flex-1 min-w-0 text-left">
+                                                            <p className="text-[10px] font-black text-white uppercase tracking-wider leading-tight break-words">{master.name}</p>
                                                             <p className="text-[7px] font-bold text-gray-500 uppercase tracking-widest">
                                                                 MASTER • {versions.length} VERSIONS
                                                             </p>

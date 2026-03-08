@@ -64,6 +64,8 @@ interface CanvasContextType {
     setPanOffset: (offset: { x: number; y: number }) => void;
     showGrid: boolean;
     setShowGrid: (show: boolean) => void;
+    isHelpOpen: boolean;
+    setIsHelpOpen: (open: boolean) => void;
     fitToScreen: () => void;
     updateTick: number;
     forceUpdate: () => void;
@@ -218,9 +220,11 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
     const [customFonts, setCustomFonts] = useState<{ name: string; dataUrl: string }[]>([]);
     const [isCropMode, setIsCropMode] = useState(false);
     const [cropRect, setCropRect] = useState<fabric.Rect | null>(null);
+    const [croppingImage, setCroppingImage] = useState<fabric.Image | null>(null);
     const [history, setHistory] = useState<string[]>([]);
     const [redoStack, setRedoStack] = useState<string[]>([]);
     const [isResizeOpen, setIsResizeOpen] = useState(false);
+    const [isHelpOpen, setIsHelpOpen] = useState(false);
     const [savingAssetUrl, setSavingAssetUrl] = useState<string | null>(null);
 
 
@@ -1043,33 +1047,21 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
     const groupSelected = useCallback(() => {
         if (!canvas) return;
         const activeObject = canvas.getActiveObject();
-        if (!activeObject) return;
+        if (!activeObject || activeObject.type !== 'activeSelection') return;
 
-        let objects: fabric.Object[] = [];
-        if (activeObject.type === 'activeSelection') {
-            objects = (activeObject as fabric.ActiveSelection).getObjects();
-        } else {
-            objects = [activeObject];
-        }
-
-        if (objects.length === 0) return;
-
-        // In Fabric v7, Group constructor handles the positioning relative to its members
-        const group = new fabric.Group(objects, {
-            name: objects.length > 1 ? "New Group" : "Folder",
+        const selection = activeObject as fabric.ActiveSelection;
+        // toGroup() is the native way in Fabric v6+ to convert selection to a permanent Group
+        const group = (selection as any).toGroup();
+        
+        group.set({
+            name: "New Group",
             subTargetCheck: true,
             interactive: false,
             objectCaching: false,
         } as any);
 
-        // Remove from canvas top-level
-        objects.forEach(obj => {
-            canvas.remove(obj);
-        });
-
-        canvas.add(group);
         canvas.setActiveObject(group);
-        canvas.renderAll();
+        canvas.requestRenderAll();
         forceUpdate();
     }, [canvas, forceUpdate]);
 
@@ -1079,26 +1071,10 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         if (!activeObject || activeObject.type !== 'group') return;
 
         const group = activeObject as fabric.Group;
-        const items = group.getObjects();
-
-        // Release objects from group back to canvas
-        group.forEachObject(obj => {
-            const matrix = obj.calcTransformMatrix();
-            const options = fabric.util.qrDecompose(matrix);
-            obj.set({
-                ...options,
-                flipX: false,
-                flipY: false,
-            });
-            canvas.add(obj);
-            obj.setCoords();
-        });
-
-        canvas.remove(group);
-
-        const selection = new fabric.ActiveSelection(items, { canvas });
-        canvas.setActiveObject(selection);
-        canvas.renderAll();
+        // toActiveSelection() is the native way to release group members back to canvas
+        (group as any).toActiveSelection();
+        
+        canvas.requestRenderAll();
         forceUpdate();
     }, [canvas, forceUpdate]);
 
@@ -1145,55 +1121,107 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         if (!canvas || !(selectedObject instanceof fabric.Image)) return;
         setIsCropMode(true);
         const img = selectedObject as fabric.Image;
+        setCroppingImage(img);
+        
+        // Store original opacity to restore it accurately later
+        (img as any)._originalOpacity = img.opacity;
+
+        // Create a crop rect that perfectly matches the image's current VISUAL bounds
         const rect = new fabric.Rect({
             left: img.left,
             top: img.top,
             width: img.getScaledWidth(),
             height: img.getScaledHeight(),
-            fill: 'rgba(59, 130, 246, 0.2)',
+            angle: img.angle,
+            originX: img.originX,
+            originY: img.originY,
+            fill: 'rgba(59, 130, 246, 0.4)',
             stroke: '#3b82f6',
             strokeWidth: 2,
             strokeDashArray: [5, 5],
             cornerColor: '#3b82f6',
-            cornerSize: 10,
+            cornerSize: 12,
             transparentCorners: false,
-        });
+        } as any);
+
         canvas.add(rect);
         canvas.setActiveObject(rect);
         setCropRect(rect);
-        img.set({ selectable: false, evented: false });
-        canvas.renderAll();
+        
+        // Lock image and dim it
+        img.set({ 
+            selectable: false, 
+            evented: false,
+            opacity: 0.5 
+        });
+        canvas.requestRenderAll();
     }, [canvas, selectedObject]);
 
     const confirmCrop = useCallback(() => {
-        if (!canvas || !selectedObject || !cropRect) return;
-        const img = selectedObject as fabric.Image;
+        if (!canvas || !croppingImage || !cropRect) return;
+        const img = croppingImage;
 
-        // Convert cropRect local to image local
-        const clipPath = new fabric.Rect({
-            left: cropRect.left - img.left,
-            top: cropRect.top - img.top,
-            width: cropRect.getScaledWidth(),
-            height: cropRect.getScaledHeight(),
-            absolutePositioned: true
+        // Calculate relative offset in local unrotated space using top-left reference
+        const angleRad = (img.angle || 0) * Math.PI / 180;
+        const cos = Math.cos(angleRad);
+        const sin = Math.sin(angleRad);
+        
+        // Get absolute canvas coordinates of top-left corners
+        const imgTL = img.getPointByOrigin('left', 'top');
+        const cropTL = cropRect.getPointByOrigin('left', 'top');
+        
+        const dx = cropTL.x - imgTL.x;
+        const dy = cropTL.y - imgTL.y;
+        
+        // Un-rotate the absolute vector into the image's local space
+        const localX = dx * cos + dy * sin;
+        const localY = -dx * sin + dy * cos;
+
+        // Apply shift to source crop offset and dimensions
+        const newCropX = (img.cropX || 0) + (localX / img.scaleX);
+        const newCropY = (img.cropY || 0) + (localY / img.scaleY);
+        const newWidth = cropRect.getScaledWidth() / img.scaleX;
+        const newHeight = cropRect.getScaledHeight() / img.scaleY;
+
+        img.set({
+            cropX: newCropX,
+            cropY: newCropY,
+            width: newWidth,
+            height: newHeight,
+            left: cropRect.left,
+            top: cropRect.top,
+            selectable: true,
+            evented: true,
+            clipPath: undefined,
+            opacity: (img as any)._originalOpacity !== undefined ? (img as any)._originalOpacity : 1
         });
 
-        img.set({ clipPath, selectable: true, evented: true });
+        img.setCoords();
         canvas.remove(cropRect);
         setCropRect(null);
+        setCroppingImage(null);
         setIsCropMode(false);
         canvas.setActiveObject(img);
-        canvas.renderAll();
-    }, [canvas, selectedObject, cropRect]);
+        canvas.requestRenderAll();
+        forceUpdate();
+    }, [canvas, croppingImage, cropRect, forceUpdate]);
 
     const cancelCrop = useCallback(() => {
-        if (!canvas || !cropRect || !selectedObject) return;
+        if (!canvas || !cropRect || !croppingImage) return;
         canvas.remove(cropRect);
         setCropRect(null);
+        setCroppingImage(null);
         setIsCropMode(false);
-        selectedObject.set({ selectable: true, evented: true });
-        canvas.renderAll();
-    }, [canvas, cropRect, selectedObject]);
+        // Restore dimensions and interactivity
+        croppingImage.set({ 
+            selectable: true, 
+            evented: true,
+            opacity: (croppingImage as any)._originalOpacity !== undefined ? (croppingImage as any)._originalOpacity : 1 
+        });
+        croppingImage.setCoords();
+        canvas.requestRenderAll();
+        forceUpdate();
+    }, [canvas, cropRect, croppingImage, forceUpdate]);
 
     const applyEdgeStroke = useCallback(async () => {
         if (!canvas || !(selectedObject instanceof fabric.Image)) return;
@@ -1316,9 +1344,10 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
             if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
 
             const isCtrl = e.ctrlKey || e.metaKey;
+            const key = e.key.toLowerCase();
 
             if (isCtrl) {
-                switch (e.key.toLowerCase()) {
+                switch (key) {
                     case 'z':
                         e.preventDefault();
                         if (e.shiftKey) redo();
@@ -1348,9 +1377,8 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
                         return;
                     case 'g':
                         e.preventDefault();
-                        const activeObj = canvas.getActiveObject();
-                        if (activeObj?.type === 'group') ungroupSelected();
-                        else if (activeObj?.type === 'activeSelection') groupSelected();
+                        if (e.shiftKey) ungroupSelected();
+                        else groupSelected();
                         return;
                     case 's':
                         e.preventDefault();
@@ -1365,6 +1393,19 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
                         e.preventDefault();
                         if (e.shiftKey) sendToBack();
                         else sendBackwards();
+                        return;
+                }
+            } else {
+                // Non-ctrl keys
+                switch (key) {
+                    case 't':
+                        e.preventDefault();
+                        addText();
+                        return;
+                    case 'v':
+                        e.preventDefault();
+                        canvas.discardActiveObject();
+                        canvas.requestRenderAll();
                         return;
                 }
             }
@@ -1382,18 +1423,22 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
                     handled = true;
                     break;
                 case 'ArrowLeft':
+                    if (activeObject.lockMovementX) break;
                     activeObject.set('left', (activeObject.left || 0) - step);
                     handled = true;
                     break;
                 case 'ArrowRight':
+                    if (activeObject.lockMovementX) break;
                     activeObject.set('left', (activeObject.left || 0) + step);
                     handled = true;
                     break;
                 case 'ArrowUp':
+                    if (activeObject.lockMovementY) break;
                     activeObject.set('top', (activeObject.top || 0) - step);
                     handled = true;
                     break;
                 case 'ArrowDown':
+                    if (activeObject.lockMovementY) break;
                     activeObject.set('top', (activeObject.top || 0) + step);
                     handled = true;
                     break;
@@ -1438,6 +1483,7 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
             if (e.target && (e.target.type === 'textbox' || e.target.type === 'i-text')) {
                 handleObjectSnapping(canvas, e.target);
             }
+            canvas?.requestRenderAll();
         };
 
         const handleMouseDown = (opt: any) => {
@@ -1468,10 +1514,6 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         };
 
         const handleModified = (e: any) => {
-            const obj = e.target;
-            if (obj && obj.group) {
-                (obj.group as any).addWithUpdate();
-            }
             debouncedAutoSave();
         };
 
@@ -1523,6 +1565,7 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         customFonts, setCustomFonts, addCustomFont, removeCustomFont,
         removeBackground, setBackgroundImage,
         showGrid, setShowGrid,
+        isHelpOpen, setIsHelpOpen,
         enterCropMode, confirmCrop, cancelCrop, isCropMode,
         applyEdgeStroke,
         undo, redo, canUndo: history.length > 0, canRedo: redoStack.length > 0,
@@ -1555,7 +1598,7 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         groupSelected, ungroupSelected, alignSelected,
         maskShapeWithImage, saveToTemplate, loadTemplate, deleteDesign, exportAsFormat,
         addCustomFont, removeCustomFont, removeBackground, setBackgroundImage,
-        showGrid, setShowGrid, enterCropMode, confirmCrop, cancelCrop, isCropMode, applyEdgeStroke, smartResize,
+        showGrid, setShowGrid, isHelpOpen, setIsHelpOpen, enterCropMode, confirmCrop, cancelCrop, isCropMode, applyEdgeStroke, smartResize,
         setPresets, deletePreset,
         isResizeOpen, setIsResizeOpen, isDrawingMode, setIsDrawingMode, brushSize, setBrushSize, brushColor, setBrushColor, brushSmoothing, setBrushSmoothing,
         setCanvas, setTheme, setCanvasSize, setZoom, setPanOffset,

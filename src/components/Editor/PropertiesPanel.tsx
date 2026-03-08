@@ -4,7 +4,8 @@ import { useCanvas } from "@/store/useCanvasStore";
 import {
     Trash2, Copy, MoveUp, MoveDown, Layers, RefreshCcw,
     FlipHorizontal, FlipVertical, RotateCw, Ghost,
-    Type, Palette, Sparkles, ChevronRight, Settings2
+    Type, Palette, Sparkles, ChevronRight, Settings2,
+    Lock, Unlock
 } from "lucide-react";
 import GradientPicker from "./GradientPicker";
 import FontPicker from "./FontPicker";
@@ -50,6 +51,43 @@ export default function PropertiesPanel() {
 
     const hideFillStroke = isImage || isMultiImage;
 
+    const toggleLock = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        const isLocked = !!selectedObject.lockMovementX;
+        const newState = !isLocked;
+        
+        const applyLock = (obj: any) => {
+            obj.set({
+                lockMovementX: newState,
+                lockMovementY: newState,
+                lockRotation: newState,
+                lockScalingX: newState,
+                lockScalingY: newState,
+                lockSkewingX: newState,
+                lockSkewingY: newState,
+                selectable: !newState,
+                evented: !newState,
+                hasControls: !newState,
+            });
+        };
+
+        if (selectedObject.type === 'activeSelection') {
+            (selectedObject as any)._objects?.forEach(applyLock);
+            applyLock(selectedObject);
+        } else {
+            applyLock(selectedObject);
+        }
+
+        if (newState) {
+            canvas.discardActiveObject();
+        }
+
+        canvas.requestRenderAll();
+        canvas.fire('object:modified', { target: selectedObject });
+        // Trigger a re-render by forcing context update or similar
+        updateSelectedObject({ _lockStateTrigger: Date.now() });
+    };
+
     return (
         <div className="flex h-full w-full flex-col bg-[#181a20] border-l border-white/5 overflow-y-auto scrollbar-hide">
             <div className="flex items-center justify-between border-b border-white/5 px-4 py-3 bg-[#1e2229]">
@@ -59,6 +97,13 @@ export default function PropertiesPanel() {
                 </div>
                 <div className="flex items-center gap-1">
                     <button
+                        onClick={toggleLock}
+                        title={selectedObject.lockMovementX ? "Unlock Object" : "Lock Object"}
+                        className={`rounded-lg p-1.5 transition-all ${selectedObject.lockMovementX ? 'bg-blue-600/20 text-blue-500' : 'text-gray-500 hover:bg-white/5 hover:text-white'}`}
+                    >
+                        {selectedObject.lockMovementX ? <Lock className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}
+                    </button>
+                    <button
                         onClick={clearEffects}
                         title="Clear Effects & Masks"
                         className="rounded-lg p-1.5 text-gray-500 hover:bg-white/5 hover:text-white transition-all"
@@ -67,7 +112,7 @@ export default function PropertiesPanel() {
                     </button>
                     <button
                         onClick={deleteSelected}
-                        className="rounded-lg p-1.5 text-gray-500 hover:bg-red-500/10 hover:text-red-500 transition-all"
+                        className="rounded-lg p-1.5 text-gray-500 hover:bg-red-500/10 hover:text-red-500 transition-all font-black text-[10px]"
                     >
                         <Trash2 className="h-3.5 w-3.5" />
                     </button>

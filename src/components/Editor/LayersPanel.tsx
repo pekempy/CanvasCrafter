@@ -46,17 +46,29 @@ export default function LayersPanel() {
     };
 
     const toggleLock = (obj: fabric.Object) => {
-        const isLocked = obj.lockMovementX;
+        const isCurrentlyLocked = !!obj.lockMovementX;
+        const newLockState = !isCurrentlyLocked;
+        
         obj.set({
-            lockMovementX: !isLocked,
-            lockMovementY: !isLocked,
-            // We keep rotation and scaling enabled as per "otherwise can edit"
-            hasControls: true,
-            lockRotation: false,
-            lockScalingX: false,
-            lockScalingY: false,
+            lockMovementX: newLockState,
+            lockMovementY: newLockState,
+            lockRotation: newLockState,
+            lockScalingX: newLockState,
+            lockScalingY: newLockState,
+            lockSkewingX: newLockState,
+            lockSkewingY: newLockState,
+            selectable: !newLockState, // Locked items cannot be selected on canvas
+            evented: !newLockState,    // Mouse events pass through locked items
+            hasControls: !newLockState, // No handles for locked items
         });
-        canvas?.renderAll();
+
+        if (newLockState && canvas?.getActiveObject() === obj) {
+            canvas.discardActiveObject();
+        }
+
+        canvas?.requestRenderAll();
+        // Force an update for all components listening to canvas changes
+        if ((canvas as any).fire) (canvas as any).fire('object:modified', { target: obj });
         setLayers([...(canvas?.getObjects() || [])].reverse());
     };
 

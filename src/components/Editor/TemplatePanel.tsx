@@ -10,6 +10,7 @@ export default function TemplatePanel() {
     const [selectedParent, setSelectedParent] = useState<string>("none");
     const [lastSaved, setLastSaved] = useState(false);
     const [expandedMasters, setExpandedMasters] = useState<Set<string>>(new Set());
+    const [expandedBrands, setExpandedBrands] = useState<Set<string>>(new Set(["no-brand"]));
 
     const masters = useMemo(() => savedDesigns.filter(d => !d.parentId), [savedDesigns]);
 
@@ -46,11 +47,9 @@ export default function TemplatePanel() {
     const handleDelete = (id: string, e: React.MouseEvent) => {
         e.stopPropagation();
         if (confirmingDeleteId === id) {
-            console.log("[UI] Deletion confirmed for design:", id);
             deleteDesign(id);
             setConfirmingDeleteId(null);
         } else {
-            console.log("[UI] Deletion requested for design:", id);
             setConfirmingDeleteId(id);
             // Auto-reset after 3 seconds if not confirmed
             setTimeout(() => {
@@ -66,23 +65,34 @@ export default function TemplatePanel() {
         setExpandedMasters(next);
     };
 
+    const toggleBrand = (id: string) => {
+        const next = new Set(expandedBrands);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        setExpandedBrands(next);
+    };
+
     // Sorting logic for masters
     const sortedMasters = useMemo(() => {
         return [...masters].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
     }, [masters]);
 
-    // Grouping logic for display
-    const organizedTemplates = useMemo(() => {
-        const groups: Record<string, { master: any, versions: any[] }> = {};
+    // Grouping logic for display: { [brandId]: { [masterId]: { master, versions } } }
+    const templatesByBrand = useMemo(() => {
+        const brands: Record<string, Record<string, { master: any, versions: any[] }>> = {};
 
         sortedMasters.forEach(m => {
+            const brandId = m.brandId || "no-brand";
+            if (!brands[brandId]) brands[brandId] = {};
+            
             const versions = savedDesigns
                 .filter(v => v.parentId === m.id)
                 .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
-            groups[m.id] = { master: m, versions };
+            
+            brands[brandId][m.id] = { master: m, versions };
         });
 
-        return groups;
+        return brands;
     }, [sortedMasters, savedDesigns]);
 
     return (
@@ -168,101 +178,138 @@ export default function TemplatePanel() {
                         <p className="text-[10px] font-black uppercase tracking-widest text-gray-300">No Templates Found</p>
                     </div>
                 ) : (
-                    Object.values(organizedTemplates).map(({ master, versions }) => (
-                        <div key={master.id} className="space-y-1">
-                            {/* Master Card / Folder Row */}
-                            <div
-                                onClick={() => loadTemplate(master.data, master.name, master.id)}
-                                className="group relative flex items-center gap-3 bg-white/5 border border-white/5 rounded-2xl p-3 cursor-pointer hover:bg-white/10 transition-all border-l-4 border-l-blue-500"
-                            >
-                                <div className="h-12 w-16 overflow-hidden rounded-lg bg-black border border-white/5 shrink-0">
-                                    <img src={master.thumbnail} alt={master.name} className="h-full w-full object-contain" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-[11px] font-black text-white uppercase tracking-wider truncate">{master.name}</p>
-                                    <div className="flex items-center gap-2 mt-0.5">
-                                        <p className="text-[8px] font-bold text-gray-500 uppercase tracking-widest bg-white/5 px-1.5 py-0.5 rounded">
-                                            MASTER • {versions.length} VERSIONS
-                                        </p>
-                                        {master.brandId && (
-                                            <p className="text-[8px] font-black text-blue-400 uppercase tracking-widest truncate max-w-[80px]">
-                                                {brandKits.find(b => b.id === master.brandId)?.name || 'BRAND'}
-                                            </p>
-                                        )}
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            const isGlobal = master.visibility === 'global';
-                                            if (confirm(isGlobal ? "Make this template private?" : "Share this template globally?")) {
-                                                setSavedDesigns(savedDesigns.map(d => {
-                                                    if (d.id === master.id || d.parentId === master.id) {
-                                                        return { ...d, visibility: isGlobal ? 'private' : 'global' };
-                                                    }
-                                                    return d;
-                                                }));
-                                            }
-                                        }}
-                                        className={`p-1.5 rounded-lg hover:bg-white/10 transition-all opacity-40 group-hover:opacity-100 ${master.visibility === 'global' ? 'text-blue-500' : 'text-gray-500'}`}
-                                        title={master.visibility === 'global' ? "Shared Globally" : "Private (Click to Share)"}
-                                    >
-                                        <Globe className="h-4 w-4" />
-                                    </button>
-                                    {versions.length > 0 && (
-                                        <button
-                                            onClick={(e) => { e.stopPropagation(); toggleMaster(master.id); }}
-                                            className={`p-1.5 rounded-lg hover:bg-white/10 transition-colors ${expandedMasters.has(master.id) ? 'rotate-180 text-blue-400' : 'text-gray-500'}`}
-                                        >
-                                            <ChevronDown className="h-4 w-4" />
-                                        </button>
-                                    )}
-                                    <button
-                                        onClick={(e) => handleDelete(master.id, e)}
-                                        className={`transition-all flex items-center gap-1.5 px-2 py-1 rounded-lg ${confirmingDeleteId === master.id ? 'bg-red-500 text-white animate-pulse' : 'text-gray-500 hover:text-red-500 hover:bg-red-500/10 opacity-40 group-hover:opacity-100'}`}
-                                    >
-                                        {confirmingDeleteId === master.id ? (
-                                            <span className="text-[9px] font-black uppercase">CONFIRM?</span>
-                                        ) : (
-                                            <Trash2 className="h-3.5 w-3.5" />
-                                        )}
-                                    </button>
-                                </div>
-                            </div>
+                    Object.entries(templatesByBrand).sort(([aId], [bId]) => {
+                        if (aId === "no-brand") return 1;
+                        if (bId === "no-brand") return -1;
+                        return 0;
+                    }).map(([brandId, masters]) => {
+                        const brand = brandKits.find(b => b.id === brandId);
+                        const brandName = brand?.name || "No Brand";
+                        const isBrandExpanded = expandedBrands.has(brandId);
+                        const masterCount = Object.keys(masters).length;
 
-                            {/* Versions (Expanded) */}
-                            {expandedMasters.has(master.id) && versions.length > 0 && (
-                                <div className="ml-6 space-y-1 mt-1 border-l border-white/10 pl-3">
-                                    {versions.map(version => (
-                                        <div
-                                            key={version.id}
-                                            onClick={() => loadTemplate(version.data, version.name, version.id)}
-                                            className="group flex items-center gap-3 bg-white/2 p-2 rounded-xl cursor-pointer hover:bg-white/5 transition-all text-xs"
-                                        >
-                                            <div className="h-8 w-10 overflow-hidden rounded-md bg-black/40 shrink-0">
-                                                <img src={version.thumbnail} alt={version.name} className="h-full w-full object-contain opacity-70 group-hover:opacity-100" />
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <p className="text-[9px] font-bold text-gray-400 truncate group-hover:text-gray-200">{version.name}</p>
-                                                <p className="text-[7px] text-gray-600 font-bold uppercase tracking-wider">{new Date(version.timestamp).toLocaleDateString()}</p>
-                                            </div>
-                                            <button
-                                                onClick={(e) => handleDelete(version.id, e)}
-                                                className={`transition-all flex items-center gap-1 px-1.5 py-0.5 rounded-md ${confirmingDeleteId === version.id ? 'bg-red-500 text-white' : 'text-gray-700 hover:text-red-500 opacity-0 group-hover:opacity-100'}`}
-                                            >
-                                                {confirmingDeleteId === version.id ? (
-                                                    <span className="text-[7px] font-black uppercase">CONFIRM?</span>
-                                                ) : (
-                                                    <Trash2 className="h-3 w-3" />
-                                                )}
-                                            </button>
+                        return (
+                            <div key={brandId} className="space-y-2">
+                                {/* Brand Header */}
+                                <button
+                                    onClick={() => toggleBrand(brandId)}
+                                    className="w-full flex items-center justify-between group/brand hover:bg-white/5 p-2 rounded-xl transition-all border-b border-white/5 pb-3"
+                                >
+                                    <div className="flex items-start gap-3 text-left">
+                                        <div className={`p-1.5 rounded-lg transition-all shrink-0 mt-0.5 ${isBrandExpanded ? 'bg-blue-500/20 text-blue-400' : 'bg-white/10 text-gray-500'}`}>
+                                            <Layout className="h-4 w-4" />
                                         </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    ))
+                                        <div className="flex flex-col min-w-0">
+                                            <p className="text-[12px] font-black uppercase tracking-[0.1em] text-white group-hover/brand:text-blue-400 transition-colors leading-none">
+                                                {brandName}
+                                            </p>
+                                            <p className="text-[8px] font-bold uppercase tracking-widest text-gray-500 mt-1.5">
+                                                {masterCount} {masterCount === 1 ? 'PROJECT' : 'PROJECTS'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <ChevronDown className={`h-4 w-4 text-gray-600 transition-transform duration-300 ${isBrandExpanded ? 'rotate-0' : '-rotate-90'}`} />
+                                </button>
+
+                                {/* Templates under this brand */}
+                                {isBrandExpanded && (
+                                    <div className="space-y-3 animate-in fade-in slide-in-from-top-1 duration-200">
+                                        {Object.values(masters).map(({ master, versions }) => (
+                                            <div key={master.id} className="space-y-1">
+                                                {/* Master Card / Folder Row */}
+                                                <div
+                                                    onClick={() => toggleMaster(master.id)}
+                                                    className={`group relative flex flex-col gap-1 bg-white/5 border border-white/5 rounded-xl p-3 cursor-pointer hover:bg-white/10 transition-all border-l-2 ${expandedMasters.has(master.id) ? 'border-l-blue-500 bg-white/[0.07]' : 'border-l-transparent'}`}
+                                                >
+                                                    <div className="flex items-start justify-between gap-3">
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex items-start gap-2 mb-1 text-left">
+                                                                <Folder className={`h-3 w-3 shrink-0 mt-0.5 ${expandedMasters.has(master.id) ? 'text-blue-500 fill-blue-500/20' : 'text-gray-600'}`} />
+                                                                <p className="text-[10px] font-black text-white uppercase tracking-wider leading-tight break-words">{master.name}</p>
+                                                            </div>
+                                                            <div className="flex flex-wrap items-center gap-1.5">
+                                                                <p className="text-[7px] font-bold text-gray-500 uppercase tracking-widest bg-white/5 px-1.5 py-0.5 rounded border border-white/5">
+                                                                    {versions.length} {versions.length === 1 ? 'VERSION' : 'VERSIONS'}
+                                                                </p>
+                                                                {master.visibility === 'global' && (
+                                                                    <p className="text-[7px] font-black text-blue-400 uppercase tracking-widest bg-blue-500/10 px-1.5 py-0.5 rounded border border-blue-500/10">
+                                                                        GLOBAL
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center gap-0.5 shrink-0">
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    const isGlobal = master.visibility === 'global';
+                                                                    if (confirm(isGlobal ? "Make this template private?" : "Share this template globally?")) {
+                                                                        setSavedDesigns(savedDesigns.map(d => {
+                                                                            if (d.id === master.id || d.parentId === master.id) {
+                                                                                return { ...d, visibility: isGlobal ? 'private' : 'global' };
+                                                                            }
+                                                                            return d;
+                                                                        }));
+                                                                    }
+                                                                }}
+                                                                className={`p-1.5 rounded-lg hover:bg-white/10 transition-all ${master.visibility === 'global' ? 'text-blue-500' : 'text-gray-500'}`}
+                                                            >
+                                                                <Globe className="h-3.5 w-3.5" />
+                                                            </button>
+                                                            <button
+                                                                onClick={(e) => handleDelete(master.id, e)}
+                                                                className={`transition-all p-1.5 rounded-lg ${confirmingDeleteId === master.id ? 'bg-red-500 text-white animate-pulse' : 'text-gray-500 hover:text-red-500 hover:bg-red-500/10'}`}
+                                                            >
+                                                                {confirmingDeleteId === master.id ? <Check className="h-3.5 w-3.5" /> : <Trash2 className="h-3.5 w-3.5" />}
+                                                            </button>
+                                                            <div className={`p-1 transition-transform duration-200 ${expandedMasters.has(master.id) ? 'rotate-180 text-blue-400' : 'text-gray-600'}`}>
+                                                                <ChevronDown className="h-4 w-4" />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Versions (Expanded) */}
+                                                {expandedMasters.has(master.id) && versions.length > 0 && (
+                                                    <div className="ml-6 space-y-1 mt-1 border-l border-white/10 pl-3">
+                                                        {versions.map(version => (
+                                                            <div
+                                                                key={version.id}
+                                                                onClick={() => loadTemplate(version.data, version.name, version.id)}
+                                                                className="group flex flex-col gap-2 bg-white/[0.03] p-2.5 rounded-xl cursor-pointer hover:bg-white/5 transition-all border border-transparent hover:border-blue-500/20"
+                                                            >
+                                                                <div className="flex items-start justify-between gap-2">
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <p className="text-[11px] font-black text-white uppercase tracking-wider leading-tight break-words group-hover:text-blue-400 transition-colors">{version.name}</p>
+                                                                        <p className="text-[7px] text-gray-600 font-bold uppercase tracking-widest mt-1 flex items-center gap-1">
+                                                                            <Clock className="h-2 w-2" />
+                                                                            {new Date(version.timestamp).toLocaleDateString()}
+                                                                        </p>
+                                                                    </div>
+                                                                    <button
+                                                                        onClick={(e) => { e.stopPropagation(); handleDelete(version.id, e); }}
+                                                                        className={`transition-all p-1 rounded-md ${confirmingDeleteId === version.id ? 'bg-red-500 text-white' : 'text-gray-700 hover:text-red-500 hover:bg-red-500/10 opacity-0 group-hover:opacity-100'}`}
+                                                                    >
+                                                                        {confirmingDeleteId === version.id ? <Check className="h-2.5 w-2.5" /> : <Trash2 className="h-2.5 w-2.5" />}
+                                                                    </button>
+                                                                </div>
+                                                                <div className="w-full h-[60px] overflow-hidden rounded-lg bg-black/40 border border-white/5 relative group/vthumb">
+                                                                    <img src={version.thumbnail} alt={version.name} className="h-full w-full object-contain opacity-60 group-hover:opacity-100 transition-all p-1" />
+                                                                    <div className="absolute inset-0 bg-blue-600/10 opacity-0 group-hover/vthumb:opacity-100 transition-opacity flex items-center justify-center">
+                                                                        <div className="text-[7px] font-black text-white uppercase tracking-widest bg-blue-600 px-2 py-1 rounded shadow-lg">LOAD</div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })
                 )}
             </div>
         </div>

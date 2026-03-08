@@ -110,9 +110,10 @@ export default function Toolbar() {
                         />
                         {isImage && (
                             <ToolbarButton
-                                icon={<Crop className="h-4 w-4 text-blue-500" />}
-                                onClick={enterCropMode}
-                                label="Crop Image"
+                                icon={<Crop className={`${isCropMode ? 'text-white' : 'text-blue-500'} h-4 w-4`} />}
+                                onClick={isCropMode ? cancelCrop : enterCropMode}
+                                active={isCropMode}
+                                label={isCropMode ? "Cancel Crop" : "Crop Image"}
                             />
                         )}
                     </div>
