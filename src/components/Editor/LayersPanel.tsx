@@ -1,7 +1,7 @@
 "use client";
 
 import { useCanvas } from "@/store/useCanvasStore";
-import { Trash2, ChevronUp, ChevronDown, Layers as LayersIcon, Eye, EyeOff, Lock, Unlock, Group, Ungroup, Folder, FolderOpen, Plus } from "lucide-react";
+import { Trash2, ChevronUp, ChevronDown, Layers as LayersIcon, Eye, EyeOff, Lock, Unlock, Group, Ungroup, Folder, FolderOpen, Plus, Pin, PinOff } from "lucide-react";
 import { useState, useEffect } from "react";
 import * as fabric from "fabric";
 
@@ -46,8 +46,8 @@ export default function LayersPanel() {
     };
 
     const toggleLock = (obj: fabric.Object) => {
-        const isCurrentlyLocked = !!obj.lockMovementX;
-        const newLockState = !isCurrentlyLocked;
+        const isCurrentlyFullyLocked = !obj.selectable;
+        const newLockState = !isCurrentlyFullyLocked;
         
         obj.set({
             lockMovementX: newLockState,
@@ -57,6 +57,7 @@ export default function LayersPanel() {
             lockScalingY: newLockState,
             lockSkewingX: newLockState,
             lockSkewingY: newLockState,
+            lockScalingFlip: newLockState,
             selectable: !newLockState, // Locked items cannot be selected on canvas
             evented: !newLockState,    // Mouse events pass through locked items
             hasControls: !newLockState, // No handles for locked items
@@ -68,6 +69,36 @@ export default function LayersPanel() {
 
         canvas?.requestRenderAll();
         // Force an update for all components listening to canvas changes
+        if ((canvas as any).fire) (canvas as any).fire('object:modified', { target: obj });
+        setLayers([...(canvas?.getObjects() || [])].reverse());
+    };
+
+    const togglePositionLock = (obj: fabric.Object) => {
+        // If it was fully locked, unlock it first to position lock it
+        const isFullyLocked = !obj.selectable;
+        
+        const isPositionLocked = !!obj.lockMovementX && obj.selectable;
+        const newState = !isPositionLocked;
+
+        obj.set({
+            lockMovementX: newState,
+            lockMovementY: newState,
+            lockScalingX: newState,
+            lockScalingY: newState,
+            lockRotation: newState,
+            // If we are position locking, ensure it's selectable
+            selectable: true,
+            evented: true,
+            // Keep other locks as they were if not fully locked, or reset if fully locked
+            ...(isFullyLocked ? {
+                lockSkewingX: false,
+                lockSkewingY: false,
+                lockScalingFlip: false,
+                hasControls: true,
+            } : {})
+        });
+
+        canvas?.requestRenderAll();
         if ((canvas as any).fire) (canvas as any).fire('object:modified', { target: obj });
         setLayers([...(canvas?.getObjects() || [])].reverse());
     };
@@ -213,15 +244,24 @@ export default function LayersPanel() {
                     <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
                             onClick={(e) => { e.stopPropagation(); toggleVisibility(obj); }}
-                            className="p-1 px-1.5 rounded-md hover:bg-white/10 text-gray-400 hover:text-gray-200"
+                            className="p-1 px-1 rounded-md hover:bg-white/10 text-gray-400 hover:text-gray-200"
+                            title={obj.visible ? "Hide Layer" : "Show Layer"}
                         >
                             {obj.visible ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3 text-red-500" />}
                         </button>
                         <button
-                            onClick={(e) => { e.stopPropagation(); toggleLock(obj); }}
-                            className="p-1 px-1.5 rounded-md hover:bg-white/10 text-gray-400 hover:text-gray-200"
+                            onClick={(e) => { e.stopPropagation(); togglePositionLock(obj); }}
+                            className={`p-1 px-1 rounded-md hover:bg-white/10 transition-colors ${obj.lockMovementX && obj.selectable ? 'text-orange-500 bg-orange-500/10' : 'text-gray-400 hover:text-gray-200'}`}
+                            title={obj.lockMovementX && obj.selectable ? "Unlock Position" : "Lock Position (XY Only)"}
                         >
-                            {obj.lockMovementX ? <Lock className="h-3 w-3 text-blue-500" /> : <Unlock className="h-3 w-3" />}
+                            {obj.lockMovementX && obj.selectable ? <PinOff className="h-3 w-3" /> : <Pin className="h-3 w-3" />}
+                        </button>
+                        <button
+                            onClick={(e) => { e.stopPropagation(); toggleLock(obj); }}
+                            className={`p-1 px-1 rounded-md hover:bg-white/10 transition-colors ${!obj.selectable ? 'text-blue-500 bg-blue-500/10' : 'text-gray-400 hover:text-gray-200'}`}
+                            title={!obj.selectable ? "Unlock Layer" : "Lock Layer (Full)"}
+                        >
+                            {!obj.selectable ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
                         </button>
                     </div>
                 </div>

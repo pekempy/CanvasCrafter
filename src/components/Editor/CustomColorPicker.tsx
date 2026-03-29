@@ -83,19 +83,26 @@ export default function CustomColorPicker({ color, onChange, label, className = 
     const [isPicking, setIsPicking] = useState(false);
     const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
     const [previewColor, setPreviewColor] = useState("#3b82f6");
+    const [localHex, setLocalHex] = useState(color.toUpperCase());
 
 
     useEffect(() => {
-        if (color.startsWith('#') && color.length === 7) {
-            const newHsv = hexToHsv(color);
+        if (color.startsWith('#') && (color.length === 7 || color.length === 4)) {
+            const newHsv = hexToHsv(color.length === 4 ? expandHex(color) : color);
             setHsv(prev => {
                 if (Math.abs(prev.s - newHsv.s) > 0.01 || Math.abs(prev.v - newHsv.v) > 0.01 || (newHsv.s > 0 && Math.abs(prev.h - newHsv.h) > 0.01)) {
                     return newHsv;
                 }
                 return prev;
             });
+            setLocalHex(color.toUpperCase());
         }
     }, [color]);
+
+    const expandHex = (hex: string) => {
+        if (hex.length !== 4) return hex;
+        return '#' + hex[1] + hex[1] + hex[2] + hex[2] + hex[3] + hex[3];
+    };
 
     useEffect(() => {
         if (isOpen && triggerRef.current) {
@@ -348,14 +355,23 @@ export default function CustomColorPicker({ color, onChange, label, className = 
                                 <span className="text-[9px] font-black text-gray-400 uppercase tracking-tighter">HEX</span>
                                 <input
                                     type="text"
-                                    value={color.toUpperCase()}
+                                    spellCheck={false}
+                                    value={localHex}
                                     onChange={(e) => {
-                                        const val = e.target.value;
-                                        if (val.match(/^#[0-9A-Fa-f]{0,6}$/)) {
+                                        let val = e.target.value;
+                                        if (!val.startsWith('#')) val = '#' + val;
+                                        setLocalHex(val.toUpperCase());
+                                        if (val.match(/^#[0-9A-Fa-f]{6}$/) || val.match(/^#[0-9A-Fa-f]{3}$/)) {
                                             onChange(val);
                                         }
                                     }}
-                                    className="bg-transparent border-none outline-none text-right text-[8px] font-bold text-white w-12"
+                                    onBlur={() => {
+                                        // Reset to prop color if invalid on blur
+                                        if (!localHex.match(/^#[0-9A-Fa-f]{6}$/) && !localHex.match(/^#[0-9A-Fa-f]{3}$/)) {
+                                            setLocalHex(color.toUpperCase());
+                                        }
+                                    }}
+                                    className="bg-transparent border-none outline-none text-right text-[8px] font-bold text-white w-20 px-1"
                                 />
                             </div>
 

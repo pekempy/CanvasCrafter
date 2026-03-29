@@ -5,7 +5,7 @@ import {
     Trash2, Copy, MoveUp, MoveDown, Layers, RefreshCcw,
     FlipHorizontal, FlipVertical, RotateCw, Ghost,
     Type, Palette, Sparkles, ChevronRight, Settings2,
-    Lock, Unlock
+    Lock, Unlock, Pin, PinOff
 } from "lucide-react";
 import GradientPicker from "./GradientPicker";
 import FontPicker from "./FontPicker";
@@ -53,8 +53,8 @@ export default function PropertiesPanel() {
 
     const toggleLock = (e: React.MouseEvent) => {
         e.stopPropagation();
-        const isLocked = !!selectedObject.lockMovementX;
-        const newState = !isLocked;
+        const isCurrentlyFullyLocked = !selectedObject.selectable;
+        const newState = !isCurrentlyFullyLocked;
         
         const applyLock = (obj: any) => {
             obj.set({
@@ -64,7 +64,7 @@ export default function PropertiesPanel() {
                 lockScalingX: newState,
                 lockScalingY: newState,
                 lockSkewingX: newState,
-                lockSkewingY: newState,
+                lockScalingFlip: newState,
                 selectable: !newState,
                 evented: !newState,
                 hasControls: !newState,
@@ -84,7 +84,41 @@ export default function PropertiesPanel() {
 
         canvas.requestRenderAll();
         canvas.fire('object:modified', { target: selectedObject });
-        // Trigger a re-render by forcing context update or similar
+        updateSelectedObject({ _lockStateTrigger: Date.now() });
+    };
+
+    const togglePositionLock = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        const isPositionLocked = !!selectedObject.lockMovementX && selectedObject.selectable;
+        const newState = !isPositionLocked;
+
+        const applyPositionLock = (obj: any) => {
+            const isFullyLocked = !obj.selectable;
+            obj.set({
+                lockMovementX: newState,
+                lockMovementY: newState,
+                lockScalingX: newState,
+                lockScalingY: newState,
+                lockRotation: newState,
+                selectable: true,
+                evented: true,
+                ...(isFullyLocked ? {
+                    lockSkewingX: false,
+                    lockScalingFlip: false,
+                    hasControls: true,
+                } : {})
+            });
+        };
+
+        if (selectedObject.type === 'activeSelection') {
+            (selectedObject as any)._objects?.forEach(applyPositionLock);
+            applyPositionLock(selectedObject);
+        } else {
+            applyPositionLock(selectedObject);
+        }
+
+        canvas.requestRenderAll();
+        canvas.fire('object:modified', { target: selectedObject });
         updateSelectedObject({ _lockStateTrigger: Date.now() });
     };
 
@@ -97,11 +131,18 @@ export default function PropertiesPanel() {
                 </div>
                 <div className="flex items-center gap-1">
                     <button
-                        onClick={toggleLock}
-                        title={selectedObject.lockMovementX ? "Unlock Object" : "Lock Object"}
-                        className={`rounded-lg p-1.5 transition-all ${selectedObject.lockMovementX ? 'bg-blue-600/20 text-blue-500' : 'text-gray-500 hover:bg-white/5 hover:text-white'}`}
+                        onClick={togglePositionLock}
+                        title={selectedObject.lockMovementX && selectedObject.selectable ? "Unlock Position" : "Lock Position (XY Only)"}
+                        className={`rounded-lg p-1.5 transition-all ${selectedObject.lockMovementX && selectedObject.selectable ? 'bg-orange-500/20 text-orange-500' : 'text-gray-500 hover:bg-white/5 hover:text-white'}`}
                     >
-                        {selectedObject.lockMovementX ? <Lock className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}
+                        {selectedObject.lockMovementX && selectedObject.selectable ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
+                    </button>
+                    <button
+                        onClick={toggleLock}
+                        title={!selectedObject.selectable ? "Unlock Object" : "Lock Object (Full)"}
+                        className={`rounded-lg p-1.5 transition-all ${!selectedObject.selectable ? 'bg-blue-600/20 text-blue-500' : 'text-gray-500 hover:bg-white/5 hover:text-white'}`}
+                    >
+                        {!selectedObject.selectable ? <Lock className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}
                     </button>
                     <button
                         onClick={clearEffects}
