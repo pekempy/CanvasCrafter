@@ -289,24 +289,24 @@ export default function AssetPanel() {
     };
 
     return (
-        <div className="flex h-full w-full flex-col bg-[#181a20]">
+        <div className="flex h-full w-full flex-col bg-[16191f]">
             {/* Tabs */}
-            <div className="flex px-4 py-2 border-b border-white/5 gap-4">
+            <div className="flex px-4 py-2 border-b border-line gap-4">
                 <button
                     onClick={() => setActiveTab('library')}
-                    className={`text-[10px] font-black uppercase tracking-widest pb-2 border-b-2 transition-all ${activeTab === 'library' ? 'border-blue-500 text-blue-500' : 'border-transparent text-gray-500 hover:text-gray-400'}`}
+                    className={`text-[10px] font-semibold uppercase tracking-normal pb-2 border-b-2 transition-all ${activeTab === 'library' ? 'border-gold text-gold' : 'border-transparent text-text-mute hover:text-text-dim'}`}
                 >
                     My Library
                 </button>
                 <button
                     onClick={() => setActiveTab('stock')}
-                    className={`text-[10px] font-black uppercase tracking-widest pb-2 border-b-2 transition-all ${activeTab === 'stock' ? 'border-blue-500 text-blue-500' : 'border-transparent text-gray-500 hover:text-gray-400'}`}
+                    className={`text-[10px] font-semibold uppercase tracking-normal pb-2 border-b-2 transition-all ${activeTab === 'stock' ? 'border-gold text-gold' : 'border-transparent text-text-mute hover:text-text-dim'}`}
                 >
                     Stock
                 </button>
                 <button
                     onClick={() => setActiveTab('clipart')}
-                    className={`text-[10px] font-black uppercase tracking-widest pb-2 border-b-2 transition-all ${activeTab === 'clipart' ? 'border-blue-500 text-blue-500' : 'border-transparent text-gray-500 hover:text-gray-400'}`}
+                    className={`text-[10px] font-semibold uppercase tracking-normal pb-2 border-b-2 transition-all ${activeTab === 'clipart' ? 'border-gold text-gold' : 'border-transparent text-text-mute hover:text-text-dim'}`}
                 >
                     Clipart
                 </button>
@@ -316,7 +316,7 @@ export default function AssetPanel() {
                 {activeTab === 'stock' ? (
                     <div className="p-3">
                         <div className="relative group mb-1.5">
-                            <Search className="absolute left-3 top-2 h-3.5 w-3.5 text-gray-500 transition-colors group-focus-within:text-blue-500" />
+                            <Search className="absolute left-3 top-2 h-3.5 w-3.5 text-text-mute transition-colors group-focus-within:text-gold" />
                             <input
                                 type="text"
                                 style={{ paddingLeft: !stockSearch ? 'calc(2rem + 3em)' : undefined }}
@@ -328,12 +328,12 @@ export default function AssetPanel() {
                                     if (e.target.value) setIsSearching(true);
                                 }}
                                 onKeyDown={(e) => e.key === 'Enter' && searchStock()}
-                                className="w-full bg-white/5 border border-white/5 rounded-xl py-2 pl-10 pr-10 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-white transition-all"
+                                className="w-full bg-white/5 border border-line rounded-xl py-2 pl-10 pr-10 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-gold/40 text-white transition-all"
                             />
                             {stockSearch && (
                                 <button
                                     onClick={() => { setStockSearch(""); setStockPhotos([]); }}
-                                    className="absolute right-3 top-2.5 p-0.5 rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-all"
+                                    className="absolute right-3 top-2.5 p-0.5 rounded-full hover:bg-white/10 text-text-dim hover:text-white transition-all"
                                 >
                                     <X className="h-3.5 w-3.5" />
                                 </button>
@@ -342,22 +342,22 @@ export default function AssetPanel() {
 
                         <div className="px-1 py-3 flex items-start gap-2 opacity-40 hover:opacity-100 transition-opacity">
                             <Info className="h-3 w-3 mt-0.5" />
-                            <p className="text-[8px] font-black uppercase leading-tight tracking-tighter">
-                                Photos provided by <a href="https://unsplash.com" target="_blank" className="underline text-blue-500">Unsplash</a> & <a href="https://pexels.com" target="_blank" className="underline text-blue-500">Pexels</a>.
+                            <p className="text-[8px] font-semibold uppercase leading-tight tracking-tighter">
+                                Photos provided by <a href="https://unsplash.com" target="_blank" className="underline text-gold">Unsplash</a> & <a href="https://pexels.com" target="_blank" className="underline text-gold">Pexels</a>.
                                 High quality assets for your designs.
                             </p>
                         </div>
 
                         {error && (
-                            <div className="flex items-center gap-2 mb-4 px-3 py-2 rounded-xl bg-orange-500/10 text-orange-400 text-[9px] font-black uppercase border border-orange-500/20">
+                            <div className="flex items-center gap-2 mb-4 px-3 py-2 rounded-xl bg-orange-500/10 text-orange-400 text-[9px] font-semibold uppercase border border-orange-500/20">
                                 <AlertCircle className="h-3 w-3" /> {error}
                             </div>
                         )}
 
                         {isSearching ? (
                             <div className="flex flex-col items-center justify-center py-20 opacity-40">
-                                <Loader2 className="h-8 w-8 animate-spin text-blue-500 mb-4" />
-                                <p className="text-[10px] font-black uppercase tracking-widest leading-relaxed">Searching stock...</p>
+                                <Loader2 className="h-8 w-8 animate-spin text-gold mb-4" />
+                                <p className="text-[10px] font-semibold uppercase tracking-normal leading-relaxed">Searching stock...</p>
                             </div>
                         ) : (
                             <div className="grid grid-cols-2 gap-3 mt-4">
@@ -375,14 +375,14 @@ export default function AssetPanel() {
                         {stockPhotos.length === 0 && !isSearching && (
                             <div className="flex flex-col items-center justify-center py-24 text-center opacity-10">
                                 <ImageIcon className="h-12 w-12 mb-4" />
-                                <p className="text-[10px] font-black uppercase tracking-widest leading-relaxed">Search to explore</p>
+                                <p className="text-[10px] font-semibold uppercase tracking-normal leading-relaxed">Search to explore</p>
                             </div>
                         )}
                     </div>
                 ) : activeTab === 'clipart' ? (
                     <div className="p-3">
                         <div className="relative group mb-1.5">
-                            <Search className="absolute left-3 top-2 h-3.5 w-3.5 text-gray-500 transition-colors group-focus-within:text-blue-500" />
+                            <Search className="absolute left-3 top-2 h-3.5 w-3.5 text-text-mute transition-colors group-focus-within:text-gold" />
                             <input
                                 type="text"
                                 style={{ paddingLeft: !clipartSearch ? 'calc(2rem + 3em)' : undefined }}
@@ -399,12 +399,12 @@ export default function AssetPanel() {
                                         searchClipart(clipartSearch);
                                     }
                                 }}
-                                className="w-full bg-white/5 border border-white/5 rounded-xl py-1.5 pl-9 pr-10 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-white transition-all"
+                                className="w-full bg-white/5 border border-line rounded-xl py-1.5 pl-9 pr-10 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-gold/40 text-white transition-all"
                             />
                             {clipartSearch && (
                                 <button
                                     onClick={() => { setClipartSearch(""); setClipartPhotos([]); }}
-                                    className="absolute right-3 top-2 p-0.5 rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-all"
+                                    className="absolute right-3 top-2 p-0.5 rounded-full hover:bg-white/10 text-text-dim hover:text-white transition-all"
                                 >
                                     <X className="h-3 w-3" />
                                 </button>
@@ -413,21 +413,21 @@ export default function AssetPanel() {
 
                         <div className="px-1 py-3 flex items-start gap-2 opacity-40 hover:opacity-100 transition-opacity">
                             <Info className="h-3 w-3 mt-0.5" />
-                            <p className="text-[8px] font-black uppercase leading-tight tracking-tighter">
-                                Resources provided by <a href="https://pixabay.com" target="_blank" className="underline text-blue-500">Pixabay</a>. Ensure your API Key is stored inside your `.env` appropriately.
+                            <p className="text-[8px] font-semibold uppercase leading-tight tracking-tighter">
+                                Resources provided by <a href="https://pixabay.com" target="_blank" className="underline text-gold">Pixabay</a>. Ensure your API Key is stored inside your `.env` appropriately.
                             </p>
                         </div>
 
                         {error && (
-                            <div className="flex items-center gap-2 mb-4 px-3 py-2 rounded-xl bg-orange-500/10 text-orange-400 text-[9px] font-black uppercase border border-orange-500/20">
+                            <div className="flex items-center gap-2 mb-4 px-3 py-2 rounded-xl bg-orange-500/10 text-orange-400 text-[9px] font-semibold uppercase border border-orange-500/20">
                                 <AlertCircle className="h-3 w-3" /> {error}
                             </div>
                         )}
 
                         {isSearching ? (
                             <div className="flex flex-col items-center justify-center py-20 opacity-40">
-                                <Loader2 className="h-8 w-8 animate-spin text-blue-500 mb-4" />
-                                <p className="text-[10px] font-black uppercase tracking-widest leading-relaxed">Searching clipart...</p>
+                                <Loader2 className="h-8 w-8 animate-spin text-gold mb-4" />
+                                <p className="text-[10px] font-semibold uppercase tracking-normal leading-relaxed">Searching clipart...</p>
                             </div>
                         ) : (
                             <div className="grid grid-cols-2 gap-2 mt-3">
@@ -445,30 +445,30 @@ export default function AssetPanel() {
                         {clipartPhotos.length === 0 && !isSearching && (
                             <div className="flex flex-col items-center justify-center py-24 text-center opacity-10">
                                 <ImageIcon className="h-10 w-10 mb-4" />
-                                <p className="text-[10px] font-black uppercase tracking-widest leading-relaxed">Search clipart assets</p>
+                                <p className="text-[10px] font-semibold uppercase tracking-normal leading-relaxed">Search clipart assets</p>
                             </div>
                         )}
                     </div>
                 ) : (
                     <div className="p-4 flex flex-col h-full">
                         {/* Folder Management Header */}
-                        <div className="flex flex-col gap-3 mb-6 bg-[#1e2229] p-3 rounded-2xl border border-white/5">
+                        <div className="flex flex-col gap-3 mb-6 bg-[1d222a] p-3 rounded-md border border-line">
                             <div className="flex items-center gap-2">
                                 <div className="relative flex-1">
                                     <select
                                         value={activeFolderId}
                                         onChange={(e) => setActiveFolderId(e.target.value)}
-                                        className="w-full bg-white/10 text-xs font-black uppercase tracking-widest text-white border border-white/10 rounded-xl pl-3 pr-10 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/50 appearance-none transition-all hover:bg-white/20"
+                                        className="w-full bg-white/10 text-xs font-semibold uppercase tracking-normal text-white border border-line rounded-xl pl-3 pr-10 py-2 focus:outline-none focus:ring-2 focus:ring-gold/40 appearance-none transition-all hover:bg-white/20"
                                     >
-                                        <option value="favorites" className="bg-[#181a20]">Favourite Assets</option>
-                                        <hr className="border-white/5" />
+                                        <option value="favorites" className="bg-[16191f]">Favourite Assets</option>
+                                        <hr className="border-line" />
                                         {assetFolders.map(f => (
-                                            <option key={f.id} value={f.id} className="bg-[#181a20]">
+                                            <option key={f.id} value={f.id} className="bg-[16191f]">
                                                 {f.name}
                                             </option>
                                         ))}
                                     </select>
-                                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-500 pointer-events-none" />
+                                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-text-mute pointer-events-none" />
                                 </div>
                                 <button
                                     onClick={() => {
@@ -486,7 +486,7 @@ export default function AssetPanel() {
                                             setActiveFolderId(newId);
                                         }
                                     }}
-                                    className="p-2 bg-blue-600 rounded-xl text-white hover:bg-blue-700 transition-colors"
+                                    className="p-2 bg-gold rounded-xl text-white hover:bg-gold transition-colors"
                                     title="Create Folder"
                                 >
                                     <FolderPlus className="h-4 w-4" />
@@ -501,7 +501,7 @@ export default function AssetPanel() {
                                                     setAssetFolders(assetFolders.map(f => f.id === activeFolderId ? { ...f, name: newName, updatedAt: Date.now() } : f));
                                                 }
                                             }}
-                                            className="p-2 bg-white/5 text-gray-400 rounded-xl hover:bg-white/10 transition-colors"
+                                            className="p-2 bg-white/5 text-text-dim rounded-xl hover:bg-white/10 transition-colors"
                                             title="Rename Folder"
                                         >
                                             <MoreVertical className="h-4 w-4" />
@@ -521,7 +521,7 @@ export default function AssetPanel() {
                                             title="Delete Folder"
                                         >
                                             {confirmingFolderDeleteId === activeFolderId ? (
-                                                <span className="text-[8px] font-black uppercase">CONFIRM?</span>
+                                                <span className="text-[8px] font-semibold uppercase">CONFIRM?</span>
                                             ) : (
                                                 <Trash2 className="h-4 w-4" />
                                             )}
@@ -533,10 +533,10 @@ export default function AssetPanel() {
                             {/* Brand Kit Linking */}
                             {activeFolderId !== "default" && (
                                 <div className="flex items-center gap-2 mt-1 px-1">
-                                    <Shield className="h-2.5 w-2.5 text-blue-500/70" />
+                                    <Shield className="h-2.5 w-2.5 text-gold/70" />
                                     <div className="relative flex-1">
                                         <select
-                                            className="w-full bg-white/5 text-[8px] font-black uppercase tracking-[0.15em] text-gray-400 border border-white/5 rounded-md pl-2 pr-6 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500/30 appearance-none transition-all hover:bg-white/10 hover:text-white hover:border-white/10 cursor-pointer"
+                                            className="w-full bg-white/5 text-[8px] font-semibold uppercase tracking-[0.15em] text-text-dim border border-line rounded-md pl-2 pr-6 py-1 focus:outline-none focus:ring-1 focus:ring-gold/30 appearance-none transition-all hover:bg-white/10 hover:text-white hover:border-line cursor-pointer"
                                             onChange={(e) => {
                                                 const brandId = e.target.value;
                                                 const targetBrand = brandKits.find(k => k.id === brandId);
@@ -576,12 +576,12 @@ export default function AssetPanel() {
                                             }}
                                             value={brandKits.find((k: any) => k.assetFolderIds?.includes(activeFolderId) || k.assetFolderIds?.includes((assetFolders.find(f => f.id === activeFolderId) as any)?.originalId))?.id || "none"}
                                         >
-                                            <option value="none" className="bg-[#181a20]">No Brand Kit Linked</option>
+                                            <option value="none" className="bg-[16191f]">No Brand Kit Linked</option>
                                             {brandKits.map((kit: any) => (
-                                                <option key={kit.id} value={kit.id} className="bg-[#181a20]">{kit.name}</option>
+                                                <option key={kit.id} value={kit.id} className="bg-[16191f]">{kit.name}</option>
                                             ))}
                                         </select>
-                                        <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 h-2.5 w-2.5 text-gray-600 pointer-events-none group-hover:text-gray-400 transition-colors" />
+                                        <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 h-2.5 w-2.5 text-text-mute pointer-events-none group-hover:text-text-dim transition-colors" />
                                     </div>
                                 </div>
                             )}
@@ -590,47 +590,47 @@ export default function AssetPanel() {
                         <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
                         <button
                             onClick={() => fileInputRef.current?.click()}
-                            className="w-full py-8 mb-6 rounded-3xl border-2 border-dashed border-white/5 hover:border-blue-500/50 hover:bg-blue-500/5 transition-all flex flex-col items-center justify-center gap-3 group shrink-0"
+                            className="w-full py-8 mb-6 rounded-lg border-2 border-dashed border-line hover:border-gold/50 hover:bg-gold/5 transition-all flex flex-col items-center justify-center gap-3 group shrink-0"
                         >
-                            <div className="p-3 rounded-full bg-white/5 group-hover:bg-blue-500/10 transition-colors">
-                                <Upload className="h-5 w-5 text-gray-500 group-hover:text-blue-500" />
+                            <div className="p-3 rounded-full bg-white/5 group-hover:bg-gold/10 transition-colors">
+                                <Upload className="h-5 w-5 text-text-mute group-hover:text-gold" />
                             </div>
-                            <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 group-hover:text-blue-400">Upload to {assetFolders.find(f => f.id === activeFolderId)?.name}</p>
+                            <p className="text-[10px] font-semibold uppercase tracking-normal text-text-dim group-hover:text-gold">Upload to {assetFolders.find(f => f.id === activeFolderId)?.name}</p>
                         </button>
 
                         <div className="flex items-center gap-2 mb-3 px-1">
                             <button
                                 onClick={() => setHideBrandAssets(!hideBrandAssets)}
                                 className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all active:scale-95
-                                    ${hideBrandAssets ? 'bg-blue-600/10 border-blue-500/50 text-blue-500' : 'bg-white/5 border-white/5 text-gray-500 hover:bg-white/10 hover:text-gray-400'}`}
+                                    ${hideBrandAssets ? 'bg-gold/10 border-gold/50 text-gold' : 'bg-white/5 border-line text-text-mute hover:bg-white/10 hover:text-text-dim'}`}
                             >
                                 <Shield className={`h-3 w-3 ${hideBrandAssets ? 'fill-current' : ''}`} />
-                                <span className="text-[9px] font-black uppercase tracking-widest">Hide Brand</span>
+                                <span className="text-[9px] font-semibold uppercase tracking-normal">Hide Brand</span>
                             </button>
 
                             <button
                                 onClick={() => setShowOnlyFavorites(!showOnlyFavorites)}
                                 className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all active:scale-95
-                                    ${showOnlyFavorites ? 'bg-pink-600/10 border-pink-500/50 text-pink-500' : 'bg-white/5 border-white/5 text-gray-500 hover:bg-white/10 hover:text-gray-400'}`}
+                                    ${showOnlyFavorites ? 'bg-pink-600/10 border-pink-500/50 text-pink-500' : 'bg-white/5 border-line text-text-mute hover:bg-white/10 hover:text-text-dim'}`}
                             >
                                 <Heart className={`h-3 w-3 ${showOnlyFavorites ? 'fill-current' : ''}`} />
-                                <span className="text-[9px] font-black uppercase tracking-widest">Favorites</span>
+                                <span className="text-[9px] font-semibold uppercase tracking-normal">Favorites</span>
                             </button>
                         </div>
 
                         <div className="relative group mb-4">
-                            <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-500 transition-colors group-focus-within:text-blue-500" />
+                            <Search className="absolute left-3 top-2.5 h-4 w-4 text-text-mute transition-colors group-focus-within:text-gold" />
                             <input
                                 type="text"
                                 placeholder="Search by tags..."
                                 value={librarySearch}
                                 onChange={(e) => setLibrarySearch(e.target.value)}
-                                className="w-full bg-white/5 border border-white/5 rounded-xl py-2 pl-9 pr-10 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-white transition-all"
+                                className="w-full bg-white/5 border border-line rounded-xl py-2 pl-9 pr-10 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-gold/40 text-white transition-all"
                             />
                             {librarySearch && (
                                 <button
                                     onClick={() => setLibrarySearch("")}
-                                    className="absolute right-3 top-2.5 p-0.5 rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-all"
+                                    className="absolute right-3 top-2.5 p-0.5 rounded-full hover:bg-white/10 text-text-dim hover:text-white transition-all"
                                 >
                                     <X className="h-4 w-4" />
                                 </button>
@@ -646,12 +646,12 @@ export default function AssetPanel() {
                                     {activeFolderId === "favorites" ? (
                                         <>
                                             <Star className="h-10 w-10 mb-3 text-yellow-500/50 fill-current" />
-                                            <p className="text-[10px] font-black uppercase tracking-[0.2em] leading-relaxed">No favourite assets yet.<br />Click the heart icon to start!</p>
+                                            <p className="text-[10px] font-semibold uppercase tracking-normal leading-relaxed">No favourite assets yet.<br />Click the heart icon to start!</p>
                                         </>
                                     ) : (
                                         <>
                                             <Folder className="h-8 w-8 mb-2" />
-                                            <p className="text-[9px] font-black uppercase tracking-widest leading-relaxed">Folder is empty</p>
+                                            <p className="text-[9px] font-semibold uppercase tracking-normal leading-relaxed">Folder is empty</p>
                                         </>
                                     )}
                                 </div>
@@ -661,7 +661,7 @@ export default function AssetPanel() {
                                 filteredAssets.length === 0 && (
                                     <div className="col-span-2 flex flex-col items-center justify-center py-10 opacity-30 text-center">
                                         <Search className="h-8 w-8 mb-2" />
-                                        <p className="text-[9px] font-black uppercase tracking-widest leading-relaxed">No matching tags</p>
+                                        <p className="text-[9px] font-semibold uppercase tracking-normal leading-relaxed">No matching tags</p>
                                     </div>
                                 )}
                         </div>
@@ -678,20 +678,20 @@ function AssetItem({ photo, onAdd, onMask }: { photo: any; onAdd: () => void; on
     const sourceLink = sourceName === "Pexels" ? "https://pexels.com" : "https://unsplash.com";
 
     return (
-        <div className="group relative rounded-2xl bg-white/5 overflow-hidden border border-white/5 transition-all hover:scale-[1.05] hover:shadow-2xl">
+        <div className="group relative rounded-md bg-white/5 overflow-hidden border border-line transition-all hover:scale-[1.05] hover:shadow-2xl">
             <div className="aspect-square relative overflow-hidden">
                 <img src={photo.urls.small} loading="lazy" className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-125" />
                 <div className="absolute inset-0 bg-black/80 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center p-3 gap-2 overflow-y-auto scrollbar-hide">
-                    <button onClick={onAdd} className="w-full py-1.5 rounded-lg bg-blue-600 text-[9px] font-black uppercase text-white hover:bg-blue-700">Add to Canvas</button>
-                    <button onClick={() => setBackgroundImage(photo.urls.regular)} className="w-full py-1.5 rounded-lg bg-white/10 text-[9px] font-black uppercase text-white hover:bg-white/20 border border-white/20">Set Background</button>
+                    <button onClick={onAdd} className="w-full py-1.5 rounded-lg bg-gold text-[9px] font-semibold uppercase text-white hover:bg-gold">Add to Canvas</button>
+                    <button onClick={() => setBackgroundImage(photo.urls.regular)} className="w-full py-1.5 rounded-lg bg-white/10 text-[9px] font-semibold uppercase text-white hover:bg-white/20 border border-white/20">Set Background</button>
                     {selectedObject && (
-                        <button onClick={onMask} className="w-full py-1.5 rounded-lg bg-white/10 text-[9px] font-black uppercase text-white hover:bg-white/20 border border-white/20 backdrop-blur-md">Mask Shape</button>
+                        <button onClick={onMask} className="w-full py-1.5 rounded-lg bg-white/10 text-[9px] font-semibold uppercase text-white hover:bg-white/20 border border-white/20 backdrop-blur-md">Mask Shape</button>
                     )}
                 </div>
             </div>
-            <div className="p-2 border-t border-white/5 bg-[#1e2229]">
-                <p className="text-[7px] font-black uppercase tracking-tighter text-gray-500 truncate">
-                    Photo by <a href={photo.user.links.html} target="_blank" className="text-blue-400 hover:underline">{photo.user.name}</a> on <a href={sourceLink} target="_blank" className="text-white hover:underline">{sourceName}</a>
+            <div className="p-2 border-t border-line bg-[1d222a]">
+                <p className="text-[7px] font-semibold uppercase tracking-tighter text-text-mute truncate">
+                    Photo by <a href={photo.user.links.html} target="_blank" className="text-gold hover:underline">{photo.user.name}</a> on <a href={sourceLink} target="_blank" className="text-white hover:underline">{sourceName}</a>
                 </p>
             </div>
         </div>

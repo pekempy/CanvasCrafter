@@ -51,7 +51,7 @@ export default function BrandPanel() {
         const newKit = {
             id: Math.random().toString(36).substr(2, 9),
             name: "New Brand Kit",
-            colors: ["#3b82f6", "#10b981", "#f59e0b", "#ef4444"],
+            colors: ["#f2a91b", "#10b981", "#f59e0b", "#ef4444"],
             fonts: ["Inter", "Oswald"],
             images: [],
             assetFolderIds: [],
@@ -121,12 +121,12 @@ export default function BrandPanel() {
     // Render Submenu for Active Kit
     if (activeBrandId && activeKit) {
         return (
-            <div className="flex h-full w-full flex-col bg-[#181a20]">
+            <div className="flex h-full w-full flex-col bg-[16191f]">
                 {/* Header */}
-                <div className="flex items-center gap-3 border-b border-white/5 px-4 py-3 bg-[#1e2229]">
+                <div className="flex items-center gap-3 border-b border-line px-4 py-3 bg-[1d222a]">
                     <button
                         onClick={() => setActiveBrandId(null)}
-                        className="p-2 -ml-2 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all"
+                        className="p-2 -ml-2 rounded-xl text-text-dim hover:text-white hover:bg-white/5 transition-all"
                     >
                         <ChevronLeft className="h-4 w-4" />
                     </button>
@@ -139,12 +139,12 @@ export default function BrandPanel() {
                                 onChange={(e) => updateKit(activeKit.id, { name: e.target.value })}
                                 onBlur={() => setEditingBrandName(false)}
                                 onKeyDown={(e) => e.key === 'Enter' && setEditingBrandName(false)}
-                                className="bg-transparent text-xs font-black uppercase tracking-tight text-white border-b border-blue-500 focus:outline-none w-full mr-2"
+                                className="bg-transparent text-xs font-semibold uppercase tracking-tight text-white border-b border-gold focus:outline-none w-full mr-2"
                             />
                         ) : (
                             <h3
                                 onDoubleClick={() => setEditingBrandName(true)}
-                                className="text-xs font-black uppercase tracking-widest text-white truncate cursor-pointer"
+                                className="text-xs font-semibold uppercase tracking-normal text-white truncate cursor-pointer"
                                 title="Double click to edit"
                             >
                                 {activeKit.name}
@@ -175,17 +175,17 @@ export default function BrandPanel() {
                                         }));
                                     }
                                 }}
-                                className={`p-1.5 rounded-lg transition-all ${(activeKit as any).visibility === 'global' ? 'text-blue-500 bg-blue-500/10' : 'text-gray-500 hover:bg-white/5'}`}
+                                className={`p-1.5 rounded-lg transition-all ${(activeKit as any).visibility === 'global' ? 'text-gold bg-gold/10' : 'text-text-mute hover:bg-white/5'}`}
                                 title={(activeKit as any).visibility === 'global' ? "Shared Globally" : "Private (Click to Share)"}
                             >
                                 <Globe className="h-3.5 w-3.5" />
                             </button>
                             <button
                                 onClick={(e) => deleteKit(activeKit.id, e)}
-                                className={`transition-all flex items-center gap-1.5 px-2 py-1 rounded-lg ${confirmingKitDeleteId === activeKit.id ? 'bg-red-500 text-white animate-pulse' : 'text-gray-500 hover:text-red-500'}`}
+                                className={`transition-all flex items-center gap-1.5 px-2 py-1 rounded-lg ${confirmingKitDeleteId === activeKit.id ? 'bg-red-500 text-white animate-pulse' : 'text-text-mute hover:text-red-500'}`}
                             >
                                 {confirmingKitDeleteId === activeKit.id ? (
-                                    <span className="text-[9px] font-black uppercase">CONFIRM?</span>
+                                    <span className="text-[9px] font-semibold uppercase">CONFIRM?</span>
                                 ) : (
                                     <Trash2 className="h-3.5 w-3.5" />
                                 )}
@@ -195,10 +195,10 @@ export default function BrandPanel() {
                 </div>
 
                 {/* Tabs */}
-                <div className="flex border-b border-white/5 bg-[#1e2229]">
-                    <button onClick={() => setActiveTab("colours")} className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest transition-colors ${activeTab === 'colours' ? 'text-blue-500 border-b-2 border-blue-500' : 'text-gray-500 hover:text-gray-300'}`}>Colours & Fonts</button>
-                    <button onClick={() => setActiveTab("images")} className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest transition-colors ${activeTab === 'images' ? 'text-blue-500 border-b-2 border-blue-500' : 'text-gray-500 hover:text-gray-300'}`}>Images</button>
-                    <button onClick={() => setActiveTab("templates" as any)} className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest transition-colors ${activeTab === ('templates' as any) ? 'text-blue-500 border-b-2 border-blue-500' : 'text-gray-500 hover:text-gray-300'}`}>Templates</button>
+                <div className="flex border-b border-line bg-[1d222a]">
+                    <button onClick={() => setActiveTab("colours")} className={`flex-1 py-2 text-[10px] font-semibold uppercase tracking-normal transition-colors ${activeTab === 'colours' ? 'text-gold border-b-2 border-gold' : 'text-text-mute hover:text-text-dim'}`}>Colours & Fonts</button>
+                    <button onClick={() => setActiveTab("images")} className={`flex-1 py-2 text-[10px] font-semibold uppercase tracking-normal transition-colors ${activeTab === 'images' ? 'text-gold border-b-2 border-gold' : 'text-text-mute hover:text-text-dim'}`}>Images</button>
+                    <button onClick={() => setActiveTab("templates" as any)} className={`flex-1 py-2 text-[10px] font-semibold uppercase tracking-normal transition-colors ${activeTab === ('templates' as any) ? 'text-gold border-b-2 border-gold' : 'text-text-mute hover:text-text-dim'}`}>Templates</button>
                 </div>
 
                 {/* Tab Content */}
@@ -209,8 +209,8 @@ export default function BrandPanel() {
                             {/* COLOURS */}
                             <div>
                                 <div className="flex items-center justify-between mb-3 px-1">
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">Colours</p>
-                                    <button onClick={() => addColor(activeKit.id)} className="text-blue-500 hover:text-blue-400 transition-colors">
+                                    <p className="text-[10px] font-semibold uppercase tracking-normal text-text-mute">Colours</p>
+                                    <button onClick={() => addColor(activeKit.id)} className="text-gold hover:text-gold transition-colors">
                                         <PlusCircle className="h-4 w-4" />
                                     </button>
                                 </div>
@@ -241,19 +241,19 @@ export default function BrandPanel() {
                             {/* FONTS */}
                             <div>
                                 <div className="flex items-center justify-between mb-3 px-1">
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">Typography</p>
+                                    <p className="text-[10px] font-semibold uppercase tracking-normal text-text-mute">Typography</p>
                                     <div className="relative">
                                         <button
                                             onClick={() => setIsFontPickerOpen(!isFontPickerOpen)}
-                                            className="flex items-center gap-2 rounded-lg bg-[#181a20] px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-gray-300 border border-white/10 hover:bg-white/5 transition-all"
+                                            className="flex items-center gap-2 rounded-lg bg-[16191f] px-3 py-1.5 text-[9px] font-semibold uppercase tracking-normal text-text-dim border border-line hover:bg-white/5 transition-all"
                                         >
-                                            {isFontPickerOpen ? <X className="h-3 w-3" /> : <PlusCircle className="h-3.5 w-3.5 text-blue-500" />}
+                                            {isFontPickerOpen ? <X className="h-3 w-3" /> : <PlusCircle className="h-3.5 w-3.5 text-gold" />}
                                             {isFontPickerOpen ? "Close" : "Add Font"}
                                         </button>
 
                                         {isFontPickerOpen && (
                                             <div className="absolute right-0 top-full mt-2 z-[100] w-64 shadow-2xl animate-in slide-in-from-top-2">
-                                                <div className="rounded-2xl bg-[#1e2229] border border-white/10 overflow-hidden">
+                                                <div className="rounded-md bg-[1d222a] border border-line overflow-hidden">
                                                     <FontPicker
                                                         inline
                                                         onSelect={(font) => {
@@ -271,13 +271,13 @@ export default function BrandPanel() {
                                         <div key={font} className="group/font flex items-center justify-between w-full rounded-xl hover:bg-white/5 transition-all text-left">
                                             <button
                                                 onClick={() => handleFontClick(font)}
-                                                className="flex-1 px-3 py-1.5 text-xs font-bold text-gray-300"
+                                                className="flex-1 px-3 py-1.5 text-xs font-bold text-text-dim"
                                             >
                                                 <span style={{ fontFamily: font }}>{font}</span>
                                             </button>
                                             <button
                                                 onClick={() => removeFont(activeKit.id, font)}
-                                                className="p-1 px-2 text-gray-600 hover:text-red-500 opacity-0 group-hover/font:opacity-100 transition-opacity"
+                                                className="p-1 px-2 text-text-mute hover:text-red-500 opacity-0 group-hover/font:opacity-100 transition-opacity"
                                             >
                                                 <MinusCircle className="h-3.5 w-3.5" />
                                             </button>
@@ -344,18 +344,18 @@ export default function BrandPanel() {
                         return (
                             <div className="space-y-6">
                                 <div className="relative group px-1">
-                                    <Search className="absolute left-4 top-2.5 h-3.5 w-3.5 text-gray-500 transition-colors group-focus-within:text-blue-500" />
+                                    <Search className="absolute left-4 top-2.5 h-3.5 w-3.5 text-text-mute transition-colors group-focus-within:text-gold" />
                                     <input
                                         type="text"
                                         placeholder="Search brand assets..."
                                         value={assetSearch}
                                         onChange={(e) => setAssetSearch(e.target.value)}
-                                        className="w-full bg-white/5 border border-white/5 rounded-xl py-2 pl-10 pr-10 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-white transition-all"
+                                        className="w-full bg-white/5 border border-line rounded-xl py-2 pl-10 pr-10 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-gold/40 text-white transition-all"
                                     />
                                     {assetSearch && (
                                         <button
                                             onClick={() => setAssetSearch("")}
-                                            className="absolute right-4 top-2 p-1 rounded-full hover:bg-white/10 text-gray-500 hover:text-white transition-all"
+                                            className="absolute right-4 top-2 p-1 rounded-full hover:bg-white/10 text-text-mute hover:text-white transition-all"
                                         >
                                             <X className="h-3 w-3" />
                                         </button>
@@ -375,15 +375,15 @@ export default function BrandPanel() {
                                                     className="w-full flex items-center justify-between group/folder hover:bg-white/5 p-2 rounded-xl transition-all"
                                                 >
                                                     <div className="flex items-start gap-2 text-left">
-                                                        <div className={`p-1 rounded-lg transition-all shrink-0 ${isExpanded ? 'bg-blue-500/20 text-blue-500' : 'bg-white/5 text-gray-500'}`}>
+                                                        <div className={`p-1 rounded-lg transition-all shrink-0 ${isExpanded ? 'bg-gold/20 text-gold' : 'bg-white/5 text-text-mute'}`}>
                                                             <Folder className="h-3 w-3" />
                                                         </div>
-                                                        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 group-hover/folder:text-white transition-colors mt-1">
+                                                        <p className="text-[10px] font-semibold uppercase tracking-normal text-text-dim group-hover/folder:text-white transition-colors mt-1">
                                                             {groupedByFolder[fid].name}
                                                             <span className="ml-2 text-[8px] opacity-40">({groupedByFolder[fid].assets.length})</span>
                                                         </p>
                                                     </div>
-                                                    <ChevronDown className={`h-3 w-3 text-gray-600 transition-transform duration-300 ${isExpanded ? 'rotate-0' : '-rotate-90'}`} />
+                                                    <ChevronDown className={`h-3 w-3 text-text-mute transition-transform duration-300 ${isExpanded ? 'rotate-0' : '-rotate-90'}`} />
                                                 </button>
                                                 
                                                 {isExpanded && (
@@ -399,7 +399,7 @@ export default function BrandPanel() {
                                 ) : (
                                     <div className="flex flex-col items-center justify-center py-20 text-center opacity-30 px-6">
                                         <ImageIcon className="h-10 w-10 mb-4" />
-                                        <p className="text-[10px] font-black uppercase tracking-widest leading-relaxed"> No brand assets found.</p>
+                                        <p className="text-[10px] font-semibold uppercase tracking-normal leading-relaxed"> No brand assets found.</p>
                                         <p className="text-[8px] font-bold mt-2 uppercase tracking-tighter max-w-[200px]">Link a folder in the 'Uploads' tab or upload images to this brand.</p>
                                     </div>
                                 )}
@@ -422,7 +422,7 @@ export default function BrandPanel() {
                                     return (
                                         <div className="flex flex-col items-center justify-center py-10 text-center opacity-30 px-4">
                                             <Layout className="h-8 w-8 mb-3" />
-                                            <p className="text-[9px] font-black uppercase tracking-widest leading-relaxed">No templates saved for this brand.</p>
+                                            <p className="text-[9px] font-semibold uppercase tracking-normal leading-relaxed">No templates saved for this brand.</p>
                                         </div>
                                     );
                                 }
@@ -440,14 +440,14 @@ export default function BrandPanel() {
                                                 <div key={master.id} className="space-y-1">
                                                     <div
                                                         onClick={() => loadTemplate(master.data, master.name, master.id)}
-                                                        className="group relative flex items-start gap-3 bg-white/5 border border-white/5 rounded-2xl p-2.5 cursor-pointer hover:bg-white/10 transition-all border-l-4 border-l-blue-500"
+                                                        className="group relative flex items-start gap-3 bg-white/5 border border-line rounded-md p-2.5 cursor-pointer hover:bg-white/10 transition-all border-l-4 border-l-gold"
                                                     >
-                                                        <div className="h-10 w-12 overflow-hidden rounded-lg bg-black border border-white/5 shrink-0">
+                                                        <div className="h-10 w-12 overflow-hidden rounded-lg bg-black border border-line shrink-0">
                                                             <img src={master.thumbnail} alt={master.name} className="h-full w-full object-contain" />
                                                         </div>
                                                         <div className="flex-1 min-w-0 text-left">
-                                                            <p className="text-[10px] font-black text-white uppercase tracking-wider leading-tight break-words">{master.name}</p>
-                                                            <p className="text-[7px] font-bold text-gray-500 uppercase tracking-widest">
+                                                            <p className="text-[10px] font-semibold text-white uppercase tracking-wider leading-tight break-words">{master.name}</p>
+                                                            <p className="text-[7px] font-bold text-text-mute uppercase tracking-normal">
                                                                 MASTER • {versions.length} VERSIONS
                                                             </p>
                                                         </div>
@@ -455,7 +455,7 @@ export default function BrandPanel() {
                                                             {versions.length > 0 && (
                                                                 <button
                                                                     onClick={(e) => { e.stopPropagation(); toggleMaster(master.id); }}
-                                                                    className={`p-1.5 rounded-lg hover:bg-white/10 transition-colors ${isExpanded ? 'rotate-180 text-blue-400' : 'text-gray-500'}`}
+                                                                    className={`p-1.5 rounded-lg hover:bg-white/10 transition-colors ${isExpanded ? 'rotate-180 text-gold' : 'text-text-mute'}`}
                                                                 >
                                                                     <ChevronDown className="h-3.5 w-3.5" />
                                                                 </button>
@@ -471,10 +471,10 @@ export default function BrandPanel() {
                                                                         setTimeout(() => setConfirmingDeleteId(prev => prev === master.id ? null : prev), 3000);
                                                                     }
                                                                 }}
-                                                                className={`transition-all flex items-center gap-1.5 px-2 py-1 rounded-lg ${confirmingDeleteId === master.id ? 'bg-red-500 text-white animate-pulse' : 'text-gray-500 hover:text-red-500 hover:bg-red-500/10 opacity-0 group-hover:opacity-100'}`}
+                                                                className={`transition-all flex items-center gap-1.5 px-2 py-1 rounded-lg ${confirmingDeleteId === master.id ? 'bg-red-500 text-white animate-pulse' : 'text-text-mute hover:text-red-500 hover:bg-red-500/10 opacity-0 group-hover:opacity-100'}`}
                                                             >
                                                                 {confirmingDeleteId === master.id ? (
-                                                                    <span className="text-[9px] font-black uppercase">CONFIRM?</span>
+                                                                    <span className="text-[9px] font-semibold uppercase">CONFIRM?</span>
                                                                 ) : (
                                                                     <Trash2 className="h-3.5 w-3.5" />
                                                                 )}
@@ -484,7 +484,7 @@ export default function BrandPanel() {
 
                                                     {/* Versions of this Master */}
                                                     {isExpanded && versions.length > 0 && (
-                                                        <div className="ml-5 space-y-1 mt-1 border-l border-white/10 pl-3">
+                                                        <div className="ml-5 space-y-1 mt-1 border-l border-line pl-3">
                                                             {versions.map(version => (
                                                                 <div
                                                                     key={version.id}
@@ -495,8 +495,8 @@ export default function BrandPanel() {
                                                                         <img src={version.thumbnail} alt={version.name} className="h-full w-full object-contain opacity-70 group-hover:opacity-100" />
                                                                     </div>
                                                                     <div className="flex-1 min-w-0">
-                                                                        <p className="text-[8px] font-bold text-gray-400 truncate group-hover:text-gray-200">{version.name}</p>
-                                                                        <p className="text-[7px] text-gray-600 font-black uppercase tracking-widest">{new Date(version.timestamp).toLocaleDateString()}</p>
+                                                                        <p className="text-[8px] font-bold text-text-dim truncate group-hover:text-text">{version.name}</p>
+                                                                        <p className="text-[7px] text-text-mute font-semibold uppercase tracking-normal">{new Date(version.timestamp).toLocaleDateString()}</p>
                                                                     </div>
                                                                     <button
                                                                         onClick={(e) => {
@@ -512,7 +512,7 @@ export default function BrandPanel() {
                                                                         className={`transition-all flex items-center gap-1 px-1.5 py-0.5 rounded-md ${confirmingDeleteId === version.id ? 'bg-red-500 text-white' : 'text-gray-700 hover:text-red-500 opacity-0 group-hover:opacity-100'}`}
                                                                     >
                                                                         {confirmingDeleteId === version.id ? (
-                                                                            <span className="text-[7px] font-black uppercase">CONFIRM?</span>
+                                                                            <span className="text-[7px] font-semibold uppercase">CONFIRM?</span>
                                                                         ) : (
                                                                             <Trash2 className="h-3 w-3" />
                                                                         )}
@@ -530,20 +530,20 @@ export default function BrandPanel() {
                                             <div
                                                 key={version.id}
                                                 onClick={() => loadTemplate(version.data, version.name, version.id)}
-                                                className="group relative flex items-center gap-3 bg-white/5 border border-white/5 rounded-2xl p-2.5 cursor-pointer hover:bg-white/10 transition-all"
+                                                className="group relative flex items-center gap-3 bg-white/5 border border-line rounded-md p-2.5 cursor-pointer hover:bg-white/10 transition-all"
                                             >
-                                                <div className="h-10 w-12 overflow-hidden rounded-lg bg-black border border-white/5 shrink-0">
+                                                <div className="h-10 w-12 overflow-hidden rounded-lg bg-black border border-line shrink-0">
                                                     <img src={version.thumbnail} alt={version.name} className="h-full w-full object-contain" />
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-[10px] font-black text-white uppercase tracking-wider truncate">{version.name}</p>
-                                                    <p className="text-[7px] font-bold text-gray-500 uppercase tracking-widest">
+                                                    <p className="text-[10px] font-semibold text-white uppercase tracking-wider truncate">{version.name}</p>
+                                                    <p className="text-[7px] font-bold text-text-mute uppercase tracking-normal">
                                                         LINKED VERSION
                                                     </p>
                                                 </div>
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); if (confirm("Unlink design from brand?")) deleteDesign(version.id); }}
-                                                    className="p-1.5 rounded-lg text-gray-500 hover:text-red-500 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all"
+                                                    className="p-1.5 rounded-lg text-text-mute hover:text-red-500 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all"
                                                 >
                                                     <Trash2 className="h-3.5 w-3.5" />
                                                 </button>
@@ -561,15 +561,15 @@ export default function BrandPanel() {
 
     // Default View: List of Kits
     return (
-        <div className="flex h-full w-full flex-col bg-[#181a20]">
-            <div className="flex items-center justify-between border-b border-white/5 px-6 py-4 bg-[#1e2229]">
+        <div className="flex h-full w-full flex-col bg-[16191f]">
+            <div className="flex items-center justify-between border-b border-line px-6 py-4 bg-[1d222a]">
                 <div className="flex items-center gap-2">
-                    <Shield className="h-4 w-4 text-blue-500" />
-                    <h3 className="text-xs font-black uppercase tracking-widest text-white">Brand Kits</h3>
+                    <Shield className="h-4 w-4 text-gold" />
+                    <h3 className="text-xs font-semibold uppercase tracking-normal text-white">Brand Kits</h3>
                 </div>
                 <button
                     onClick={createKit}
-                    className="p-1.5 rounded-lg bg-blue-600/20 text-blue-500 hover:bg-blue-600 hover:text-white transition-all active:scale-95"
+                    className="p-1.5 rounded-lg bg-gold/20 text-gold hover:bg-gold hover:text-white transition-all active:scale-95"
                     title="New Brand Kit"
                 >
                     <Plus className="h-4 w-4" />
@@ -581,9 +581,9 @@ export default function BrandPanel() {
                     <button
                         key={kit.id}
                         onClick={() => { setActiveBrandId(kit.id); setActiveTab("colours"); }}
-                        className="w-full flex items-center justify-between p-3 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 hover:border-blue-500/30 transition-all group active:scale-95 text-left"
+                        className="w-full flex items-center justify-between p-3 rounded-md bg-white/5 border border-line hover:bg-white/10 hover:border-gold/30 transition-all group active:scale-95 text-left"
                     >
-                        <span className="text-xs font-black uppercase tracking-tight text-white group-hover:text-blue-400 transition-colors">
+                        <span className="text-xs font-semibold uppercase tracking-tight text-white group-hover:text-gold transition-colors">
                             {kit.name}
                         </span>
 
@@ -603,7 +603,7 @@ export default function BrandPanel() {
                 {brandKits.length === 0 && (
                     <div className="flex flex-col items-center justify-center py-20 text-center opacity-20">
                         <Palette className="h-12 w-12 mb-4" />
-                        <p className="text-[10px] font-black uppercase tracking-widest leading-relaxed">Design your brand identity<br />Create a kit above</p>
+                        <p className="text-[10px] font-semibold uppercase tracking-normal leading-relaxed">Design your brand identity<br />Create a kit above</p>
                     </div>
                 )}
             </div>

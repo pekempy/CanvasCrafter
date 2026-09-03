@@ -2,10 +2,8 @@
 
 import { useCanvas } from "@/store/useCanvasStore";
 import {
-    Trash2, Copy, MoveUp, MoveDown, Layers, RefreshCcw,
-    FlipHorizontal, FlipVertical, RotateCw, Ghost,
-    Type, Palette, Sparkles, ChevronRight, Settings2,
-    Lock, Unlock, Pin, PinOff
+    Trash2, RefreshCcw, RotateCw, FlipHorizontal, FlipVertical,
+    Ghost, Lock, Unlock, Pin, PinOff, MoveUp, MoveDown,
 } from "lucide-react";
 import GradientPicker from "./GradientPicker";
 import FontPicker from "./FontPicker";
@@ -17,384 +15,224 @@ import EdgeBorderPanel from "./EdgeBorderPanel";
 import * as fabric from "fabric";
 import CustomColorPicker from "./CustomColorPicker";
 
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+    return (
+        <section className="mb-5">
+            <p className="section-label">{title}</p>
+            {children}
+        </section>
+    );
+}
+
+function Card({ children }: { children: React.ReactNode }) {
+    return <div className="rounded-app border border-line bg-surface-2 p-3">{children}</div>;
+}
+
+function Slider({ icon, label, value, display, min, max, step = 1, onChange }: any) {
+    return (
+        <div className="flex items-center gap-3">
+            <div className="flex w-24 shrink-0 items-center gap-1.5 text-[12px] text-text-dim">
+                {icon}<span>{label}</span>
+            </div>
+            <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(parseFloat(e.target.value))} />
+            <span className="w-10 shrink-0 text-right text-[12px] tabular-nums text-text">{display}</span>
+        </div>
+    );
+}
+
 export default function PropertiesPanel() {
     const {
         selectedObject, deleteSelected, bringToFront, sendToBack,
         updateSelectedObject, clearEffects, updateMaskProperties, releaseMask,
-        canvasName, setCanvasName, canvasSize, setIsResizeOpen, showGrid, setShowGrid,
         canvas,
-        isDrawingMode, setIsDrawingMode, brushSize, setBrushSize, brushColor, setBrushColor,
-        brushSmoothing, setBrushSmoothing
     } = useCanvas() as any;
 
     if (!selectedObject) return null;
+    const o = selectedObject;
 
-    const isText = !!selectedObject && (
-        selectedObject.type === 'text' ||
-        selectedObject.type === 'i-text' ||
-        selectedObject.type === 'textbox' ||
-        selectedObject instanceof fabric.IText ||
-        selectedObject instanceof fabric.Textbox
-    );
-    const isEdgeBorderGroup = !!selectedObject && (selectedObject as any).isEdgeBorderGroup;
-    const checkIsImage = (obj: any) => {
-        return obj && (
-            obj.type === 'image' ||
-            obj.type === 'FabricImage' ||
-            obj.isEdgeBorderGroup ||
-            obj instanceof fabric.Image
-        );
-    };
-    const isImage = checkIsImage(selectedObject);
-    const isMultiImage = selectedObject?.type === 'activeSelection' &&
-        (selectedObject as any)._objects?.every((obj: any) => checkIsImage(obj));
-
+    const isText =
+        o.type === "text" || o.type === "i-text" || o.type === "textbox" ||
+        o instanceof fabric.IText || o instanceof fabric.Textbox;
+    const isEdgeBorderGroup = !!o.isEdgeBorderGroup;
+    const checkIsImage = (x: any) => x && (x.type === "image" || x.type === "FabricImage" || x.isEdgeBorderGroup || x instanceof fabric.Image);
+    const isImage = checkIsImage(o);
+    const isMultiImage = o.type === "activeSelection" && o._objects?.every(checkIsImage);
     const hideFillStroke = isImage || isMultiImage;
+
+    const fullyLocked = !o.selectable;
+    const posLocked = !!o.lockMovementX && o.selectable;
+
+    const applyToTargets = (fn: (x: any) => void) => {
+        if (o.type === "activeSelection") { o._objects?.forEach(fn); fn(o); }
+        else fn(o);
+        canvas?.requestRenderAll();
+        canvas?.fire("object:modified", { target: o });
+        updateSelectedObject({ _lockStateTrigger: Date.now() });
+    };
 
     const toggleLock = (e: React.MouseEvent) => {
         e.stopPropagation();
-        const isCurrentlyFullyLocked = !selectedObject.selectable;
-        const newState = !isCurrentlyFullyLocked;
-        
-        const applyLock = (obj: any) => {
-            obj.set({
-                lockMovementX: newState,
-                lockMovementY: newState,
-                lockRotation: newState,
-                lockScalingX: newState,
-                lockScalingY: newState,
-                lockSkewingX: newState,
-                lockScalingFlip: newState,
-                selectable: !newState,
-                evented: !newState,
-                hasControls: !newState,
-            });
-        };
-
-        if (selectedObject.type === 'activeSelection') {
-            (selectedObject as any)._objects?.forEach(applyLock);
-            applyLock(selectedObject);
-        } else {
-            applyLock(selectedObject);
-        }
-
-        if (newState) {
-            canvas.discardActiveObject();
-        }
-
-        canvas.requestRenderAll();
-        canvas.fire('object:modified', { target: selectedObject });
-        updateSelectedObject({ _lockStateTrigger: Date.now() });
+        const next = !fullyLocked;
+        applyToTargets((x) => x.set({
+            lockMovementX: next, lockMovementY: next, lockRotation: next,
+            lockScalingX: next, lockScalingY: next, lockSkewingX: next, lockScalingFlip: next,
+            selectable: !next, evented: !next, hasControls: !next,
+        }));
+        if (next) canvas?.discardActiveObject();
     };
 
     const togglePositionLock = (e: React.MouseEvent) => {
         e.stopPropagation();
-        const isPositionLocked = !!selectedObject.lockMovementX && selectedObject.selectable;
-        const newState = !isPositionLocked;
-
-        const applyPositionLock = (obj: any) => {
-            const isFullyLocked = !obj.selectable;
-            obj.set({
-                lockMovementX: newState,
-                lockMovementY: newState,
-                lockScalingX: newState,
-                lockScalingY: newState,
-                lockRotation: newState,
-                selectable: true,
-                evented: true,
-                ...(isFullyLocked ? {
-                    lockSkewingX: false,
-                    lockScalingFlip: false,
-                    hasControls: true,
-                } : {})
-            });
-        };
-
-        if (selectedObject.type === 'activeSelection') {
-            (selectedObject as any)._objects?.forEach(applyPositionLock);
-            applyPositionLock(selectedObject);
-        } else {
-            applyPositionLock(selectedObject);
-        }
-
-        canvas.requestRenderAll();
-        canvas.fire('object:modified', { target: selectedObject });
-        updateSelectedObject({ _lockStateTrigger: Date.now() });
+        const next = !posLocked;
+        applyToTargets((x) => x.set({
+            lockMovementX: next, lockMovementY: next, lockScalingX: next, lockScalingY: next, lockRotation: next,
+            selectable: true, evented: true,
+            ...(!x.selectable ? { lockSkewingX: false, lockScalingFlip: false, hasControls: true } : {}),
+        }));
     };
 
     return (
-        <div className="flex h-full w-full flex-col bg-[#181a20] border-l border-white/5 overflow-y-auto scrollbar-hide">
-            <div className="flex items-center justify-between border-b border-white/5 px-4 py-3 bg-[#1e2229]">
-                <div className="flex items-center gap-2">
-                    <Layers className="h-4 w-4 text-blue-500" />
-                    <h3 className="text-xs font-black uppercase tracking-widest text-white">Properties</h3>
-                </div>
-                <div className="flex items-center gap-1">
-                    <button
-                        onClick={togglePositionLock}
-                        title={selectedObject.lockMovementX && selectedObject.selectable ? "Unlock Position" : "Lock Position (XY Only)"}
-                        className={`rounded-lg p-1.5 transition-all ${selectedObject.lockMovementX && selectedObject.selectable ? 'bg-orange-500/20 text-orange-500' : 'text-gray-500 hover:bg-white/5 hover:text-white'}`}
-                    >
-                        {selectedObject.lockMovementX && selectedObject.selectable ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
+        <div className="panel">
+            <div className="panel-head">
+                <h2>Properties</h2>
+                <div className="flex items-center gap-0.5">
+                    <button onClick={togglePositionLock} className={`icon-btn h-7 w-7 ${posLocked ? "is-active" : ""}`} title={posLocked ? "Unlock position" : "Lock position"}>
+                        {posLocked ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
                     </button>
-                    <button
-                        onClick={toggleLock}
-                        title={!selectedObject.selectable ? "Unlock Object" : "Lock Object (Full)"}
-                        className={`rounded-lg p-1.5 transition-all ${!selectedObject.selectable ? 'bg-blue-600/20 text-blue-500' : 'text-gray-500 hover:bg-white/5 hover:text-white'}`}
-                    >
-                        {!selectedObject.selectable ? <Lock className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}
+                    <button onClick={toggleLock} className={`icon-btn h-7 w-7 ${fullyLocked ? "is-active" : ""}`} title={fullyLocked ? "Unlock" : "Lock"}>
+                        {fullyLocked ? <Lock className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}
                     </button>
-                    <button
-                        onClick={clearEffects}
-                        title="Clear Effects & Masks"
-                        className="rounded-lg p-1.5 text-gray-500 hover:bg-white/5 hover:text-white transition-all"
-                    >
+                    <button onClick={clearEffects} className="icon-btn h-7 w-7" title="Reset effects">
                         <RefreshCcw className="h-3.5 w-3.5" />
                     </button>
-                    <button
-                        onClick={deleteSelected}
-                        className="rounded-lg p-1.5 text-gray-500 hover:bg-red-500/10 hover:text-red-500 transition-all font-black text-[10px]"
-                    >
+                    <button onClick={deleteSelected} className="icon-btn h-7 w-7 hover:text-danger" title="Delete">
                         <Trash2 className="h-3.5 w-3.5" />
                     </button>
                 </div>
             </div>
 
-            <div className="p-4 space-y-6">
-                {/* Text Specific Tools */}
+            <div className="panel-body">
                 {isText && (
-                    <section className="animate-in fade-in slide-in-from-top-2 duration-300">
-                        <div className="flex items-center justify-between mb-4">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-blue-500 flex items-center gap-2">
-                                <Sparkles className="h-3 w-3" /> Text FX & Styling
-                            </p>
-                        </div>
-                        <div className="space-y-4">
-                            <div className="space-y-3">
-                                <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
-                                    <FontPicker inline />
-                                </div>
-
-                                <div className="bg-white/2 p-3 rounded-2xl border border-white/5 flex items-center justify-between group transition-all hover:bg-white/5">
-                                    <div className="flex items-center gap-2">
-                                        <div className="p-1.5 rounded-lg bg-blue-500/10 text-blue-500">
-                                            <Type className="h-3 w-3" />
-                                        </div>
-                                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Font Size</span>
-                                    </div>
-                                    <div className="flex items-center bg-[#0a0a0c] rounded-xl border border-white/5 pr-1 focus-within:border-blue-500/30 transition-all">
-                                        <input
-                                            type="number"
-                                            className="bg-transparent border-none outline-none text-right text-[11px] font-black text-white w-12 py-1.5 px-2 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                            value={Math.round((selectedObject as any).fontSize || 40)}
-                                            onChange={(e) => updateSelectedObject({ fontSize: parseInt(e.target.value) || 1 })}
-                                        />
-                                        <span className="text-[8px] font-black text-gray-600 uppercase pr-2">PX</span>
-                                    </div>
+                    <Section title="Text">
+                        <Card>
+                            <FontPicker inline />
+                            <div className="mt-3 flex items-center justify-between">
+                                <span className="text-[12px] text-text-dim">Size</span>
+                                <div className="flex items-center rounded-sm border border-line bg-surface pr-1.5">
+                                    <input
+                                        type="number"
+                                        value={Math.round(o.fontSize || 40)}
+                                        onChange={(e) => updateSelectedObject({ fontSize: parseInt(e.target.value) || 1 })}
+                                        className="w-14 bg-transparent py-1.5 pl-2 text-right text-[13px] text-text outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
+                                        style={{ border: "none" }}
+                                    />
+                                    <span className="text-[11px] text-text-mute">px</span>
                                 </div>
                             </div>
-                            <TypographyEffects />
-                        </div>
-                    </section>
+                        </Card>
+                        <div className="mt-2"><TypographyEffects /></div>
+                    </Section>
                 )}
 
-                {/* Appearance Section */}
-                <section>
-                    <p className="mb-4 text-[10px] font-black uppercase tracking-widest text-gray-500 flex items-center gap-2">
-                        <Palette className="h-3 w-3" /> Appearance
-                    </p>
-                    <div className="space-y-4">
+                <Section title="Appearance">
+                    <Card>
                         {!hideFillStroke && (
-                            <>
+                            <div className="space-y-3">
                                 <GradientPicker inline />
-                                <div className="flex items-center justify-between gap-4">
-                                    <span className="text-[10px] font-black uppercase text-gray-400">Fixed Colour</span>
-                                    <div className="flex items-center gap-2">
-                                        <CustomColorPicker
-                                            color={typeof selectedObject.fill === 'string' ? selectedObject.fill : "#3b82f6"}
-                                            onChange={(color) => updateSelectedObject({ fill: color })}
-                                        />
-                                    </div>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-[12px] text-text-dim">Colour</span>
+                                    <CustomColorPicker
+                                        color={typeof o.fill === "string" ? o.fill : "#f2a91b"}
+                                        onChange={(c) => updateSelectedObject({ fill: c })}
+                                    />
                                 </div>
                                 <BrandColorPicker
-                                    currentColor={typeof selectedObject.fill === 'string' ? selectedObject.fill : ""}
-                                    onChange={(color) => updateSelectedObject({ fill: color })}
+                                    currentColor={typeof o.fill === "string" ? o.fill : ""}
+                                    onChange={(c) => updateSelectedObject({ fill: c })}
                                 />
-                            </>
+                                <div className="h-px bg-line" />
+                            </div>
                         )}
-
-                        <div className="flex items-center justify-between gap-4">
-                            <div className="flex items-center gap-2">
-                                <Ghost className="h-3.5 w-3.5 text-gray-500" />
-                                <span className="text-[10px] font-black uppercase text-gray-400">Opacity</span>
-                            </div>
-                            <div className="flex flex-1 max-w-[120px] items-center gap-3">
-                                <input
-                                    type="range"
-                                    min={0} max={1} step={0.01}
-                                    value={selectedObject.opacity || 1}
-                                    onChange={(e) => updateSelectedObject({ opacity: parseFloat(e.target.value) })}
-                                    className="w-full h-1 bg-white/10 rounded-full appearance-none cursor-pointer accent-blue-500"
-                                />
-                                <span className="text-[9px] font-black text-blue-500 w-8">
-                                    {Math.round((selectedObject.opacity || 1) * 100)}%
-                                </span>
-                            </div>
+                        <div className={hideFillStroke ? "" : "pt-3"}>
+                            <Slider
+                                icon={<Ghost className="h-3.5 w-3.5" />}
+                                label="Opacity"
+                                value={o.opacity ?? 1}
+                                display={`${Math.round((o.opacity ?? 1) * 100)}%`}
+                                min={0} max={1} step={0.01}
+                                onChange={(v: number) => updateSelectedObject({ opacity: v })}
+                            />
                         </div>
-                    </div>
-                </section>
+                    </Card>
+                </Section>
 
-                {/* Edge Border Section */}
                 {isEdgeBorderGroup && (
-                    <div className="space-y-4 pt-4 border-t border-white/5">
-                        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[#8b5cf6]">
-                            <Sparkles className="h-3 w-3" /> Edge detect border
-                        </div>
-                        <div className="bg-white/5 rounded-2xl p-4 border border-white/5">
-                            <EdgeBorderPanel />
-                        </div>
-                    </div>
+                    <Section title="Edge border">
+                        <Card><EdgeBorderPanel /></Card>
+                    </Section>
                 )}
 
-                {/* Image Section */}
                 {isImage && (
-                    <section className="animate-in fade-in zoom-in-95 duration-300">
-                        <p className="mb-4 text-[10px] font-black uppercase tracking-widest text-gray-500 flex items-center gap-2">
-                            <Sparkles className="h-3 w-3" /> Image Adjustments
-                        </p>
-                        <div className="rounded-2xl bg-white/5 border border-white/5 p-4">
-                            <EffectsPanel inline />
-                        </div>
-                    </section>
+                    <Section title="Image adjustments">
+                        <Card><EffectsPanel inline /></Card>
+                    </Section>
                 )}
 
-                {/* Transform Section */}
-                <section>
-                    <p className="mb-4 text-[10px] font-black uppercase tracking-widest text-gray-500">Geometry</p>
-                    <div className="space-y-4 rounded-2xl bg-white/5 border border-white/5 p-4">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <RotateCw className="h-3.5 w-3.5 text-gray-500" />
-                                <span className="text-[10px] font-black uppercase text-gray-400">Rotation</span>
-                            </div>
-                            <div className="flex flex-1 max-w-[120px] items-center gap-3">
-                                <input
-                                    type="range"
-                                    min={0} max={360}
-                                    value={selectedObject.angle || 0}
-                                    onChange={(e) => updateSelectedObject({ angle: parseInt(e.target.value) })}
-                                    className="w-full h-1 bg-white/10 rounded-full appearance-none cursor-pointer accent-blue-500"
-                                />
-                                <span className="text-[9px] font-black text-blue-500 w-8">{Math.round(selectedObject.angle || 0)}°</span>
+                <Section title="Geometry">
+                    <Card>
+                        <div className="space-y-3">
+                            <Slider
+                                icon={<RotateCw className="h-3.5 w-3.5" />}
+                                label="Rotation"
+                                value={o.angle || 0}
+                                display={`${Math.round(o.angle || 0)}°`}
+                                min={0} max={360}
+                                onChange={(v: number) => updateSelectedObject({ angle: v })}
+                            />
+                            <div className="flex items-center gap-3">
+                                <span className="w-24 shrink-0 text-[12px] text-text-dim">Mirror</span>
+                                <button onClick={() => updateSelectedObject({ flipX: !o.flipX })} className={`icon-btn ${o.flipX ? "is-active" : ""}`}><FlipHorizontal className="h-4 w-4" /></button>
+                                <button onClick={() => updateSelectedObject({ flipY: !o.flipY })} className={`icon-btn ${o.flipY ? "is-active" : ""}`}><FlipVertical className="h-4 w-4" /></button>
                             </div>
                         </div>
+                    </Card>
+                </Section>
 
-                        <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-black uppercase text-gray-400">Mirror</span>
-                            <div className="flex gap-1">
-                                <button
-                                    onClick={() => updateSelectedObject({ flipX: !selectedObject.flipX })}
-                                    className={`rounded-xl p-2.5 transition-all ${selectedObject.flipX ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' : 'bg-white/5 text-gray-500 border border-white/5 hover:text-white'}`}
-                                >
-                                    <FlipHorizontal className="h-4 w-4" />
-                                </button>
-                                <button
-                                    onClick={() => updateSelectedObject({ flipY: !selectedObject.flipY })}
-                                    className={`rounded-xl p-2.5 transition-all ${selectedObject.flipY ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' : 'bg-white/5 text-gray-500 border border-white/5 hover:text-white'}`}
-                                >
-                                    <FlipVertical className="h-4 w-4" />
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                {/* Stroke Section for Non-images */}
                 {!hideFillStroke && (
-                    <section>
-                        <p className="mb-4 text-[10px] font-black uppercase tracking-widest text-gray-500">Outlines</p>
-                        <div className="rounded-2xl bg-white/5 border border-white/5 p-4">
-                            <StrokePanel />
-                        </div>
-                    </section>
+                    <Section title="Outline">
+                        <Card><StrokePanel /></Card>
+                    </Section>
                 )}
 
-                {/* Common Effects (Shadow) for all if not managed elsewhere */}
                 {!hideFillStroke && (
-                    <section>
-                        <p className="mb-4 text-[10px] font-black uppercase tracking-widest text-gray-500">Shadow Effects</p>
-                        <div className="rounded-2xl bg-white/5 border border-white/5 p-4">
-                            <EffectsPanel inline />
-                        </div>
-                    </section>
+                    <Section title="Shadow">
+                        <Card><EffectsPanel inline /></Card>
+                    </Section>
                 )}
 
-                {/* Arrangement Section */}
-                <section>
-                    <p className="mb-4 text-[10px] font-black uppercase tracking-widest text-gray-500">Order</p>
+                <Section title="Layer order">
                     <div className="grid grid-cols-2 gap-2">
-                        <button
-                            onClick={bringToFront}
-                            className="flex items-center justify-center gap-2 rounded-xl bg-white/5 p-3 text-[10px] font-black uppercase text-gray-300 hover:bg-white/10 transition-all border border-white/5"
-                        >
-                            <MoveUp className="h-3.5 w-3.5" /> Over
-                        </button>
-                        <button
-                            onClick={sendToBack}
-                            className="flex items-center justify-center gap-2 rounded-xl bg-white/5 p-3 text-[10px] font-black uppercase text-gray-300 hover:bg-white/10 transition-all border border-white/5"
-                        >
-                            <MoveDown className="h-3.5 w-3.5" /> Under
-                        </button>
+                        <button onClick={bringToFront} className="btn btn-sm"><MoveUp className="h-3.5 w-3.5" /> To front</button>
+                        <button onClick={sendToBack} className="btn btn-sm"><MoveDown className="h-3.5 w-3.5" /> To back</button>
                     </div>
-                </section>
+                </Section>
 
-                {/* Mask Controls */}
-                {selectedObject.clipPath && (
-                    <section className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <div className="flex items-center justify-between mb-4">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-blue-500">Mask Editor</p>
-                            <button
-                                onClick={releaseMask}
-                                className="px-2 py-1 rounded bg-blue-500/10 text-blue-500 text-[8px] font-black uppercase tracking-widest hover:bg-blue-500 hover:text-white transition-all"
-                            >
-                                Release
-                            </button>
-                        </div>
-                        <div className="space-y-4 rounded-2xl bg-blue-500/5 border border-blue-500/10 p-5">
-                            <div className="space-y-2">
-                                <label className="text-[9px] font-black text-gray-400 uppercase tracking-tight">Mask Scale</label>
-                                <input
-                                    type="range"
-                                    min={0.1} max={3} step={0.01}
-                                    value={selectedObject.clipPath.scaleX || 1}
-                                    onChange={(e) => updateMaskProperties({ scaleX: parseFloat(e.target.value), scaleY: parseFloat(e.target.value) })}
-                                    className="w-full h-1 bg-white/10 rounded-full appearance-none cursor-pointer accent-blue-500"
-                                />
+                {o.clipPath && (
+                    <Section title="Mask">
+                        <Card>
+                            <div className="mb-2 flex justify-end">
+                                <button onClick={releaseMask} className="btn btn-sm">Release mask</button>
                             </div>
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="space-y-2">
-                                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-tight">Pos X</label>
-                                    <input
-                                        type="range"
-                                        min={-300} max={300} step={1}
-                                        value={selectedObject.clipPath.left || 0}
-                                        onChange={(e) => updateMaskProperties({ left: parseInt(e.target.value) })}
-                                        className="w-full h-1 bg-white/10 rounded-full appearance-none cursor-pointer accent-blue-500"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-tight">Pos Y</label>
-                                    <input
-                                        type="range"
-                                        min={-300} max={300} step={1}
-                                        value={selectedObject.clipPath.top || 0}
-                                        onChange={(e) => updateMaskProperties({ top: parseInt(e.target.value) })}
-                                        className="w-full h-1 bg-white/10 rounded-full appearance-none cursor-pointer accent-blue-500"
-                                    />
-                                </div>
+                            <div className="space-y-3">
+                                <Slider label="Scale" value={o.clipPath.scaleX || 1} display={(o.clipPath.scaleX || 1).toFixed(1)} min={0.1} max={3} step={0.01}
+                                    onChange={(v: number) => updateMaskProperties({ scaleX: v, scaleY: v })} />
+                                <Slider label="X" value={o.clipPath.left || 0} display={Math.round(o.clipPath.left || 0)} min={-300} max={300}
+                                    onChange={(v: number) => updateMaskProperties({ left: v })} />
+                                <Slider label="Y" value={o.clipPath.top || 0} display={Math.round(o.clipPath.top || 0)} min={-300} max={300}
+                                    onChange={(v: number) => updateMaskProperties({ top: v })} />
                             </div>
-                        </div>
-                    </section>
+                        </Card>
+                    </Section>
                 )}
             </div>
         </div>

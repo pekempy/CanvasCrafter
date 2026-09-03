@@ -75,14 +75,14 @@ const getContrastColor = (hex: string) => {
 export default function CustomColorPicker({ color, onChange, label, className = "" }: CustomColorPickerProps) {
     const { brandKits } = useCanvas();
     const [isOpen, setIsOpen] = useState(false);
-    const [hsv, setHsv] = useState(() => hexToHsv(color.startsWith('#') ? color : '#3b82f6'));
+    const [hsv, setHsv] = useState(() => hexToHsv(color.startsWith('#') ? color : '#f2a91b'));
     const [coords, setCoords] = useState({ top: 0, left: 0 });
     const triggerRef = useRef<HTMLButtonElement>(null);
     const popoverRef = useRef<HTMLDivElement>(null);
     const saturationRef = useRef<HTMLDivElement>(null);
     const [isPicking, setIsPicking] = useState(false);
     const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-    const [previewColor, setPreviewColor] = useState("#3b82f6");
+    const [previewColor, setPreviewColor] = useState("#f2a91b");
     const [localHex, setLocalHex] = useState(color.toUpperCase());
 
 
@@ -181,7 +181,7 @@ export default function CustomColorPicker({ color, onChange, label, className = 
             setIsPicking(true);
 
             const sampleColor = (clientX: number, clientY: number) => {
-                let color = "#3b82f6";
+                let color = "#f2a91b";
                 const element = document.elementFromPoint(clientX, clientY);
 
                 if (element) {
@@ -268,11 +268,11 @@ export default function CustomColorPicker({ color, onChange, label, className = 
             <button
                 ref={triggerRef}
                 onClick={() => setIsOpen(!isOpen)}
-                className="flex items-center gap-2 rounded-xl bg-white/5 border border-white/10 p-1.5 hover:bg-white/10 transition-all active:scale-95 group"
+                className="flex items-center gap-2 rounded-xl bg-white/5 border border-line p-1.5 hover:bg-white/10 transition-all active:scale-95 group"
                 title={label || "Pick Color"}
             >
                 <div
-                    className="w-8 h-8 rounded-lg border border-white/10 shadow-inner flex items-center justify-center relative overflow-hidden"
+                    className="w-8 h-8 rounded-lg border border-line shadow-inner flex items-center justify-center relative overflow-hidden"
                     style={{ backgroundColor: color }}
                 >
                     <Palette
@@ -280,13 +280,13 @@ export default function CustomColorPicker({ color, onChange, label, className = 
                         style={{ color: getContrastColor(color) }}
                     />
                 </div>
-                {label && <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">{label}</span>}
+                {label && <span className="text-[10px] font-semibold uppercase tracking-normal text-text-dim px-1">{label}</span>}
             </button>
 
             {isOpen && typeof document !== 'undefined' && createPortal(
                 <div
                     ref={popoverRef}
-                    className="fixed z-[10000] w-64 rounded-3xl bg-[#1e2229] border border-white/10 p-4 shadow-2xl animate-in zoom-in-95 duration-200"
+                    className="fixed z-[10000] w-64 rounded-lg bg-[1d222a] border border-line p-4 shadow-2xl animate-in zoom-in-95 duration-200"
                     style={{
                         top: coords.top,
                         left: coords.left,
@@ -295,10 +295,10 @@ export default function CustomColorPicker({ color, onChange, label, className = 
                 >
                     <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-2">
-                            <Palette className="h-3.5 w-3.5 text-blue-500" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Color Palette</span>
+                            <Palette className="h-3.5 w-3.5 text-gold" />
+                            <span className="text-[10px] font-semibold uppercase tracking-normal text-text-dim">Color Palette</span>
                         </div>
-                        <button onClick={() => setIsOpen(false)} className="text-gray-500 hover:text-white transition-colors">
+                        <button onClick={() => setIsOpen(false)} className="text-text-mute hover:text-white transition-colors">
                             <X className="h-4 w-4" />
                         </button>
                     </div>
@@ -316,7 +316,7 @@ export default function CustomColorPicker({ color, onChange, label, className = 
                             document.addEventListener("mousemove", onMouseMove);
                             document.addEventListener("mouseup", onMouseUp);
                         }}
-                        className="relative w-full aspect-square rounded-2xl mb-4 cursor-crosshair overflow-hidden"
+                        className="relative w-full aspect-square rounded-md mb-4 cursor-crosshair overflow-hidden"
                         style={{
                             backgroundColor: hsvToHex(hsv.h, 1, 1),
                             backgroundImage: `linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, transparent)`
@@ -351,8 +351,8 @@ export default function CustomColorPicker({ color, onChange, label, className = 
                         </div>
 
                         <div className="flex items-center gap-2">
-                            <div className="flex-1 bg-white/5 rounded-xl border border-white/5 px-3 py-2 flex items-center justify-between">
-                                <span className="text-[9px] font-black text-gray-400 uppercase tracking-tighter">HEX</span>
+                            <div className="flex-1 bg-white/5 rounded-xl border border-line px-3 py-2 flex items-center justify-between">
+                                <span className="text-[9px] font-semibold text-text-dim uppercase tracking-tighter">HEX</span>
                                 <input
                                     type="text"
                                     spellCheck={false}
@@ -377,7 +377,7 @@ export default function CustomColorPicker({ color, onChange, label, className = 
 
                             <button
                                 onClick={handleEyeDropper}
-                                className="p-2.5 rounded-xl transition-all shadow-lg group active:scale-90 bg-blue-600 text-white hover:bg-blue-500 shadow-blue-500/20"
+                                className="p-2.5 rounded-xl transition-all shadow-lg group active:scale-90 bg-gold text-white hover:bg-gold shadow-gold/20"
                                 title="Eye Dropper"
                             >
                                 <Pipette className="h-4 w-4 transition-transform group-hover:scale-110" />
@@ -385,20 +385,20 @@ export default function CustomColorPicker({ color, onChange, label, className = 
                         </div>
                     </div>
 
-                    <div className="mt-4 pt-4 border-t border-white/5 flex flex-col min-h-0">
+                    <div className="mt-4 pt-4 border-t border-line flex flex-col min-h-0">
                         <div className="flex items-center justify-between mb-3 px-1">
                             <div className="flex items-center gap-2">
-                                <Bookmark className="h-3 w-3 text-blue-500" />
-                                <span className="text-[9px] font-black uppercase tracking-widest text-gray-500">Brand Kit Colours</span>
+                                <Bookmark className="h-3 w-3 text-gold" />
+                                <span className="text-[9px] font-semibold uppercase tracking-normal text-text-mute">Brand Kit Colours</span>
                             </div>
-                            <span className="text-[8px] font-bold text-gray-600 uppercase">{brandKits.length} Kits</span>
+                            <span className="text-[8px] font-bold text-text-mute uppercase">{brandKits.length} Kits</span>
                         </div>
 
                         <div className="max-h-40 overflow-y-auto pr-2 space-y-4 custom-scrollbar overflow-x-hidden">
                             {brandKits.length > 0 ? (
                                 brandKits.map((kit) => (
                                     <div key={kit.id} className="space-y-2 group/kit">
-                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-tighter px-1 group-hover/kit:text-white transition-colors">
+                                        <p className="text-[9px] font-semibold text-text-dim uppercase tracking-tighter px-1 group-hover/kit:text-white transition-colors">
                                             {kit.name}
                                         </p>
                                         <div className="grid grid-cols-6 gap-2">
@@ -407,7 +407,7 @@ export default function CustomColorPicker({ color, onChange, label, className = 
                                                     key={`${kit.id}-${idx}`}
                                                     onClick={() => onChange(c)}
                                                     className={`w-full aspect-square rounded-lg border transition-all active:scale-75 hover:scale-110 shadow-sm
-                                                        ${color.toLowerCase() === c.toLowerCase() ? 'border-white ring-2 ring-blue-500/50' : 'border-white/5 hover:border-white/20'}`}
+                                                        ${color.toLowerCase() === c.toLowerCase() ? 'border-white ring-2 ring-gold/40' : 'border-line hover:border-white/20'}`}
                                                     style={{ backgroundColor: c }}
                                                     title={c}
                                                 />
@@ -416,9 +416,9 @@ export default function CustomColorPicker({ color, onChange, label, className = 
                                     </div>
                                 ))
                             ) : (
-                                <div className="py-6 flex flex-col items-center gap-2 border border-dashed border-white/5 rounded-2xl mx-1">
+                                <div className="py-6 flex flex-col items-center gap-2 border border-dashed border-line rounded-md mx-1">
                                     <Palette className="h-5 w-5 text-gray-700" />
-                                    <p className="text-[8px] font-bold text-gray-600 italic">No brand kits available</p>
+                                    <p className="text-[8px] font-bold text-text-mute italic">No brand kits available</p>
                                 </div>
                             )}
                         </div>
@@ -431,7 +431,7 @@ export default function CustomColorPicker({ color, onChange, label, className = 
             {isPicking && typeof document !== 'undefined' && createPortal(
                 <div className="fixed inset-0 z-[10001] pointer-events-none">
                     <div
-                        className="absolute flex items-center gap-3 bg-white/95 backdrop-blur-xl px-4 py-2 rounded-full border border-black/10 shadow-2xl transition-transform"
+                        className="absolute flex items-center gap-3 bg-white/95 backdrop-blur px-4 py-2 rounded-full border border-black/10 shadow-2xl transition-transform"
                         style={{
                             left: mousePos.x + 20,
                             top: mousePos.y + 20,
@@ -442,11 +442,11 @@ export default function CustomColorPicker({ color, onChange, label, className = 
                             style={{ backgroundColor: previewColor }}
                         />
                         <div className="flex flex-col">
-                            <span className="text-[10px] font-black text-black leading-none">{previewColor.toUpperCase()}</span>
-                            <span className="text-[8px] font-bold text-gray-500 uppercase tracking-tight">Click to select</span>
+                            <span className="text-[10px] font-semibold text-black leading-none">{previewColor.toUpperCase()}</span>
+                            <span className="text-[8px] font-bold text-text-mute uppercase tracking-tight">Click to select</span>
                         </div>
-                        <div className="flex items-center gap-1.5 ml-1 border-l border-black/5 pl-3">
-                            <span className="bg-black/5 px-1.5 py-0.5 rounded text-[8px] font-black uppercase text-gray-400">ESC to exit</span>
+                        <div className="flex items-center gap-1.5 ml-1 border-l border-line pl-3">
+                            <span className="bg-black/5 px-1.5 py-0.5 rounded text-[8px] font-semibold uppercase text-text-dim">ESC to exit</span>
                         </div>
                     </div>
                 </div>,

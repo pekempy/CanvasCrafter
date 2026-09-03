@@ -94,9 +94,9 @@ export default function ContextToolbar() {
     };
 
     return (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-[#1e2229]/90 backdrop-blur-xl border border-white/10 rounded-2xl px-2 py-1.5 shadow-2xl z-50 animate-in fade-in slide-in-from-top-1 duration-200">
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-[1d222a]/90 backdrop-blur border border-line rounded-md px-2 py-1.5 shadow-2xl z-50 animate-in fade-in slide-in-from-top-1 duration-200">
             {/* Common Actions */}
-            <div className="flex items-center gap-1 border-r border-white/5 pr-1 mr-1">
+            <div className="flex items-center gap-1 border-r border-line pr-1 mr-1">
                 <ActionButton
                     icon={<Trash2 className="h-3.5 w-3.5" />}
                     label="Delete"
@@ -111,7 +111,7 @@ export default function ContextToolbar() {
             </div>
 
             {/* Ordering */}
-            <div className="flex items-center gap-1 border-r border-white/5 pr-1 mr-1">
+            <div className="flex items-center gap-1 border-r border-line pr-1 mr-1">
                 <ActionButton
                     icon={<BringToFront className="h-3.5 w-3.5" />}
                     label="Forward"
@@ -125,7 +125,7 @@ export default function ContextToolbar() {
             </div>
 
             {/* Transform */}
-            <div className="flex items-center gap-1 border-r border-white/5 pr-1 mr-1">
+            <div className="flex items-center gap-1 border-r border-line pr-1 mr-1">
                 <ActionButton
                     icon={<FlipHorizontal className="h-3.5 w-3.5" />}
                     label="Flip H"
@@ -198,7 +198,7 @@ function ActionButton({ icon, label, onClick, active, disabled, danger }: {
             disabled={disabled}
             className={`
                 group relative flex h-8 items-center gap-2 rounded-lg px-2.5 transition-all
-                ${active ? 'bg-blue-600/20 text-blue-400' : 'text-gray-400 hover:bg-white/5 hover:text-white'}
+                ${active ? 'bg-gold/20 text-gold' : 'text-text-dim hover:bg-white/5 hover:text-white'}
                 ${disabled ? 'opacity-30 cursor-not-allowed' : ''}
                 ${danger ? 'hover:text-red-400 hover:bg-red-500/10' : ''}
             `}
@@ -209,7 +209,7 @@ function ActionButton({ icon, label, onClick, active, disabled, danger }: {
             </div>
 
             {/* Tooltip on hover if preferred, or just label */}
-            <span className="hidden lg:block text-[9px] font-black uppercase tracking-widest whitespace-nowrap">
+            <span className="hidden lg:block text-[9px] font-semibold uppercase tracking-normal whitespace-nowrap">
                 {label}
             </span>
         </button>

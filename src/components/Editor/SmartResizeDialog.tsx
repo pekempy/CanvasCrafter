@@ -32,22 +32,22 @@ export default function SmartResizeDialog({
 
     return (
         <div className="fixed inset-0 z-[250] flex items-center justify-center bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
-            <div className="w-full max-w-sm rounded-3xl bg-[#1e2229] border border-white/10 p-8 shadow-2xl animate-in zoom-in-95 duration-300">
+            <div className="w-full max-w-sm rounded-lg bg-[1d222a] border border-line p-8 shadow-2xl animate-in zoom-in-95 duration-300">
                 <div className="flex items-center justify-between mb-8">
                     <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-2xl bg-blue-500/20 flex items-center justify-center text-blue-500">
+                        <div className="h-10 w-10 rounded-md bg-gold/20 flex items-center justify-center text-gold">
                             <Sparkles className="h-5 w-5" />
                         </div>
                         <div>
-                            <h2 className="text-sm font-black uppercase tracking-widest text-white">
+                            <h2 className="text-sm font-semibold uppercase tracking-normal text-white">
                                 Smart Resize
                             </h2>
-                            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tight">Preserve Aspect Ratio</p>
+                            <p className="text-[10px] text-text-mute font-bold uppercase tracking-tight">Preserve Aspect Ratio</p>
                         </div>
                     </div>
                     <button
                         onClick={onClose}
-                        className="rounded-xl p-2 bg-white/5 hover:bg-white/10 text-gray-400 transition-all active:scale-95"
+                        className="rounded-xl p-2 bg-white/5 hover:bg-white/10 text-text-dim transition-all active:scale-95"
                     >
                         <X className="h-5 w-5" />
                     </button>
@@ -56,9 +56,9 @@ export default function SmartResizeDialog({
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <label className="text-[9px] font-black text-gray-500 uppercase px-1">Width (px)</label>
+                            <label className="text-[9px] font-semibold text-text-mute uppercase px-1">Width (px)</label>
                             <div className="relative">
-                                <Maximize2 className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-600" />
+                                <Maximize2 className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-text-mute" />
                                 <input
                                     type="text"
                                     inputMode="numeric"
@@ -67,15 +67,15 @@ export default function SmartResizeDialog({
                                         const val = e.target.value.replace(/[^0-9]/g, '');
                                         setWidth(parseInt(val) || 0);
                                     }}
-                                    className="w-full rounded-2xl border border-white/5 bg-white/5 p-4 pl-12 text-lg font-black text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
+                                    className="w-full rounded-md border border-line bg-white/5 p-4 pl-12 text-lg font-semibold text-white focus:outline-none focus:ring-2 focus:ring-gold/40 transition-all"
                                     placeholder="0"
                                 />
                             </div>
                         </div>
                         <div className="space-y-2">
-                            <label className="text-[9px] font-black text-gray-500 uppercase px-1">Height (px)</label>
+                            <label className="text-[9px] font-semibold text-text-mute uppercase px-1">Height (px)</label>
                             <div className="relative">
-                                <Maximize2 className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-600 rotate-90" />
+                                <Maximize2 className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-text-mute rotate-90" />
                                 <input
                                     type="text"
                                     inputMode="numeric"
@@ -84,15 +84,15 @@ export default function SmartResizeDialog({
                                         const val = e.target.value.replace(/[^0-9]/g, '');
                                         setHeight(parseInt(val) || 0);
                                     }}
-                                    className="w-full rounded-2xl border border-white/5 bg-white/5 p-4 pl-12 text-lg font-black text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
+                                    className="w-full rounded-md border border-line bg-white/5 p-4 pl-12 text-lg font-semibold text-white focus:outline-none focus:ring-2 focus:ring-gold/40 transition-all"
                                     placeholder="0"
                                 />
                             </div>
                         </div>
                     </div>
 
-                    <div className="p-4 rounded-2xl bg-blue-500/5 border border-blue-500/10">
-                        <p className="text-[9px] font-bold text-blue-400 leading-relaxed uppercase tracking-tight">
+                    <div className="p-4 rounded-md bg-gold/5 border border-gold/10">
+                        <p className="text-[9px] font-bold text-gold leading-relaxed uppercase tracking-tight">
                             Entering 0 in one field will automatically calculate its value based on the other's dimension to maintain perfect proportions.
                         </p>
                     </div>
@@ -101,13 +101,13 @@ export default function SmartResizeDialog({
                         <button
                             type="button"
                             onClick={onClose}
-                            className="flex-1 rounded-2xl px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-500 hover:bg-white/5 transition-all"
+                            className="flex-1 rounded-md px-6 py-4 text-[10px] font-semibold uppercase tracking-normal text-text-mute hover:bg-white/5 transition-all"
                         >
                             Cancel
                         </button>
                         <button
                             type="submit"
-                            className="flex-[2] rounded-2xl bg-blue-600 px-6 py-4 text-[10px] font-black uppercase tracking-widest text-white shadow-xl shadow-blue-600/20 hover:bg-blue-700 active:scale-95 transition-all"
+                            className="flex-[2] rounded-md bg-gold px-6 py-4 text-[10px] font-semibold uppercase tracking-normal text-white shadow-xl shadow-gold/20 hover:bg-gold active:scale-95 transition-all"
                         >
                             Apply Transform
                         </button>

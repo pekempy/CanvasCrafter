@@ -33,12 +33,12 @@ export default function FontUploader() {
     };
 
     return (
-        <div className="p-6 border-b border-white/5">
-            <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-4">Custom Typography</h3>
+        <div className="p-6 border-b border-line">
+            <h3 className="text-[10px] font-semibold uppercase tracking-normal text-text-mute mb-4">Custom Typography</h3>
             <input type="file" ref={fileInputRef} onChange={handleFontUpload} accept=".ttf,.otf,.woff,.woff2" className="hidden" />
             <button
                 onClick={() => fileInputRef.current?.click()}
-                className="w-full flex items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-white/5 bg-white/5 p-4 text-xs font-black text-gray-400 hover:border-blue-500/50 hover:bg-blue-500/5 transition-all group"
+                className="w-full flex items-center justify-center gap-3 rounded-md border-2 border-dashed border-line bg-white/5 p-4 text-xs font-semibold text-text-dim hover:border-gold/50 hover:bg-gold/5 transition-all group"
             >
                 {isUploading ? (
                     <span className="animate-pulse">Loading Font...</span>

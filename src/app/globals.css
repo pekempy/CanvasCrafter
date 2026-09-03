@@ -1,50 +1,99 @@
 @import "tailwindcss";
 
+/* ============================================================
+   CanvasCrafter — design tokens
+   A control-room for matchday graphics: flat surfaces, real
+   lines, one warm accent (Seahawks gold). No glass, no glow.
+   ============================================================ */
+
 :root {
-    --background: #0f1115;
-    --foreground: #f8fafc;
-    --panel-bg: #181a20;
-    --border-color: rgba(255, 255, 255, 0.08);
-    --accent-blue: #3b82f6;
+    --bg: #0f1114;
+    --surface: #16191f;
+    --surface-2: #1d222a;
+    --surface-3: #262c36;
+    --line: #2b313c;
+    --line-soft: #21262f;
+
+    --text: #eaecef;
+    --text-dim: #9aa1ad;
+    --text-mute: #646b77;
+
+    /* accent — Hull Seahawks gold */
+    --gold: #f2a91b;
+    --gold-soft: rgba(242, 169, 27, 0.14);
+    --gold-line: rgba(242, 169, 27, 0.45);
+    --on-gold: #1a1205;
+
+    --danger: #e5484d;
+    --danger-soft: rgba(229, 72, 77, 0.14);
+    --ok: #46c77e;
+
+    --radius: 8px;
+    --radius-sm: 5px;
+
+    /* legacy names still referenced by un-migrated components */
+    --background: var(--bg);
+    --foreground: var(--text);
+    --panel-bg: var(--surface);
+    --border-color: var(--line);
+    --accent-blue: var(--gold);
 }
 
 .light {
-    --background: #f1f3f4;
-    --foreground: #111827;
-    --panel-bg: #ffffff;
-    --border-color: rgba(0, 0, 0, 0.08);
-    --accent-blue: #2563eb;
+    --bg: #eceef1;
+    --surface: #ffffff;
+    --surface-2: #f4f5f7;
+    --surface-3: #e9ebef;
+    --line: #d7dbe0;
+    --line-soft: #e4e7eb;
+    --text: #1b1f26;
+    --text-dim: #5b626d;
+    --text-mute: #949aa4;
+    --gold-soft: rgba(242, 169, 27, 0.18);
+    --danger-soft: rgba(229, 72, 77, 0.12);
+}
+
+@theme inline {
+    --color-bg: var(--bg);
+    --color-surface: var(--surface);
+    --color-surface-2: var(--surface-2);
+    --color-surface-3: var(--surface-3);
+    --color-line: var(--line);
+    --color-line-soft: var(--line-soft);
+    --color-text: var(--text);
+    --color-text-dim: var(--text-dim);
+    --color-text-mute: var(--text-mute);
+    --color-gold: var(--gold);
+    --color-danger: var(--danger);
+    --color-ok: var(--ok);
+    --font-sans: var(--font-inter), "Inter", system-ui, sans-serif;
+    --font-display: var(--font-changa), "Changa One", var(--font-inter), sans-serif;
+}
+
+* {
+    border-color: var(--line);
+}
+
+html,
+body {
+    height: 100%;
 }
 
 body {
-    color: var(--foreground);
-    background: var(--background);
-    font-family: 'Inter', Arial, sans-serif;
+    color: var(--text);
+    background: var(--bg);
+    font-family: var(--font-inter), "Inter", system-ui, sans-serif;
+    font-size: 13px;
+    line-height: 1.45;
     overflow: hidden;
-    transition: background-color 0.3s ease;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
 }
 
-/* Custom design system touches */
-.glass {
-    @apply backdrop-blur-xl bg-[#1e2229]/80 border border-white/5;
-}
-
-.secondary-panel {
-    @apply bg-[#181a20] border-r border-white/5;
-}
-
-.light .glass {
-    @apply bg-white/70 border-black/5;
-}
-
-.light .secondary-panel {
-    @apply bg-white border-r border-black/5;
-}
-
-/* Scrollbar styling */
+/* ---------- scrollbars ---------- */
 ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 10px;
+    height: 10px;
 }
 
 ::-webkit-scrollbar-track {
@@ -52,25 +101,406 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 10px;
+    background: var(--surface-3);
+    border: 3px solid transparent;
+    background-clip: content-box;
+    border-radius: 999px;
 }
 
-.light ::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.1);
+::-webkit-scrollbar-thumb:hover {
+    background: var(--text-mute);
+    background-clip: content-box;
 }
 
-/* Inputs & Forms */
+/* ============================================================
+   Component primitives
+   ============================================================ */
+
+.panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: var(--surface);
+}
+
+.panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    height: 48px;
+    padding: 0 16px;
+    border-bottom: 1px solid var(--line);
+    flex-shrink: 0;
+}
+
+.panel-head h2 {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    color: var(--text);
+    margin: 0;
+}
+
+.panel-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px;
+}
+
+.panel-foot {
+    border-top: 1px solid var(--line);
+    padding: 12px 14px;
+    flex-shrink: 0;
+}
+
+.section-label {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-dim);
+    margin: 0 0 8px;
+}
+
+.section-label .count {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-mute);
+    background: var(--surface-2);
+    border-radius: 999px;
+    padding: 1px 7px;
+}
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    height: 34px;
+    padding: 0 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--line);
+    background: var(--surface-2);
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s, color 0.12s;
+    white-space: nowrap;
+}
+
+.btn:hover {
+    background: var(--surface-3);
+    border-color: var(--text-mute);
+}
+
+.btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.btn-primary {
+    background: var(--gold);
+    border-color: var(--gold);
+    color: var(--on-gold);
+    font-weight: 600;
+}
+
+.btn-primary:hover {
+    background: #ffbb33;
+    border-color: #ffbb33;
+}
+
+.btn-ghost {
+    background: transparent;
+    border-color: transparent;
+}
+
+.btn-ghost:hover {
+    background: var(--surface-2);
+    border-color: transparent;
+}
+
+.btn-danger {
+    color: var(--danger);
+    border-color: transparent;
+    background: transparent;
+}
+
+.btn-danger:hover {
+    background: var(--danger-soft);
+    border-color: transparent;
+}
+
+.btn-sm {
+    height: 28px;
+    padding: 0 10px;
+    font-size: 12px;
+}
+
+.btn-block {
+    display: flex;
+    width: 100%;
+}
+
+.icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-sm);
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+    flex-shrink: 0;
+}
+
+.icon-btn:hover {
+    background: var(--surface-2);
+    color: var(--text);
+}
+
+.icon-btn.is-active {
+    background: var(--gold-soft);
+    color: var(--gold);
+}
+
+.field {
+    width: 100%;
+    height: 34px;
+    padding: 0 10px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--line);
+    background: var(--surface-2);
+    color: var(--text);
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.12s, box-shadow 0.12s;
+}
+
+.field:focus {
+    border-color: var(--gold-line);
+    box-shadow: 0 0 0 3px var(--gold-soft);
+}
+
+textarea.field {
+    height: auto;
+    padding: 8px 10px;
+    line-height: 1.4;
+    resize: vertical;
+}
+
+select.field {
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239aa1ad' stroke-width='2.5' stroke-linecap='round'%3e%3cpolyline points='6 9 12 15 18 9'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    background-size: 13px;
+    padding-right: 28px;
+}
+
+.seg {
+    display: inline-flex;
+    padding: 3px;
+    gap: 2px;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+}
+
+.seg button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 28px;
+    padding: 0 12px;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-dim);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+}
+
+.seg button:hover {
+    color: var(--text);
+}
+
+.seg button.is-active {
+    background: var(--surface-3);
+    color: var(--text);
+}
+
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 28px;
+    padding: 0 11px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: var(--surface-2);
+    color: var(--text-dim);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
+    white-space: nowrap;
+}
+
+.chip:hover {
+    color: var(--text);
+    border-color: var(--text-mute);
+}
+
+.chip.is-active {
+    background: var(--gold-soft);
+    border-color: var(--gold-line);
+    color: var(--gold);
+}
+
+.row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--line-soft);
+    background: var(--surface-2);
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s;
+}
+
+.row:hover {
+    background: var(--surface-3);
+    border-color: var(--line);
+}
+
+.row.is-active {
+    border-color: var(--gold-line);
+}
+
+.menu {
+    min-width: 220px;
+    padding: 5px;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+}
+
+.menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 7px 9px;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.menu-item:hover {
+    background: var(--surface-3);
+}
+
+.menu-item:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.menu-item .k {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--text-mute);
+}
+
+.menu-divider {
+    height: 1px;
+    background: var(--line);
+    margin: 5px 4px;
+}
+
+kbd {
+    font-family: var(--font-inter), system-ui, sans-serif;
+    font-size: 10.5px;
+    font-weight: 600;
+    color: var(--text-dim);
+    background: var(--surface-3);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 1px 5px;
+}
+
 input[type="range"] {
-    @apply h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500;
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    background: var(--surface-3);
+    border-radius: 999px;
+    cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--gold);
+    border: 2px solid var(--surface);
+    cursor: pointer;
+}
+
+/* Legacy fallbacks so un-migrated components still read cleanly */
+.glass {
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+}
+
+.secondary-panel {
+    background: var(--surface);
+    border-right: 1px solid var(--line);
 }
 
 input[type="text"],
-input[type="number"] {
-    @apply bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all;
+input[type="number"],
+input[type="password"] {
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    padding: 7px 10px;
+    font-size: 13px;
+    color: var(--text);
+    outline: none;
 }
 
-.light input[type="text"],
-.light input[type="number"] {
-    @apply bg-black/5 border-black/10;
+input[type="text"]:focus,
+input[type="number"]:focus,
+input[type="password"]:focus {
+    border-color: var(--gold-line);
+    box-shadow: 0 0 0 3px var(--gold-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+    }
 }

@@ -204,26 +204,20 @@ export default function LayersPanel() {
                         if (idx !== -1) handleDrop(e, idx);
                     }}
                     onClick={(e) => selectObject(obj, e.metaKey || e.ctrlKey)}
-                    className={`group flex items-center gap-2 rounded-xl border p-2 transition-all cursor-pointer select-none relative overflow-hidden
-                        ${isSelected ? 'bg-blue-600/15 border-blue-500/40 shadow-lg' : 'bg-white/5 border-transparent hover:bg-white/10'}`}
-                    style={{ marginLeft: `${depth * 16}px` }}
+                    className={`row group ${isSelected ? "is-active" : ""}`}
+                    style={{ marginLeft: `${depth * 14}px` }}
                 >
-                    {/* Selection Indicator Accent */}
-                    {isSelected && (
-                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 shadow-[2px_0_10px_rgba(59,130,246,0.5)]" />
-                    )}
-
                     {isGroup && (
-                        <button onClick={(e) => toggleGroup(objId, e)} className="p-1 hover:bg-white/5 rounded z-10">
-                            <ChevronDown className={`h-3 w-3 text-gray-400 transition-transform ${isExpanded ? '' : '-rotate-90'}`} />
+                        <button onClick={(e) => toggleGroup(objId, e)} className="icon-btn h-5 w-5 z-10">
+                            <ChevronDown className={`h-3 w-3 transition-transform ${isExpanded ? "" : "-rotate-90"}`} />
                         </button>
                     )}
 
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-black/50 overflow-hidden border border-white/5 shrink-0 pointer-events-none">
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-sm border border-line bg-surface-3 pointer-events-none">
                         <LayerPreview obj={obj} />
                     </div>
 
-                    <div className="flex-1 min-w-0" onDoubleClick={(e) => startEditing(obj, e)}>
+                    <div className="min-w-0 flex-1" onDoubleClick={(e) => startEditing(obj, e)}>
                         {editingLayer === obj ? (
                             <input
                                 autoFocus
@@ -231,37 +225,25 @@ export default function LayersPanel() {
                                 onChange={(e) => setEditName(e.target.value)}
                                 onBlur={submitEdit}
                                 onKeyDown={handleKeyDown}
-                                className="w-full bg-black/50 border border-blue-500 rounded px-1 py-0.5 text-xs text-white outline-none"
+                                className="field h-6"
                                 onClick={(e) => e.stopPropagation()}
                             />
                         ) : (
-                            <p className={`text-[11px] font-bold truncate ${isSelected ? 'text-blue-500' : 'text-gray-200'}`}>
+                            <p className={`truncate text-[12px] font-medium ${isSelected ? "text-gold" : "text-text"}`}>
                                 {getLayerName(obj)}
                             </p>
                         )}
                     </div>
 
-                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                            onClick={(e) => { e.stopPropagation(); toggleVisibility(obj); }}
-                            className="p-1 px-1 rounded-md hover:bg-white/10 text-gray-400 hover:text-gray-200"
-                            title={obj.visible ? "Hide Layer" : "Show Layer"}
-                        >
-                            {obj.visible ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3 text-red-500" />}
+                    <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+                        <button onClick={(e) => { e.stopPropagation(); toggleVisibility(obj); }} className="icon-btn h-6 w-6" title={obj.visible ? "Hide" : "Show"}>
+                            {obj.visible ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5 text-danger" />}
                         </button>
-                        <button
-                            onClick={(e) => { e.stopPropagation(); togglePositionLock(obj); }}
-                            className={`p-1 px-1 rounded-md hover:bg-white/10 transition-colors ${obj.lockMovementX && obj.selectable ? 'text-orange-500 bg-orange-500/10' : 'text-gray-400 hover:text-gray-200'}`}
-                            title={obj.lockMovementX && obj.selectable ? "Unlock Position" : "Lock Position (XY Only)"}
-                        >
-                            {obj.lockMovementX && obj.selectable ? <PinOff className="h-3 w-3" /> : <Pin className="h-3 w-3" />}
+                        <button onClick={(e) => { e.stopPropagation(); togglePositionLock(obj); }} className={`icon-btn h-6 w-6 ${obj.lockMovementX && obj.selectable ? "is-active" : ""}`} title="Lock position">
+                            {obj.lockMovementX && obj.selectable ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
                         </button>
-                        <button
-                            onClick={(e) => { e.stopPropagation(); toggleLock(obj); }}
-                            className={`p-1 px-1 rounded-md hover:bg-white/10 transition-colors ${!obj.selectable ? 'text-blue-500 bg-blue-500/10' : 'text-gray-400 hover:text-gray-200'}`}
-                            title={!obj.selectable ? "Unlock Layer" : "Lock Layer (Full)"}
-                        >
-                            {!obj.selectable ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
+                        <button onClick={(e) => { e.stopPropagation(); toggleLock(obj); }} className={`icon-btn h-6 w-6 ${!obj.selectable ? "is-active" : ""}`} title="Lock layer">
+                            {!obj.selectable ? <Lock className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}
                         </button>
                     </div>
                 </div>
@@ -308,47 +290,30 @@ export default function LayersPanel() {
     };
 
     return (
-        <div className="flex h-full w-full flex-col bg-[#13151a]">
-            <div className="flex items-center justify-between border-b border-white/5 bg-[#1e2229] px-4 py-3">
-                <div className="flex items-center gap-2">
-                    <LayersIcon className="h-4 w-4 text-blue-500" />
-                    <h3 className="text-[10px] font-black uppercase tracking-widest text-white">Layers</h3>
-                </div>
-                <div className="flex items-center gap-1">
-                    {selectedObject && (
-                        <>
-                            {selectedObject.type === 'group' ? (
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); ungroupSelected(); }}
-                                    className="flex items-center gap-1.5 rounded-lg bg-red-600/10 px-2 py-1.5 text-[9px] font-black uppercase tracking-widest text-red-500 hover:bg-red-600 hover:text-white transition-all shadow-lg"
-                                    title="Ungroup / Open Folder"
-                                >
-                                    <FolderOpen className="h-3 w-3" />
-                                    Ungroup
-                                </button>
-                            ) : (
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); groupSelected(); }}
-                                    className="flex items-center gap-1.5 rounded-lg bg-blue-600/10 px-2 py-1.5 text-[9px] font-black uppercase tracking-widest text-blue-500 hover:bg-blue-600 hover:text-white transition-all shadow-lg"
-                                    title="Group into Folder"
-                                >
-                                    <Folder className="h-3 w-3" />
-                                    {selectedObject.type === 'activeSelection' ? 'Group' : 'Folder'}
-                                </button>
-                            )}
-                        </>
-                    )}
-                </div>
+        <div className="panel">
+            <div className="panel-head">
+                <h2>Layers</h2>
+                {selectedObject && (
+                    selectedObject.type === "group" ? (
+                        <button onClick={(e) => { e.stopPropagation(); ungroupSelected(); }} className="btn btn-sm">
+                            <FolderOpen className="h-3.5 w-3.5" /> Ungroup
+                        </button>
+                    ) : (
+                        <button onClick={(e) => { e.stopPropagation(); groupSelected(); }} className="btn btn-sm">
+                            <Folder className="h-3.5 w-3.5" /> {selectedObject.type === "activeSelection" ? "Group" : "Folder"}
+                        </button>
+                    )
+                )}
             </div>
 
-            <div className="flex-1 overflow-y-auto p-2 space-y-1 scrollbar-hide">
+            <div className="panel-body space-y-1">
                 {layers.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-20 text-center opacity-30">
-                        <Plus className="mb-2 h-8 w-8 text-gray-400" />
-                        <p className="text-xs font-medium text-gray-400">Add assets to start</p>
+                    <div className="flex flex-col items-center gap-2 py-16 text-center text-text-mute">
+                        <Plus className="h-7 w-7" />
+                        <p className="text-[12px]">Add something to the canvas to see it here.</p>
                     </div>
                 ) : (
-                    layers.map(obj => renderLayer(obj))
+                    layers.map((obj) => renderLayer(obj))
                 )}
             </div>
         </div>
@@ -366,9 +331,9 @@ function getLayerName(obj: fabric.Object) {
 }
 
 function LayerPreview({ obj }: { obj: fabric.Object }) {
-    if (obj instanceof fabric.IText || obj instanceof fabric.Textbox) return <span className="text-xs font-black truncate max-w-full px-1 text-gray-300">T</span>;
-    if (obj instanceof fabric.Rect) return <div className="h-4 w-4 rounded-sm" style={{ backgroundColor: typeof obj.fill === 'string' ? obj.fill : '#3b82f6' }} />;
-    if (obj instanceof fabric.Circle) return <div className="h-4 w-4 rounded-full" style={{ backgroundColor: typeof obj.fill === 'string' ? obj.fill : '#10b981' }} />;
-    if (obj.type === 'group') return <Folder className="h-4 w-4 text-blue-400" />;
-    return <LayersIcon className="h-4 w-4 text-gray-500" />;
+    if (obj instanceof fabric.IText || obj instanceof fabric.Textbox) return <span className="text-[11px] font-semibold text-text-dim">T</span>;
+    if (obj instanceof fabric.Rect) return <div className="h-3.5 w-3.5 rounded-[2px]" style={{ backgroundColor: typeof obj.fill === "string" ? obj.fill : "#f2a91b" }} />;
+    if (obj instanceof fabric.Circle) return <div className="h-3.5 w-3.5 rounded-full" style={{ backgroundColor: typeof obj.fill === "string" ? obj.fill : "#f2a91b" }} />;
+    if (obj.type === "group") return <Folder className="h-3.5 w-3.5 text-text-dim" />;
+    return <LayersIcon className="h-3.5 w-3.5 text-text-mute" />;
 }

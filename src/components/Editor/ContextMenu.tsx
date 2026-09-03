@@ -77,7 +77,7 @@ export default function ContextMenu() {
     return (
         <div
             ref={menuRef}
-            className="fixed z-[999] w-56 overflow-hidden rounded-2xl border border-white/10 bg-[#181a20]/95 p-1.5 shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-200"
+            className="fixed z-[999] w-56 overflow-hidden rounded-md border border-line bg-[16191f]/95 p-1.5 shadow-2xl backdrop-blur animate-in fade-in zoom-in-95 duration-200"
             style={{ top: position.y, left: position.x }}
             onClick={(e) => e.stopPropagation()}
         >
@@ -169,14 +169,14 @@ export default function ContextMenu() {
                     <>
                         <div className="my-1 h-px bg-white/5" />
                         <ContextItem
-                            icon={<Save className="h-3.5 w-3.5 text-blue-400" />}
+                            icon={<Save className="h-3.5 w-3.5 text-gold" />}
                             label="Save to Assets"
                             onClick={() => {
                                 const img = selectedObject as fabric.Image;
                                 setSavingAssetUrl(img.getSrc());
                                 setIsVisible(false);
                             }}
-                            className="text-blue-400 hover:bg-blue-500/10"
+                            className="text-gold hover:bg-gold/10"
                         />
                     </>
                 )}
@@ -199,14 +199,14 @@ function ContextItem({
         <button
             onClick={onClick}
             disabled={disabled}
-            className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-[10px] font-black uppercase tracking-widest transition-all
-                ${disabled ? 'opacity-30 cursor-not-allowed' : 'hover:bg-white/5 text-gray-300 hover:text-white'} ${className}`}
+            className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-[10px] font-semibold uppercase tracking-normal transition-all
+                ${disabled ? 'opacity-30 cursor-not-allowed' : 'hover:bg-white/5 text-text-dim hover:text-white'} ${className}`}
         >
             <div className="flex items-center gap-3">
                 <span className="opacity-70">{icon}</span>
                 {label}
             </div>
-            {shortcut && <span className="text-[8px] font-bold text-gray-600 ml-4">{shortcut}</span>}
+            {shortcut && <span className="text-[8px] font-bold text-text-mute ml-4">{shortcut}</span>}
         </button>
     );
 }

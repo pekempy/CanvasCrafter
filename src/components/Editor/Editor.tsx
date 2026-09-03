@@ -6,20 +6,9 @@ import {
     Image as ImageIcon,
     Square,
     Layers as LayersIcon,
-    Download,
-    Undo2,
-    Redo2,
-    Plus,
-    MousePointer2,
-    Settings2,
     Circle as CircleIcon,
-    Trash2,
-    FileDown,
-    ChevronDown,
     Palette,
     Shield as BadgeIcon,
-    Sun,
-    Moon,
     Shapes,
     Triangle,
     Star,
@@ -28,8 +17,15 @@ import {
     Diamond,
     ArrowRight,
     Cloud,
-    LogOut,
-    Pencil
+    Pencil,
+    Replace,
+    LayoutTemplate,
+    SlidersHorizontal,
+    Minus,
+    Plus,
+    Maximize2,
+    Grid3x3,
+    MousePointer2,
 } from "lucide-react";
 import FabricCanvas from "@/components/Editor/FabricCanvas";
 import Toolbar from "@/components/Editor/Toolbar";
@@ -48,12 +44,22 @@ import MenuBar from "@/components/Editor/MenuBar";
 import PropertyBar from "@/components/Editor/PropertyBar";
 import CustomColorPicker from "@/components/Editor/CustomColorPicker";
 import BrandShortcuts from "@/components/Editor/BrandShortcuts";
+import QuickSwapPanel from "@/components/Editor/QuickSwapPanel";
 
-type SidebarTab = "templates" | "assets" | "text" | "shapes" | "layers" | "brands" | "settings";
+type SidebarTab = "templates" | "assets" | "text" | "shapes" | "layers" | "brands" | "settings" | "swap";
+
+const NAV: { tab: SidebarTab; label: string; icon: React.ReactNode }[] = [
+    { tab: "templates", label: "Templates", icon: <LayoutTemplate className="h-[18px] w-[18px]" /> },
+    { tab: "swap", label: "Swap", icon: <Replace className="h-[18px] w-[18px]" /> },
+    { tab: "brands", label: "Brands", icon: <Palette className="h-[18px] w-[18px]" /> },
+    { tab: "text", label: "Text", icon: <Type className="h-[18px] w-[18px]" /> },
+    { tab: "assets", label: "Assets", icon: <ImageIcon className="h-[18px] w-[18px]" /> },
+    { tab: "shapes", label: "Shapes", icon: <Shapes className="h-[18px] w-[18px]" /> },
+    { tab: "layers", label: "Layers", icon: <LayersIcon className="h-[18px] w-[18px]" /> },
+];
 
 function EditorContent({ username }: { username?: string }) {
     const [activeTab, setActiveTab] = useState<SidebarTab>("templates");
-    const [showExportMenu, setShowExportMenu] = useState(false);
     const [droppedImage, setDroppedImage] = useState<string | null>(null);
     const [isHoveringFile, setIsHoveringFile] = useState(false);
 
@@ -61,176 +67,120 @@ function EditorContent({ username }: { username?: string }) {
         addRect, addText, addCircle, addTriangle, addStar,
         addHexagon, addDiamond, addArrow, addHeart,
         addBadge, addCloud, addPolygon,
-        clearCanvas, selectedObject, canvasSize, exportAsFormat,
-        theme, setTheme, zoom, setZoom, panOffset, fitToScreen, showGrid, setShowGrid,
-        undo, redo, canUndo, canRedo,
-        canvasName, setCanvasName,
+        canvas, updateTick, selectedObject, canvasSize, setCanvasSize,
+        zoom, setZoom, panOffset, fitToScreen, showGrid, setShowGrid,
+        canvasName,
         setCurrentUser,
-        isResizeOpen, setIsResizeOpen,
+        setIsResizeOpen,
+        switchTemplateSize, activeTemplate,
         isDrawingMode, setIsDrawingMode, brushSize, setBrushSize, brushColor, setBrushColor, brushSmoothing, setBrushSmoothing,
-        addCustomFont, removeCustomFont, removeBackground, setBackgroundImage,
-        savingAssetUrl, setSavingAssetUrl
-    } = useCanvas();
+        savingAssetUrl, setSavingAssetUrl,
+        presets,
+        addImage, assetFolders, setAssetFolders,
+    } = useCanvas() as any;
 
-    const [sidebarWidth, setSidebarWidth] = useState(256); // Default 64rem = 256px
+    const [sidebarWidth, setSidebarWidth] = useState(272);
     const [isResizing, setIsResizing] = useState(false);
 
     useEffect(() => {
-        document.title = canvasName ? `${canvasName} — CanvasCrafter` : 'CanvasCrafter';
+        document.title = canvasName ? `${canvasName} — CanvasCrafter` : "CanvasCrafter";
     }, [canvasName]);
 
     useEffect(() => {
-        if (username) {
-            setCurrentUser(username);
-        }
+        if (username) setCurrentUser(username);
     }, [username, setCurrentUser]);
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
-            if (e.key.toLowerCase() === 's' && !e.ctrlKey && !e.metaKey) {
+            if (document.activeElement?.tagName === "INPUT" || document.activeElement?.tagName === "TEXTAREA") return;
+            if (e.key.toLowerCase() === "s" && !e.ctrlKey && !e.metaKey) {
                 e.preventDefault();
                 setIsResizeOpen(true);
             }
         };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
     }, [setIsResizeOpen]);
 
-    const startResizing = (e: React.MouseEvent) => {
-        e.preventDefault();
-        setIsResizing(true);
-    };
-
     useEffect(() => {
-        const handleMouseMove = (e: MouseEvent) => {
+        const move = (e: MouseEvent) => {
             if (!isResizing) return;
-            // Navigation bar is 56px (w-14). Subtract it from the total X position.
-            const newWidth = e.clientX - 56;
-            if (newWidth > 150 && newWidth < 500) {
-                setSidebarWidth(newWidth);
-            }
+            const w = e.clientX - 76;
+            if (w > 210 && w < 460) setSidebarWidth(w);
         };
-
-        const handleMouseUp = () => {
-            setIsResizing(false);
-        };
-
+        const up = () => { setIsResizing(false); setTimeout(fitToScreen, 30); };
         if (isResizing) {
-            window.addEventListener('mousemove', handleMouseMove);
-            window.addEventListener('mouseup', handleMouseUp);
+            window.addEventListener("mousemove", move);
+            window.addEventListener("mouseup", up);
         }
-
         return () => {
-            window.removeEventListener('mousemove', handleMouseMove);
-            window.removeEventListener('mouseup', handleMouseUp);
+            window.removeEventListener("mousemove", move);
+            window.removeEventListener("mouseup", up);
         };
-    }, [isResizing]);
+    }, [isResizing, fitToScreen]);
 
-    const toggleTheme = () => setTheme(theme === "dark" ? "light" : "dark");
+    // Re-fit whenever the panel dock is resized (changes the space the canvas has).
+    useEffect(() => {
+        const t = setTimeout(fitToScreen, 60);
+        return () => clearTimeout(t);
+    }, [sidebarWidth, fitToScreen]);
 
     const updateActiveTab = (tab: SidebarTab) => {
         setActiveTab(tab);
         setIsDrawingMode(false);
     };
 
-    const { addImage, assetFolders, setAssetFolders, brandKits, setBrandKits } = useCanvas();
-
-    const handleDragOver = (e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setIsHoveringFile(true);
-    };
-
-    const handleDragLeave = (e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setIsHoveringFile(false);
-    };
-
+    const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); setIsHoveringFile(true); };
+    const handleDragLeave = (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); setIsHoveringFile(false); };
     const handleDrop = (e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setIsHoveringFile(false);
-
+        e.preventDefault(); e.stopPropagation(); setIsHoveringFile(false);
         const file = e.dataTransfer.files?.[0];
-        if (file && file.type.startsWith('image/')) {
+        if (file && file.type.startsWith("image/")) {
             const reader = new FileReader();
-            reader.onload = (event) => {
-                setDroppedImage(event.target?.result as string);
-            };
+            reader.onload = (ev) => setDroppedImage(ev.target?.result as string);
             reader.readAsDataURL(file);
         }
     };
-    const handleConfirmDrop = async (brandId?: string, folderId?: string, tags?: string[]) => {
-        if (!droppedImage) return;
 
+    const uploadAndPlace = async (dataUrl: string, brandId?: string, folderId?: string, tags?: string[]) => {
         const assetId = Date.now();
-        let finalUrl = droppedImage;
-
+        let finalUrl = dataUrl;
         try {
-            const res = await fetch('/api/images', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    id: assetId.toString(),
-                    url: droppedImage,
-                    metadata: { tags, folderId, brandId }
-                })
+            const res = await fetch("/api/images", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id: assetId.toString(), url: dataUrl, metadata: { tags, folderId, brandId } }),
             });
             const data = await res.json();
             if (data.url) finalUrl = data.url;
-        } catch (e) {
-            console.error("Failed to upload dropped image to server", e);
-        }
-
+        } catch (e) { console.error("upload failed", e); }
         if (folderId) {
-            const updatedFolders = assetFolders.map(f => {
-                if (f.id === folderId) {
-                    return { ...f, assets: [{ id: assetId, url: finalUrl, tags, brandId }, ...f.assets] };
-                }
-                return f;
-            });
-            setAssetFolders(updatedFolders);
+            setAssetFolders(assetFolders.map((f: any) =>
+                f.id === folderId ? { ...f, assets: [{ id: assetId, url: finalUrl, tags, brandId }, ...f.assets] } : f
+            ));
         }
+        return finalUrl;
+    };
 
-        addImage(finalUrl);
+    const handleConfirmDrop = async (brandId?: string, folderId?: string, tags?: string[]) => {
+        if (!droppedImage) return;
+        const url = await uploadAndPlace(droppedImage, brandId, folderId, tags);
+        addImage(url);
         setDroppedImage(null);
     };
 
     const handleConfirmSave = async (brandId?: string, folderId?: string, tags?: string[]) => {
         if (!savingAssetUrl) return;
-
-        const assetId = Date.now();
-        let finalUrl = savingAssetUrl;
-
-        try {
-            const res = await fetch('/api/images', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    id: assetId.toString(),
-                    url: savingAssetUrl,
-                    metadata: { tags, folderId, brandId }
-                })
-            });
-            const data = await res.json();
-            if (data.url) finalUrl = data.url;
-        } catch (e) {
-            console.error("Failed to save asset to server", e);
-        }
-
-        if (folderId) {
-            const updatedFolders = assetFolders.map(f => {
-                if (f.id === folderId) {
-                    return { ...f, assets: [{ id: assetId, url: finalUrl, tags, brandId }, ...f.assets] };
-                }
-                return f;
-            });
-            setAssetFolders(updatedFolders);
-        }
-
+        await uploadAndPlace(savingAssetUrl, brandId, folderId, tags);
         setSavingAssetUrl(null);
+    };
+
+    const objectCount = canvas ? canvas.getObjects().filter((o: any) => !o.excludeFromExport).length : 0;
+    const isEmpty = !!canvas && objectCount === 0;
+
+    const applyFormat = (w: number, h: number) => {
+        switchTemplateSize(w, h);
+        setTimeout(fitToScreen, 60);
     };
 
     return (
@@ -238,30 +188,19 @@ function EditorContent({ username }: { username?: string }) {
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            className={`flex h-screen flex-col overflow-hidden text-[#1a1c1e] transition-colors ${theme} relative`}
+            className="flex h-screen flex-col overflow-hidden bg-bg text-text relative"
         >
             <ResizeDialog />
-            <DropAssetDialog
-                isOpen={!!droppedImage}
-                onClose={() => setDroppedImage(null)}
-                dataUrl={droppedImage}
-                onConfirm={handleConfirmDrop}
-            />
-            <DropAssetDialog
-                isOpen={!!savingAssetUrl}
-                onClose={() => setSavingAssetUrl(null)}
-                dataUrl={savingAssetUrl}
-                onConfirm={handleConfirmSave}
-            />
+            <DropAssetDialog isOpen={!!droppedImage} onClose={() => setDroppedImage(null)} dataUrl={droppedImage} onConfirm={handleConfirmDrop} />
+            <DropAssetDialog isOpen={!!savingAssetUrl} onClose={() => setSavingAssetUrl(null)} dataUrl={savingAssetUrl} onConfirm={handleConfirmSave} />
             <ContextMenu />
 
             {isHoveringFile && (
-                <div className="absolute inset-0 z-[500] bg-blue-600/10 backdrop-blur-sm border-4 border-dashed border-blue-500/50 flex items-center justify-center pointer-events-none">
-                    <div className="bg-[#1a1c22] rounded-[2.5rem] p-10 shadow-2xl flex flex-col items-center gap-4 animate-in zoom-in-95 duration-200">
-                        <div className="bg-blue-500 rounded-3xl p-6 shadow-[0_0_50px_rgba(59,130,246,0.5)]">
-                            <ImageIcon className="h-10 w-10 text-white" />
-                        </div>
-                        <h2 className="text-xl font-black uppercase tracking-tighter text-white">Drop to add asset</h2>
+                <div className="absolute inset-0 z-[500] flex items-center justify-center bg-bg/70 pointer-events-none"
+                    style={{ outline: "2px dashed var(--gold-line)", outlineOffset: "-12px" }}>
+                    <div className="flex flex-col items-center gap-3 rounded-lg border border-line bg-surface px-8 py-7">
+                        <ImageIcon className="h-8 w-8 text-gold" />
+                        <h2 className="text-[15px] font-semibold text-text">Drop to add image</h2>
                     </div>
                 </div>
             )}
@@ -269,211 +208,172 @@ function EditorContent({ username }: { username?: string }) {
             <MenuBar setActiveTab={setActiveTab} />
             <PropertyBar />
 
-            <div className="flex flex-1 overflow-hidden relative">
-                <nav className="flex w-14 flex-col items-center border-r border-white/5 bg-[#181a20] py-4 z-40">
-                    <SidebarNavItem icon={<LayersIcon className="h-5 w-5" />} label="Templates" active={activeTab === "templates"} onClick={() => updateActiveTab("templates")} />
-                    <SidebarNavItem icon={<Palette className="h-5 w-5" />} label="Brands" active={activeTab === "brands"} onClick={() => updateActiveTab("brands")} />
-                    <SidebarNavItem icon={<Type className="h-5 w-5" />} label="Text" active={activeTab === "text"} onClick={() => updateActiveTab("text")} />
-                    <SidebarNavItem icon={<ImageIcon className="h-5 w-5" />} label="Assets" active={activeTab === "assets"} onClick={() => updateActiveTab("assets")} />
-                    <SidebarNavItem icon={<Shapes className="h-5 w-5" />} label="Shapes" active={activeTab === "shapes"} onClick={() => updateActiveTab("shapes")} />
+            {activeTemplate && (
+                <div className="flex h-9 shrink-0 items-center gap-2 border-b border-line bg-surface px-3">
+                    <span className="text-[12px] text-text-dim">Size</span>
+                    <div className="seg">
+                        {(presets?.length ? presets : [
+                            { id: "ig", name: "Square", width: 1080, height: 1080 },
+                            { id: "xfb", name: "X / FB", width: 1200, height: 675 },
+                            { id: "poster", name: "Poster", width: 1080, height: 1350 },
+                            { id: "big", name: "Big screen", width: 1280, height: 576 },
+                        ]).map((p: any) => (
+                            <button
+                                key={p.id}
+                                className={canvasSize.width === p.width && canvasSize.height === p.height ? "is-active" : ""}
+                                onClick={() => applyFormat(p.width, p.height)}
+                            >
+                                {p.name}
+                            </button>
+                        ))}
+                    </div>
+                    <span className="ml-1 text-[11px] tabular-nums text-text-mute">{canvasSize.width}×{canvasSize.height}</span>
+                </div>
+            )}
 
-                    <div className="w-8 h-px bg-white/5 my-4" />
-                    <SidebarNavItem icon={<LayersIcon className="h-5 w-5" />} label="Layers" active={activeTab === "layers"} onClick={() => updateActiveTab("layers")} />
+            <div className="flex flex-1 overflow-hidden relative">
+                {/* Nav rail */}
+                <nav className="flex w-[76px] shrink-0 flex-col items-stretch border-r border-line bg-surface py-2">
+                    {NAV.map((n) => (
+                        <NavItem key={n.tab} {...n} active={activeTab === n.tab} onClick={() => updateActiveTab(n.tab)} />
+                    ))}
                     <div className="flex-1" />
-                    <SidebarNavItem icon={<Settings2 className="h-5 w-5" />} label="Settings" active={activeTab === "settings"} onClick={() => updateActiveTab("settings")} />
+                    <NavItem tab="settings" label="Settings" icon={<SlidersHorizontal className="h-[18px] w-[18px]" />} active={activeTab === "settings"} onClick={() => updateActiveTab("settings")} />
                 </nav>
 
-                <aside
-                    style={{ width: sidebarWidth }}
-                    className="relative border-r border-white/5 bg-[#181a20] z-30 shadow-2xl flex flex-col h-full transition-[width] duration-0"
-                >
+                {/* Left dock — active panel */}
+                <aside style={{ width: sidebarWidth }} className="relative shrink-0 border-r border-line bg-surface flex flex-col h-full">
                     <div
-                        onMouseDown={startResizing}
-                        className={`absolute -right-0.5 top-0 w-1 h-full cursor-col-resize z-50 transition-colors hover:bg-blue-500/50 ${isResizing ? 'bg-blue-500' : 'bg-transparent'}`}
+                        onMouseDown={(e) => { e.preventDefault(); setIsResizing(true); }}
+                        className={`absolute right-0 top-0 h-full w-1 translate-x-1/2 cursor-col-resize z-50 transition-colors ${isResizing ? "bg-gold" : "hover:bg-gold/50"}`}
                     />
                     {activeTab === "templates" && <TemplatePanel />}
+                    {activeTab === "swap" && <QuickSwapPanel />}
                     {activeTab === "brands" && <BrandPanel />}
                     {activeTab === "settings" && <SettingsPanel />}
+                    {activeTab === "assets" && <AssetPanel />}
+                    {activeTab === "layers" && <LayersPanel />}
 
                     {activeTab === "text" && (
-                        <div className="flex h-full flex-col">
-                            <div className="p-6">
-                                <h2 className="mb-6 text-[10px] font-black uppercase tracking-widest text-gray-500">Typography</h2>
-                                <button
-                                    onClick={addText}
-                                    className="flex w-full items-center justify-center gap-3 rounded-2xl bg-blue-600 p-4 text-xs font-black uppercase tracking-widest text-white hover:bg-blue-700 transition-all shadow-lg hover:shadow-blue-500/25 active:scale-95"
-                                >
-                                    <Type className="h-4 w-4" />
-                                    Add Text Box
+                        <div className="panel">
+                            <div className="panel-head"><h2>Text</h2></div>
+                            <div className="panel-body">
+                                <button onClick={addText} className="btn btn-primary btn-block mb-4">
+                                    <Type className="h-4 w-4" /> Add a text box
                                 </button>
-                            </div>
-                            <div className="h-px w-full bg-white/5" />
-                            <div className="flex-1 overflow-y-auto">
                                 <FontUploader />
                                 <BrandShortcuts />
                             </div>
                         </div>
                     )}
 
-                    {activeTab === "assets" && <AssetPanel />}
-
                     {activeTab === "shapes" && (
-                        <div className="flex h-full flex-col p-6 overflow-y-auto scrollbar-hide">
-                            <h2 className="mb-6 text-[10px] font-black uppercase tracking-widest text-gray-500">Freehand & Paths</h2>
-                            <div className="grid grid-cols-3 gap-3 mb-10">
+                        <div className="panel">
+                            <div className="panel-head"><h2>Shapes &amp; drawing</h2></div>
+                            <div className="panel-body">
                                 <button
                                     onClick={() => setIsDrawingMode(!isDrawingMode)}
-                                    className={`flex flex-col items-center justify-center gap-2 rounded-2xl border p-4 transition-all active:scale-95 group
-                                        ${isDrawingMode ? 'bg-blue-600 border-blue-500 shadow-lg shadow-blue-600/20' : 'bg-white/2 border-white/5 hover:bg-white/5'}`}
+                                    className={`btn btn-block mb-4 ${isDrawingMode ? "btn-primary" : ""}`}
                                 >
-                                    <Pencil className={`h-5 w-5 ${isDrawingMode ? 'text-white' : 'text-blue-500'}`} />
-                                    <span className={`text-[8px] font-black uppercase tracking-wider ${isDrawingMode ? 'text-white' : 'text-gray-500'}`}>Draw</span>
+                                    <Pencil className="h-4 w-4" /> {isDrawingMode ? "Stop drawing" : "Freehand draw"}
                                 </button>
-                            </div>
 
-                            {/* Drawing Controls - Only visible when Drawing Mode is active */}
-                            {isDrawingMode && (
-                                <div className="mb-10 p-4 rounded-3xl bg-blue-600/5 border border-blue-500/10 space-y-6 animate-in fade-in slide-in-from-top-4 duration-300">
-                                    <section className="space-y-4">
-                                        <div className="flex items-center justify-between px-1">
-                                            <p className="text-[9px] font-black uppercase tracking-widest text-gray-500">Size</p>
-                                            <span className="text-[10px] font-black text-blue-500">{brushSize}px</span>
-                                        </div>
-                                        <div className="bg-white/5 p-3 rounded-2xl border border-white/5">
-                                            <input
-                                                type="range"
-                                                min="1" max="100"
-                                                value={brushSize}
-                                                onChange={(e) => setBrushSize(parseInt(e.target.value))}
-                                                className="w-full h-1 bg-white/10 rounded-full appearance-none cursor-pointer accent-blue-500"
-                                            />
-                                        </div>
-                                    </section>
-
-                                    <section className="space-y-4">
-                                        <div className="flex items-center justify-between px-1">
-                                            <p className="text-[9px] font-black uppercase tracking-widest text-gray-500">Smooth</p>
-                                            <span className="text-[10px] font-black text-blue-500">{brushSmoothing}</span>
-                                        </div>
-                                        <div className="bg-white/5 p-3 rounded-2xl border border-white/5">
-                                            <input
-                                                type="range"
-                                                min="1" max="50"
-                                                value={brushSmoothing}
-                                                onChange={(e) => setBrushSmoothing(parseInt(e.target.value))}
-                                                className="w-full h-1 bg-white/10 rounded-full appearance-none cursor-pointer accent-blue-500"
-                                            />
-                                        </div>
-                                    </section>
-
-                                    <section className="space-y-4">
-                                        <p className="text-[9px] font-black uppercase tracking-widest text-gray-500 px-1">Color</p>
-                                        <div className="bg-white/5 p-3 rounded-2xl border border-white/5">
-                                            <div className="grid grid-cols-5 gap-1.5">
-                                                {["#3b82f6", "#10b981", "#ef4444", "#f59e0b", "#8b5cf6", "#ec4899", "#ffffff", "#000000"].map((color) => (
-                                                    <button
-                                                        key={color}
-                                                        onClick={() => setBrushColor(color)}
-                                                        className={`w-full aspect-square rounded-lg border transition-all active:scale-90
-                                                            ${brushColor === color ? 'border-white scale-110 shadow-lg' : 'border-transparent hover:scale-105'}`}
-                                                        style={{ backgroundColor: color }}
-                                                    />
-                                                ))}
-                                                <div className="relative group col-span-2 flex items-center justify-center">
-                                                    <CustomColorPicker
-                                                        color={brushColor}
-                                                        onChange={setBrushColor}
-                                                        className="w-full h-full"
-                                                    />
-                                                </div>
+                                {isDrawingMode && (
+                                    <div className="mb-5 rounded-app border border-line bg-surface-2 p-3">
+                                        <div className="mb-3">
+                                            <div className="mb-1.5 flex items-center justify-between text-[12px] text-text-dim">
+                                                <span>Brush size</span><span className="text-text">{brushSize}px</span>
                                             </div>
+                                            <input type="range" min={1} max={100} value={brushSize} onChange={(e) => setBrushSize(parseInt(e.target.value))} />
                                         </div>
-                                    </section>
-
-                                    <div className="px-2 pt-2 border-t border-white/5">
+                                        <div className="mb-3">
+                                            <div className="mb-1.5 flex items-center justify-between text-[12px] text-text-dim">
+                                                <span>Smoothing</span><span className="text-text">{brushSmoothing}</span>
+                                            </div>
+                                            <input type="range" min={1} max={50} value={brushSmoothing} onChange={(e) => setBrushSmoothing(parseInt(e.target.value))} />
+                                        </div>
                                         <div className="flex items-center gap-2">
-                                            <kbd className="h-4 px-1 bg-white/5 rounded text-[8px] font-black text-blue-500 border border-white/10">SHIFT</kbd>
-                                            <span className="text-[8px] font-black text-gray-500 uppercase tracking-tight">Straight Lines</span>
+                                            <CustomColorPicker color={brushColor} onChange={setBrushColor} />
+                                            <span className="text-[12px] text-text-dim">Hold <kbd>Shift</kbd> for straight lines</span>
                                         </div>
                                     </div>
-                                </div>
-                            )}
+                                )}
 
-                            <h2 className="mb-6 text-[10px] font-black uppercase tracking-widest text-gray-500">Basic Shapes</h2>
-                            <div className="grid grid-cols-3 gap-3">
-                                <ToolButton icon={<Square className="h-6 w-6" />} label="Rect" onClick={addRect} />
-                                <ToolButton icon={<CircleIcon className="h-6 w-6" />} label="Circle" onClick={addCircle} />
-                                <ToolButton icon={<Triangle className="h-6 w-6" />} label="Triangle" onClick={addTriangle} />
-                                <ToolButton icon={<Hexagon className="h-6 w-6" />} label="Hexagon" onClick={addHexagon} />
-                                <ToolButton icon={<Diamond className="h-6 w-6" />} label="Diamond" onClick={addDiamond} />
-                                <ToolButton icon={<ArrowRight className="h-6 w-6" />} label="Arrow" onClick={addArrow} />
-                                <ToolButton icon={<Star className="h-6 w-6" />} label="Star" onClick={() => addStar(5)} />
-                                <ToolButton icon={<Shapes className="h-6 w-6" />} label="Polygon" onClick={() => addPolygon(6)} />
-                                <ToolButton icon={<BadgeIcon className="h-6 w-6" />} label="Badge" onClick={addBadge} />
-                                <ToolButton icon={<Cloud className="h-6 w-6" />} label="Cloud" onClick={addCloud} />
-                                <ToolButton icon={<Heart className="h-6 w-6" />} label="Heart" onClick={addHeart} />
+                                <p className="section-label">Add a shape</p>
+                                <div className="grid grid-cols-3 gap-2">
+                                    <ShapeButton icon={<Square className="h-5 w-5" />} label="Rectangle" onClick={addRect} />
+                                    <ShapeButton icon={<CircleIcon className="h-5 w-5" />} label="Circle" onClick={addCircle} />
+                                    <ShapeButton icon={<Triangle className="h-5 w-5" />} label="Triangle" onClick={() => addTriangle()} />
+                                    <ShapeButton icon={<Hexagon className="h-5 w-5" />} label="Hexagon" onClick={() => addHexagon()} />
+                                    <ShapeButton icon={<Diamond className="h-5 w-5" />} label="Diamond" onClick={() => addDiamond()} />
+                                    <ShapeButton icon={<ArrowRight className="h-5 w-5" />} label="Arrow" onClick={() => addArrow()} />
+                                    <ShapeButton icon={<Star className="h-5 w-5" />} label="Star" onClick={() => addStar(5)} />
+                                    <ShapeButton icon={<Shapes className="h-5 w-5" />} label="Polygon" onClick={() => addPolygon(6)} />
+                                    <ShapeButton icon={<BadgeIcon className="h-5 w-5" />} label="Badge" onClick={() => addBadge()} />
+                                    <ShapeButton icon={<Cloud className="h-5 w-5" />} label="Cloud" onClick={() => addCloud()} />
+                                    <ShapeButton icon={<Heart className="h-5 w-5" />} label="Heart" onClick={() => addHeart()} />
+                                </div>
                             </div>
                         </div>
                     )}
-
-                    {activeTab === "layers" && <LayersPanel />}
                 </aside>
 
-                <section className="relative flex flex-1 flex-col overflow-hidden bg-[#12141a]">
-                    <div className="flex-1 overflow-auto relative flex items-center justify-center p-20 scrollbar-hide">
-                        <div
-                            className="relative shadow-[0_0_100px_rgba(0,0,0,0.5)] transition-shadow duration-300"
-                            style={{
-                                transform: `translate(${panOffset.x}px, ${panOffset.y}px)`
-                            }}
-                        >
+                {/* Canvas */}
+                <section className="relative flex flex-1 min-w-0 flex-col overflow-hidden bg-bg">
+                    <div id="cc-canvas-viewport" className="flex-1 overflow-auto relative flex items-center justify-center p-16 scrollbar-hide">
+                        <div className="relative" style={{ transform: `translate(${panOffset.x}px, ${panOffset.y}px)`, boxShadow: "0 24px 70px rgba(0,0,0,0.45)" }}>
                             <FabricCanvas />
                         </div>
+
+                        {isEmpty && (
+                            <StartOverlay
+                                presets={presets}
+                                canvasSize={canvasSize}
+                                onPick={applyFormat}
+                                onTemplates={() => setActiveTab("templates")}
+                            />
+                        )}
                     </div>
 
-                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-[#1e2229]/80 backdrop-blur-xl border border-white/10 rounded-2xl p-2 shadow-2xl flex items-center gap-2 z-40 h-12">
-                        <button
-                            className={`w-8 h-8 flex items-center justify-center rounded-xl transition-colors ${showGrid ? 'bg-blue-500/20 text-blue-500' : 'hover:bg-white/5 text-gray-400'}`}
-                            onClick={() => setShowGrid(!showGrid)}
-                            title="Toggle Grid"
-                        >
-                            <LayersIcon className="h-3.5 w-3.5" />
+                    {/* Bottom bar — zoom only */}
+                    <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex items-center gap-1 rounded-app border border-line bg-surface px-1.5 py-1.5 z-40 shadow-lg">
+                        <button className={`icon-btn ${showGrid ? "is-active" : ""}`} onClick={() => setShowGrid(!showGrid)} title="Toggle grid">
+                            <Grid3x3 className="h-4 w-4" />
                         </button>
-                        <div className="w-px h-4 bg-white/10 mx-1" />
-                        <button
-                            className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-white/5 text-gray-400 transition-colors"
-                            onClick={() => setZoom(Math.max(10, zoom - 10))}
-                        >
-                            <span className="text-sm font-black">-</span>
-                        </button>
-                        <span className="w-12 text-center text-[10px] font-black tracking-widest text-white">
-                            {Math.round(zoom)}%
-                        </span>
-                        <button
-                            className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-white/5 text-gray-400 transition-colors"
-                            onClick={() => setZoom(Math.min(500, zoom + 10))}
-                        >
-                            <span className="text-sm font-black">+</span>
-                        </button>
-                        <div className="w-px h-4 bg-white/10 mx-1" />
-                        <button
-                            className="px-3 h-8 flex items-center justify-center rounded-xl hover:bg-white/5 text-gray-400 text-[9px] font-black tracking-widest uppercase transition-colors"
-                            onClick={fitToScreen}
-                        >
-                            Fit
-                        </button>
+                        <div className="mx-1 h-4 w-px bg-line" />
+                        <button className="icon-btn" onClick={() => setZoom(Math.max(10, zoom - 10))} title="Zoom out"><Minus className="h-4 w-4" /></button>
+                        <span className="w-12 text-center text-[12px] font-semibold tabular-nums text-text">{Math.round(zoom)}%</span>
+                        <button className="icon-btn" onClick={() => setZoom(Math.min(500, zoom + 10))} title="Zoom in"><Plus className="h-4 w-4" /></button>
+                        <div className="mx-1 h-4 w-px bg-line" />
+                        <button className="btn btn-ghost btn-sm" onClick={fitToScreen}><Maximize2 className="h-3.5 w-3.5" /> Fit</button>
                     </div>
 
-                    <aside
-                        className={`absolute right-0 top-0 h-full w-64 border-l border-white/5 bg-[#181a20]/95 backdrop-blur-2xl z-[60] transition-all duration-500 ease-in-out shadow-[-20px_0_50px_rgba(0,0,0,0.3)]
-                            ${selectedObject ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0 pointer-events-none'}`}
-                    >
-                        <div className="absolute right-full top-6 translate-x-3 pointer-events-auto">
+                </section>
+
+                {/* Right dock — properties, always present */}
+                <aside className="relative shrink-0 w-[296px] border-l border-line bg-surface z-[60] flex flex-col">
+                    {selectedObject && (
+                        <div className="absolute right-full top-4 translate-x-2 z-10">
                             <Toolbar />
                         </div>
+                    )}
+                    {selectedObject ? (
                         <PropertiesPanel />
-                    </aside>
-                </section>
+                    ) : (
+                        <div className="panel">
+                            <div className="panel-head"><h2>Properties</h2></div>
+                            <div className="panel-body flex flex-col items-center justify-center text-center gap-3 text-text-dim">
+                                <MousePointer2 className="h-7 w-7 text-text-mute" />
+                                <p className="text-[13px] leading-relaxed max-w-[210px]">
+                                    Select an item on the canvas to change its text, colour, font and position.
+                                </p>
+                                <button className="btn btn-sm mt-1" onClick={() => setActiveTab("templates")}>
+                                    <LayoutTemplate className="h-3.5 w-3.5" /> Start from a template
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </aside>
             </div>
         </main>
     );
@@ -487,32 +387,75 @@ export default function Editor({ username }: { username?: string }) {
     );
 }
 
-function SidebarNavItem({ icon, label, active = false, onClick }: { icon: React.ReactNode; label: string; active?: boolean; onClick?: () => void; }) {
+function NavItem({ label, icon, active, onClick }: { tab: string; label: string; icon: React.ReactNode; active?: boolean; onClick?: () => void }) {
     return (
         <button
             onClick={onClick}
-            className={`group relative mb-2 flex w-12 flex-col items-center justify-center gap-1.5 py-2.5 transition-all
-        ${active ? 'text-blue-500' : 'text-gray-600 hover:text-gray-400'}`}
+            className={`relative flex flex-col items-center justify-center gap-1 py-2.5 text-[10px] font-medium transition-colors
+                ${active ? "text-gold" : "text-text-mute hover:text-text-dim"}`}
         >
-            <div className={`transition-transform duration-300 ${active ? 'scale-110' : 'group-hover:scale-110 group-active:scale-95'}`}>
-                {icon}
-            </div>
-            <span className="text-[8px] font-black uppercase tracking-widest leading-none opacity-0 group-hover:opacity-100 transition-opacity">{label}</span>
-            {active && <div className="absolute left-0 h-8 w-1 rounded-r-full bg-blue-500 shadow-[2px_0_15px_rgba(59,130,246,0.6)]" />}
+            {active && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r bg-gold" />}
+            {icon}
+            <span className="leading-none">{label}</span>
         </button>
     );
 }
 
-function ToolButton({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick: () => void }) {
+function ShapeButton({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick: () => void }) {
     return (
         <button
             onClick={onClick}
-            className="flex flex-col items-center justify-center gap-2 rounded-xl border border-white/5 bg-[#1e2229] p-4 transition-all hover:bg-white/5 hover:-translate-y-0.5 active:scale-95 group shadow-md"
+            title={label}
+            className="flex flex-col items-center justify-center gap-1.5 rounded-app border border-line bg-surface-2 py-3.5 text-text-dim transition-colors hover:bg-surface-3 hover:text-text"
         >
-            <div className="text-blue-500 transition-transform duration-300 group-hover:scale-110">
-                {icon}
-            </div>
-            <span className="text-[9px] font-black uppercase tracking-wider text-gray-500 group-hover:text-gray-300 transition-colors">{label}</span>
+            {icon}
+            <span className="text-[10px] font-medium">{label}</span>
         </button>
+    );
+}
+
+function StartOverlay({ presets, canvasSize, onPick, onTemplates }: any) {
+    const list = (presets && presets.length ? presets : [
+        { id: "ig", name: "Instagram square", width: 1080, height: 1080 },
+        { id: "xfb", name: "X / Facebook", width: 1200, height: 675 },
+        { id: "poster", name: "Matchday poster", width: 1080, height: 1350 },
+        { id: "big", name: "Big screen", width: 1280, height: 576 },
+    ]);
+    return (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-bg/80 backdrop-blur-[2px]">
+            <div className="w-full max-w-[440px] px-6">
+                <h1 className="mb-1 text-[26px] leading-tight text-text" style={{ fontFamily: "var(--font-display)" }}>
+                    New graphic
+                </h1>
+                <p className="mb-5 text-[13px] text-text-dim">Pick a size to start, or open a saved template.</p>
+                <div className="grid grid-cols-2 gap-2.5">
+                    {list.map((p: any) => {
+                        const active = canvasSize?.width === p.width && canvasSize?.height === p.height;
+                        return (
+                            <button
+                                key={p.id}
+                                onClick={() => onPick(p.width, p.height)}
+                                className={`flex flex-col items-start gap-2 rounded-app border p-3.5 text-left transition-colors
+                                    ${active ? "border-gold bg-gold/10" : "border-line bg-surface-2 hover:bg-surface-3"}`}
+                            >
+                                <span
+                                    className="rounded-sm border border-line bg-surface-3"
+                                    style={{
+                                        width: 44,
+                                        height: 44 * (p.height / p.width),
+                                        maxHeight: 44,
+                                    }}
+                                />
+                                <span className="text-[13px] font-medium text-text">{p.name}</span>
+                                <span className="text-[11px] text-text-mute tabular-nums">{p.width} × {p.height}</span>
+                            </button>
+                        );
+                    })}
+                </div>
+                <button onClick={onTemplates} className="btn btn-block mt-3">
+                    <LayoutTemplate className="h-4 w-4" /> Open a template
+                </button>
+            </div>
+        </div>
     );
 }

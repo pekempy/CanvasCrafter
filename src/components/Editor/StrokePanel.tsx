@@ -60,10 +60,10 @@ export default function StrokePanel() {
     return (
         <div className="space-y-4">
             <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-black uppercase text-gray-400">Outline</span>
+                <span className="text-[10px] font-semibold uppercase text-text-dim">Outline</span>
                 <button
                     onClick={toggleStroke}
-                    className={`w-8 h-4 rounded-full relative transition-colors ${strokeEnabled ? 'bg-blue-500' : 'bg-white/10'}`}
+                    className={`w-8 h-4 rounded-full relative transition-colors ${strokeEnabled ? 'bg-gold' : 'bg-white/10'}`}
                 >
                     <div className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white transition-transform ${strokeEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
                 </button>
@@ -78,7 +78,7 @@ export default function StrokePanel() {
                     )}
 
                     <div className="flex items-center justify-between gap-4">
-                        <span className="text-[10px] font-black uppercase text-gray-400">Colour</span>
+                        <span className="text-[10px] font-semibold uppercase text-text-dim">Colour</span>
                         <CustomColorPicker color={currentColor} onChange={handleColorChange} />
                     </div>
 
@@ -89,8 +89,8 @@ export default function StrokePanel() {
 
                     <div className="space-y-2">
                         <div className="flex justify-between items-center">
-                            <label className="text-[10px] font-black uppercase text-gray-400">Thickness</label>
-                            <span className="text-[10px] font-black text-white bg-blue-600/30 px-2 py-0.5 rounded-lg border border-blue-500/30 min-w-[34px] text-center">{currentThickness}px</span>
+                            <label className="text-[10px] font-semibold uppercase text-text-dim">Thickness</label>
+                            <span className="text-[10px] font-semibold text-white bg-gold/30 px-2 py-0.5 rounded-lg border border-gold/30 min-w-[34px] text-center">{currentThickness}px</span>
                         </div>
                         <input
                             type="range"
@@ -98,23 +98,23 @@ export default function StrokePanel() {
                             max="50"
                             value={currentThickness}
                             onChange={handleWidthChange}
-                            className="w-full h-2 bg-[#1e2229] rounded-lg appearance-none cursor-pointer accent-blue-500"
+                            className="w-full h-2 bg-[1d222a] rounded-lg appearance-none cursor-pointer accent-[color:var(--gold)]"
                         />
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase text-gray-400">Style</label>
+                        <label className="text-[10px] font-semibold uppercase text-text-dim">Style</label>
                         <div className="relative">
                             <select
                                 value={currentStyle}
                                 onChange={handleStyleChange}
-                                className="w-full bg-[#1e2229] border border-white/5 rounded-xl pl-3 pr-10 py-2 text-xs font-bold text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500/50 appearance-none hover:bg-white/5 transition-all"
+                                className="w-full bg-[1d222a] border border-line rounded-xl pl-3 pr-10 py-2 text-xs font-bold text-text-dim focus:outline-none focus:ring-2 focus:ring-gold/40 appearance-none hover:bg-white/5 transition-all"
                             >
                                 <option value="solid">Solid</option>
                                 <option value="dashed">Dashed</option>
                                 <option value="dotted">Dotted</option>
                             </select>
-                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-500 pointer-events-none" />
+                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-text-mute pointer-events-none" />
                         </div>
                     </div>
                 </>

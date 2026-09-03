@@ -122,7 +122,7 @@ export default function EdgeBorderPanel() {
     return (
         <div className="space-y-4">
             <div className="flex items-center justify-between gap-4">
-                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Colour</span>
+                <span className="text-[10px] font-semibold uppercase tracking-normal text-text-dim">Colour</span>
                 <CustomColorPicker color={currentColor} onChange={handleColorChange} />
             </div>
 
@@ -131,10 +131,10 @@ export default function EdgeBorderPanel() {
                 onChange={handleColorChange}
             />
 
-            <div className="space-y-2 pt-2 border-t border-white/5">
+            <div className="space-y-2 pt-2 border-t border-line">
                 <div className="flex justify-between items-center">
-                    <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Thickness</label>
-                    <span className="text-[10px] font-black text-white bg-purple-600/30 px-2 py-0.5 rounded-lg border border-purple-500/30 min-w-[34px] text-center">{currentThickness}</span>
+                    <label className="text-[10px] font-semibold uppercase text-text-dim tracking-normal">Thickness</label>
+                    <span className="text-[10px] font-semibold text-white bg-purple-600/30 px-2 py-0.5 rounded-lg border border-purple-500/30 min-w-[34px] text-center">{currentThickness}</span>
                 </div>
                 <input
                     type="range"
@@ -142,14 +142,14 @@ export default function EdgeBorderPanel() {
                     max="100"
                     value={currentThickness}
                     onChange={handleWidthChange}
-                    className="w-full h-1.5 bg-[#1e2229] rounded-lg appearance-none cursor-pointer accent-purple-500"
+                    className="w-full h-1.5 bg-[1d222a] rounded-lg appearance-none cursor-pointer accent-purple-500"
                 />
             </div>
 
             <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                    <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Opacity</label>
-                    <span className="text-[10px] font-black text-white bg-purple-600/30 px-2 py-0.5 rounded-lg border border-purple-500/30 min-w-[34px] text-center">{Math.round(currentOpacity * 100)}%</span>
+                    <label className="text-[10px] font-semibold uppercase text-text-dim tracking-normal">Opacity</label>
+                    <span className="text-[10px] font-semibold text-white bg-purple-600/30 px-2 py-0.5 rounded-lg border border-purple-500/30 min-w-[34px] text-center">{Math.round(currentOpacity * 100)}%</span>
                 </div>
                 <input
                     type="range"
@@ -158,14 +158,14 @@ export default function EdgeBorderPanel() {
                     step="0.01"
                     value={currentOpacity}
                     onChange={handleOpacityChange}
-                    className="w-full h-1.5 bg-[#1e2229] rounded-lg appearance-none cursor-pointer accent-purple-500"
+                    className="w-full h-1.5 bg-[1d222a] rounded-lg appearance-none cursor-pointer accent-purple-500"
                 />
             </div>
 
             <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                    <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Blur (Glow)</label>
-                    <span className="text-[10px] font-black text-white bg-purple-600/30 px-2 py-0.5 rounded-lg border border-purple-500/30 min-w-[34px] text-center">{currentBlur}</span>
+                    <label className="text-[10px] font-semibold uppercase text-text-dim tracking-normal">Blur (Glow)</label>
+                    <span className="text-[10px] font-semibold text-white bg-purple-600/30 px-2 py-0.5 rounded-lg border border-purple-500/30 min-w-[34px] text-center">{currentBlur}</span>
                 </div>
                 <input
                     type="range"
@@ -173,23 +173,23 @@ export default function EdgeBorderPanel() {
                     max="50"
                     value={currentBlur}
                     onChange={handleBlurChange}
-                    className="w-full h-1.5 bg-[#1e2229] rounded-lg appearance-none cursor-pointer accent-purple-500"
+                    className="w-full h-1.5 bg-[1d222a] rounded-lg appearance-none cursor-pointer accent-purple-500"
                 />
             </div>
 
             <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Style</label>
+                <label className="text-[10px] font-semibold uppercase text-text-dim tracking-normal">Style</label>
                 <div className="relative">
                     <select
                         value={currentStyle}
                         onChange={handleStyleChange}
-                        className="w-full bg-[#1e2229] border border-white/5 rounded-xl pl-3 pr-10 py-2 text-xs font-bold text-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500/50 appearance-none hover:bg-white/5 transition-all"
+                        className="w-full bg-[1d222a] border border-line rounded-xl pl-3 pr-10 py-2 text-xs font-bold text-text-dim focus:outline-none focus:ring-2 focus:ring-purple-500/50 appearance-none hover:bg-white/5 transition-all"
                     >
                         <option value="solid">Solid</option>
                         <option value="dashed">Dashed</option>
                         <option value="dotted">Dotted</option>
                     </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-500 pointer-events-none" />
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-text-mute pointer-events-none" />
                 </div>
             </div>
         </div>

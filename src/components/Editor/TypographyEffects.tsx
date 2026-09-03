@@ -174,32 +174,32 @@ export default function TypographyEffects() {
     const currentType = isBevel ? 'bevel' : (isEmboss ? 'emboss' : 'none');
 
     return (
-        <div className="space-y-4 mt-6 border-t border-white/5 pt-6">
+        <div className="space-y-4 mt-6 border-t border-line pt-6">
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                    <Mountain className="h-3.5 w-3.5 text-blue-400" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">3D Typography</span>
+                    <Mountain className="h-3.5 w-3.5 text-gold" />
+                    <span className="text-[10px] font-semibold uppercase tracking-normal text-text-dim">3D Typography</span>
                 </div>
                 {currentType !== 'none' && (
                     <button
                         onClick={() => applyEffect('none')}
-                        className="text-[8px] font-black text-rose-400 hover:text-rose-300 uppercase tracking-widest"
+                        className="text-[8px] font-semibold text-rose-400 hover:text-rose-300 uppercase tracking-normal"
                     >
                         Reset
                     </button>
                 )}
             </div>
 
-            <div className="flex gap-1 p-1 bg-white/5 rounded-xl border border-white/5">
+            <div className="flex gap-1 p-1 bg-white/5 rounded-xl border border-line">
                 <button
                     onClick={() => applyEffect('bevel')}
-                    className={`flex-1 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${currentType === 'bevel' ? 'bg-blue-500 text-white shadow-lg' : 'text-gray-500 hover:text-gray-400'}`}
+                    className={`flex-1 py-1.5 rounded-lg text-[9px] font-semibold uppercase tracking-normal transition-all ${currentType === 'bevel' ? 'bg-gold text-white shadow-lg' : 'text-text-mute hover:text-text-dim'}`}
                 >
                     Bevel
                 </button>
                 <button
                     onClick={() => applyEffect('emboss')}
-                    className={`flex-1 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${currentType === 'emboss' ? 'bg-blue-500 text-white shadow-lg' : 'text-gray-500 hover:text-gray-400'}`}
+                    className={`flex-1 py-1.5 rounded-lg text-[9px] font-semibold uppercase tracking-normal transition-all ${currentType === 'emboss' ? 'bg-gold text-white shadow-lg' : 'text-text-mute hover:text-text-dim'}`}
                 >
                     Emboss
                 </button>
@@ -208,30 +208,30 @@ export default function TypographyEffects() {
             {currentType !== 'none' && (
                 <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
                     <div className="space-y-2">
-                        <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-tight text-gray-500">
+                        <div className="flex justify-between items-center text-[9px] font-semibold uppercase tracking-tight text-text-mute">
                             <label>Depth Strength</label>
-                            <span className="text-blue-400">{strength}</span>
+                            <span className="text-gold">{strength}</span>
                         </div>
                         <input
                             type="range" min="1" max="50" step="1"
                             value={strength}
                             onChange={(e) => applyEffect(currentType, parseInt(e.target.value), angle)}
-                            className="w-full h-1 bg-white/5 rounded-full appearance-none cursor-pointer accent-blue-500"
+                            className="w-full h-1 bg-white/5 rounded-full appearance-none cursor-pointer accent-[color:var(--gold)]"
                         />
                     </div>
 
                     <div className="space-y-2">
-                        <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-tight text-gray-500">
+                        <div className="flex justify-between items-center text-[9px] font-semibold uppercase tracking-tight text-text-mute">
                             <label>Light Angle</label>
-                            <span className="text-blue-400">{angle}°</span>
+                            <span className="text-gold">{angle}°</span>
                         </div>
                         <div className="flex items-center gap-3">
-                            <RotateCw className="h-3 w-3 text-gray-600" />
+                            <RotateCw className="h-3 w-3 text-text-mute" />
                             <input
                                 type="range" min="0" max="360"
                                 value={angle}
                                 onChange={(e) => applyEffect(currentType, strength, parseInt(e.target.value))}
-                                className="flex-1 h-1 bg-white/5 rounded-full appearance-none cursor-pointer accent-blue-500"
+                                className="flex-1 h-1 bg-white/5 rounded-full appearance-none cursor-pointer accent-[color:var(--gold)]"
                             />
                         </div>
                     </div>

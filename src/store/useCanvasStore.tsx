@@ -10,6 +10,10 @@ import { handleObjectSnapping, clearGuides } from "@/utils/snapping";
 import * as backgroundRemoval from "@imgly/background-removal";
 import { detectEdgesAndAddStroke } from "@/utils/edgeDetection";
 import { preloadFontsFromJSON } from "@/utils/fontLoader";
+import { isResponsive, tierOf, sizeKey, captureSlots, applySlots, layoutForSize } from "@/lib/responsiveTemplate";
+import SEED_DESIGNS from "@/lib/seed/designs.json";
+import SEED_BRANDKITS from "@/lib/seed/brandkits.json";
+import SEED_PRESETS from "@/lib/seed/presets.json";
 
 const PERSISTENT_PROPS = [
     'id', 'name', 'lockMovementX', 'lockMovementY', 'lockRotation', 
@@ -133,6 +137,11 @@ interface CanvasContextType {
 
     saveToTemplate: (name: string, brandId?: string, parentId?: string, forceNew?: boolean) => string | undefined;
     loadTemplate: (json: string, name?: string, id?: string) => void;
+    switchTemplateSize: (width: number, height: number) => void;
+    saveWorkingTemplate: () => void;
+    updateDefaultTemplate: () => void;
+    resetTemplateToDefault: () => void;
+    activeTemplate: { id: string; tier: "default" | "working"; hasWorking: boolean } | null;
     deleteDesign: (id: string) => void;
     exportAsFormat: (format: 'png' | 'jpeg' | 'pdf') => void;
     savedDesigns: any[];
@@ -201,11 +210,18 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
     const isLoaded = useRef(false);
     const designIdRef = useRef<string | null>(null);
     const canvasNameRef = useRef<string>("Untitled Project");
+    // Responsive-template session: the loaded family + slot edits not yet saved
+    const activeTplRef = useRef<{ id: string; tier: "default" | "working"; slots: Record<string, any> } | null>(null);
+    const savedDesignsRef = useRef<any[]>([]);
 
     useEffect(() => {
         designIdRef.current = currentDesignId;
         canvasNameRef.current = canvasName;
     }, [currentDesignId, canvasName]);
+
+    useEffect(() => { savedDesignsRef.current = savedDesigns; }, [savedDesigns]);
+    const canvasSizeRef = useRef({ width: 800, height: 800 });
+    useEffect(() => { canvasSizeRef.current = canvasSize; }, [canvasSize.width, canvasSize.height]);
 
     const forceUpdate = useCallback(() => {
         setUpdateTick(t => t + 1);
@@ -263,18 +279,22 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
 
     const fitToScreen = useCallback(() => {
         if (!canvas || !(canvas as any)._isAlive) return;
-        const padding = 100;
-        // Sidebar width is ~360px (80px + 280px). Assume 400px to be safe.
-        const availableWidth = window.innerWidth - 400 - padding;
-        const availableHeight = window.innerHeight - 100 - padding;
-
         if (!canvasSize.width || !canvasSize.height) return;
+
+        // Measure the real canvas viewport (accounts for every docked panel / bar).
+        const vp = typeof document !== "undefined" && document.getElementById("cc-canvas-viewport");
+        const rect = vp ? vp.getBoundingClientRect() : null;
+        const padding = 48;
+        const availableWidth = (rect ? rect.width : window.innerWidth - 660) - padding * 2;
+        const availableHeight = (rect ? rect.height : window.innerHeight - 130) - padding * 2;
+
         const scaleX = availableWidth / canvasSize.width;
         const scaleY = availableHeight / canvasSize.height;
         let scale = Math.min(scaleX, scaleY);
 
-        // Don't scale up past 100%
+        // Fit means "show the whole thing" — never zoom in past 100%.
         if (scale > 1) scale = 1;
+        if (scale <= 0) return;
 
         // Multiply by 100 since zoom state is stored as a percentage
         const newZoom = Math.max(10, Math.round(scale * 100));
@@ -293,6 +313,22 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         canvas.requestRenderAll();
     }, [canvas, canvasSize.width, canvasSize.height]);
 
+    // Always keep the whole design in view: re-fit on size change and on window resize.
+    // The user can still zoom in/out manually whenever they want.
+    useEffect(() => {
+        if (!canvas) return;
+        const t = setTimeout(fitToScreen, 80);
+        return () => clearTimeout(t);
+    }, [canvas, canvasSize.width, canvasSize.height, fitToScreen]);
+
+    useEffect(() => {
+        if (!canvas) return;
+        let raf = 0;
+        const onResize = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(fitToScreen); };
+        window.addEventListener("resize", onResize);
+        return () => { window.removeEventListener("resize", onResize); cancelAnimationFrame(raf); };
+    }, [canvas, fitToScreen]);
+
     const lastRemoteState = useRef<{ [key: string]: Set<string> }>({});
     const lastActionTime = useRef(0);
 
@@ -305,14 +341,23 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
             const keys = ["designs", "brandkits", "folders", "canvas_size", "custom_fonts", "presets", "template_folders", "canvas_name", "api_config", "theme"];
             const results = await Promise.all(keys.map(k => fetch(`/api/storage?key=${k}`).then(r => r.json().catch(() => null))));
 
-            if (results[0]) {
-                setSavedDesigns(results[0]);
-                lastRemoteState.current["designs"] = new Set(results[0].map((d: any) => d.id));
+            // Bootstrap the Hull Seahawks pack (templates + club kits + sizes) on a fresh install,
+            // keeping anything the user already made.
+            let designsData: any[] = Array.isArray(results[0]) ? results[0] : [];
+            if (!designsData.some((d: any) => typeof d?.id === "string" && d.id.startsWith("sh-tpl-"))) {
+                designsData = [...(SEED_DESIGNS as any[]), ...designsData];
+                fetch("/api/storage?key=designs", { method: "POST", body: JSON.stringify(designsData) }).catch(() => { });
             }
-            if (results[1]) {
-                setBrandKits(results[1]);
-                lastRemoteState.current["brandkits"] = new Set(results[1].map((b: any) => b.id));
+            setSavedDesigns(designsData);
+            lastRemoteState.current["designs"] = new Set(designsData.map((d: any) => d.id));
+
+            let kitsData: any[] = Array.isArray(results[1]) ? results[1] : [];
+            if (!kitsData.some((k: any) => k?.id === "seahawks")) {
+                kitsData = [...(SEED_BRANDKITS as any[]), ...kitsData.filter((k: any) => !SEED_BRANDKITS.some((s: any) => s.id === k.id))];
+                fetch("/api/storage?key=brandkits", { method: "POST", body: JSON.stringify(kitsData) }).catch(() => { });
             }
+            setBrandKits(kitsData);
+            lastRemoteState.current["brandkits"] = new Set(kitsData.map((b: any) => b.id));
             if (results[2]) {
                 setAssetFolders(results[2]);
                 lastRemoteState.current["folders"] = new Set(results[2].map((f: any) => f.id));
@@ -321,9 +366,13 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
                 setCanvasSize(results[3]);
             }
             if (results[4] && Array.isArray(results[4])) setCustomFonts(results[4]);
-            if (results[5] && Array.isArray(results[5])) {
-                setPresets(results[5]);
-                lastRemoteState.current["presets"] = new Set(results[5].map((p: any) => p.id));
+            {
+                let presetData: any[] = (Array.isArray(results[5]) && results[5].length) ? results[5] : (SEED_PRESETS as any[]);
+                if (presetData === SEED_PRESETS) {
+                    fetch("/api/storage?key=presets", { method: "POST", body: JSON.stringify(presetData) }).catch(() => { });
+                }
+                setPresets(presetData);
+                lastRemoteState.current["presets"] = new Set(presetData.map((p: any) => p.id));
             }
             if (results[6]) setTemplateFolders(results[6]);
             if (results[7]) setCanvasName(results[7]);
@@ -796,41 +845,31 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         }
     }, [savedDesigns, currentDesignId]);
 
-    const loadTemplate = useCallback((json: string, name?: string, id?: string) => {
+    // Load a single fabric-JSON layout onto the canvas (optionally overlaying shared slot content afterwards).
+    const loadLayoutJSON = useCallback((json: string, slots?: Record<string, any>) => {
         if (!canvas) return;
-        if (name) {
-            setCanvasName(name);
-            setDesignName(name);
-        }
-        if (id) setCurrentDesignId(id);
         try {
             const data = JSON.parse(json);
-            // Sanitize objects to handle expired blob URLs
-            if (data.objects && Array.isArray(data.objects)) {
+            if (Array.isArray(data.objects)) {
                 data.objects.forEach((obj: any) => {
                     if ((obj.type === 'image' || obj.type === 'Image') && obj.src && obj.src.startsWith('blob:')) {
-                        console.warn("Recovering from expired blob URL:", obj.src);
-                        // Use a transparent 1x1 pixel instead of the broken blob
                         obj.src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
                     }
                 });
             }
             preloadFontsFromJSON(data).then(() => {
                 if (!(canvas as any)._isAlive) return;
-                // Update canvas size from template
                 if (data.width && data.height) {
                     const newSize = { width: data.width, height: data.height };
                     setCanvasSize(newSize);
                     canvas.setDimensions(newSize);
                 }
-
                 canvas.loadFromJSON(data)
-                    .then(() => {
+                    .then(async () => {
                         if (!(canvas as any)._isAlive) return;
+                        if (slots) await applySlots(canvas, slots);
                         canvas.renderAll();
-                        setTimeout(() => {
-                            if ((canvas as any)._isAlive) fitToScreen();
-                        }, 100);
+                        setTimeout(() => { if ((canvas as any)._isAlive) fitToScreen(); }, 100);
                     })
                     .catch(err => {
                         if (!(canvas as any)._isAlive) return;
@@ -842,6 +881,106 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
             console.error("Failed to parse template JSON:", e);
         }
     }, [canvas, fitToScreen]);
+
+    const loadTemplate = useCallback((json: string, name?: string, id?: string) => {
+        if (!canvas) return;
+        if (name) { setCanvasName(name); setDesignName(name); }
+        if (id) setCurrentDesignId(id);
+
+        const design = id ? savedDesignsRef.current.find(d => d.id === id) : null;
+
+        if (design && isResponsive(design)) {
+            const tier = tierOf(design);
+            const td = (tier === "working" && design.working) ? design.working : design.default;
+            const wantKey = sizeKey(canvasSize.width, canvasSize.height);
+            const [w, h] = (td.layouts[wantKey] ? wantKey : design.nativeSize).split('x').map(Number);
+            const layoutJSON = layoutForSize(td, design.data, w, h);
+            activeTplRef.current = { id: design.id, tier, slots: { ...(td.slots || {}) } };
+            forceUpdate();
+            loadLayoutJSON(layoutJSON, activeTplRef.current.slots);
+            return;
+        }
+
+        activeTplRef.current = null;
+        forceUpdate();
+        loadLayoutJSON(json);
+    }, [canvas, canvasSize.width, canvasSize.height, loadLayoutJSON, forceUpdate]);
+
+    // Switch the open template to another canvas size — loads that size's layout
+    // and re-applies whatever slot content is currently on the canvas.
+    const switchTemplateSize = useCallback((w: number, h: number) => {
+        if (!canvas) return;
+        const tpl = activeTplRef.current;
+        if (!tpl) {
+            setCanvasSize({ width: w, height: h });
+            canvas.setDimensions({ width: w, height: h });
+            setTimeout(fitToScreen, 60);
+            return;
+        }
+        tpl.slots = { ...tpl.slots, ...captureSlots(canvas) };
+        const design = savedDesignsRef.current.find(d => d.id === tpl.id);
+        if (!design || !isResponsive(design)) {
+            setCanvasSize({ width: w, height: h });
+            canvas.setDimensions({ width: w, height: h });
+            return;
+        }
+        const td = design[tpl.tier] || design.default;
+        loadLayoutJSON(layoutForSize(td, design.data, w, h), tpl.slots);
+    }, [canvas, loadLayoutJSON, fitToScreen]);
+
+    // Write the current canvas into a tier of the open template.
+    const persistDesigns = useCallback((updated: any[]) => {
+        lastActionTime.current = Date.now();
+        setSavedDesigns(updated);
+        fetch("/api/storage?key=designs", { method: 'POST', body: JSON.stringify(updated) }).catch(() => { });
+    }, []);
+
+    const writeTier = useCallback((tier: 'default' | 'working') => {
+        if (!canvas || !(canvas as any)._isAlive) return;
+        const tpl = activeTplRef.current;
+        if (!tpl) return;
+        const design = savedDesignsRef.current.find(d => d.id === tpl.id);
+        if (!design || !isResponsive(design)) return;
+
+        const json = JSON.stringify(canvas.toObject(PERSISTENT_PROPS));
+        const key = sizeKey(canvasSizeRef.current.width, canvasSizeRef.current.height);
+        const thumbnail = canvas.toDataURL({ format: 'png', multiplier: 0.1 });
+        const slots = { ...(design[tier]?.slots || design.default.slots || {}), ...tpl.slots, ...captureSlots(canvas) };
+        tpl.slots = slots;
+        tpl.tier = tier;
+
+        const baseLayouts = design[tier]?.layouts || { ...design.default.layouts };
+        const nextTier = { slots, layouts: { ...baseLayouts, [key]: json } };
+        const updated = savedDesignsRef.current.map(d =>
+            d.id === tpl.id
+                ? { ...d, [tier]: nextTier,
+                    thumbnail: key === d.nativeSize ? thumbnail : d.thumbnail,
+                    data: (tier === 'default' && key === d.nativeSize) ? json : d.data,
+                    updatedAt: Date.now() }
+                : d
+        );
+        persistDesigns(updated);
+        setCurrentDesignId(tpl.id);
+    }, [canvas, persistDesigns]);
+
+    const saveWorkingTemplate = useCallback(() => writeTier('working'), [writeTier]);
+    const updateDefaultTemplate = useCallback(() => writeTier('default'), [writeTier]);
+
+    // Throw away the working copy and reload the pristine default for the current size.
+    const resetTemplateToDefault = useCallback(() => {
+        if (!canvas) return;
+        const tpl = activeTplRef.current;
+        if (!tpl) return;
+        const design = savedDesignsRef.current.find(d => d.id === tpl.id);
+        if (!design || !isResponsive(design)) return;
+
+        const updated = savedDesignsRef.current.map(d => d.id === tpl.id ? { ...d, working: null } : d);
+        persistDesigns(updated);
+
+        tpl.tier = 'default';
+        tpl.slots = { ...(design.default.slots || {}) };
+        loadLayoutJSON(layoutForSize(design.default, design.data, canvasSizeRef.current.width, canvasSizeRef.current.height), tpl.slots);
+    }, [canvas, loadLayoutJSON, persistDesigns]);
 
     const exportAsFormat = useCallback((format: 'png' | 'jpeg' | 'pdf') => {
         if (!canvas || !(canvas as any)._isAlive) return;
@@ -1514,6 +1653,13 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         };
 
         const handleModified = (e: any) => {
+            // Keep the responsive-template slot store in sync with on-canvas edits
+            const tpl = activeTplRef.current;
+            const t = e?.target;
+            if (tpl && t?.name) {
+                const cap = captureSlots(canvas);
+                if (cap[t.name]) tpl.slots = { ...tpl.slots, [t.name]: cap[t.name] };
+            }
             debouncedAutoSave();
         };
 
@@ -1580,7 +1726,13 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         bringToFront, sendToBack, bringForward, sendBackwards, deleteSelected,
         duplicateSelected, copySelected, cutSelected, pasteSelected, releaseMask,
         groupSelected, ungroupSelected, alignSelected,
-        maskShapeWithImage, saveToTemplate, loadTemplate, deleteDesign, exportAsFormat,
+        maskShapeWithImage, saveToTemplate, loadTemplate,
+        switchTemplateSize, saveWorkingTemplate, updateDefaultTemplate, resetTemplateToDefault,
+        activeTemplate: activeTplRef.current
+            ? { id: activeTplRef.current.id, tier: activeTplRef.current.tier,
+                hasWorking: !!(savedDesigns.find(d => d.id === activeTplRef.current!.id)?.working?.layouts) }
+            : null,
+        deleteDesign, exportAsFormat,
         setCanvas, setTheme, setCanvasSize, setZoom, setPanOffset,
         savingAssetUrl, setSavingAssetUrl
     }), [
@@ -1596,7 +1748,9 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         bringToFront, sendToBack, bringForward, sendBackwards, deleteSelected,
         duplicateSelected, copySelected, cutSelected, pasteSelected, releaseMask,
         groupSelected, ungroupSelected, alignSelected,
-        maskShapeWithImage, saveToTemplate, loadTemplate, deleteDesign, exportAsFormat,
+        maskShapeWithImage, saveToTemplate, loadTemplate, switchTemplateSize,
+        saveWorkingTemplate, updateDefaultTemplate, resetTemplateToDefault, updateTick,
+        deleteDesign, exportAsFormat,
         addCustomFont, removeCustomFont, removeBackground, setBackgroundImage,
         showGrid, setShowGrid, isHelpOpen, setIsHelpOpen, enterCropMode, confirmCrop, cancelCrop, isCropMode, applyEdgeStroke, smartResize,
         setPresets, deletePreset,

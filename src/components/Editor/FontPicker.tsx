@@ -49,13 +49,13 @@ function LazyFontItem({ font, selectedFamily, loadingFont, onSelect }: { font: a
             ref={ref}
             onClick={() => onSelect(font.name, font.isCustom)}
             className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition-all hover:bg-white/5
-                ${isSelected ? 'bg-blue-600/10 text-blue-500 border border-blue-500/30' : 'text-gray-400 border border-transparent'}`}
+                ${isSelected ? 'bg-gold/10 text-gold border border-gold/30' : 'text-text-dim border border-transparent'}`}
         >
             <span style={{ fontFamily: inView || font.isCustom ? `"${font.name}"` : 'inherit' }} className="text-sm flex items-center gap-2">
                 {font.name}
-                {font.isCustom && <span className="text-[8px] bg-white/10 px-1 py-0.5 rounded text-gray-500 uppercase">Custom</span>}
+                {font.isCustom && <span className="text-[8px] bg-white/10 px-1 py-0.5 rounded text-text-mute uppercase">Custom</span>}
             </span>
-            {loadingFont === font.name && <Loader2 className="h-3 w-3 animate-spin text-blue-500" />}
+            {loadingFont === font.name && <Loader2 className="h-3 w-3 animate-spin text-gold" />}
         </button>
     );
 }
@@ -119,24 +119,24 @@ export default function FontPicker({
 
     const containerClass = inline
         ? "w-full"
-        : "absolute top-14 left-0 z-[110] w-64 rounded-2xl bg-[#1e2229] p-4 shadow-2xl border border-white/10 animate-in slide-in-from-top-2 duration-200";
+        : "absolute top-14 left-0 z-[110] w-64 rounded-md bg-[1d222a] p-4 shadow-2xl border border-line animate-in slide-in-from-top-2 duration-200";
 
     const displaySelectedFamily = customSelectedFamily || (selectedObject as any)?.fontFamily;
 
     return (
         <div className={containerClass}>
             <div className="flex items-center justify-between mb-3 px-1">
-                <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-500">Fonts</h3>
+                <h3 className="text-[10px] font-semibold uppercase tracking-normal text-text-mute">Fonts</h3>
             </div>
 
             <div className="relative mb-4">
-                <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-gray-500" />
+                <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-text-mute" />
                 <input
                     type="text"
                     placeholder="Search..."
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    className="w-full rounded-xl bg-white/5 border border-white/5 py-2 pl-10 pr-4 text-xs font-bold text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                    className="w-full rounded-xl bg-white/5 border border-line py-2 pl-10 pr-4 text-xs font-bold text-white focus:outline-none focus:ring-2 focus:ring-gold/40"
                 />
             </div>
 
