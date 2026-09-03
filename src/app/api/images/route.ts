@@ -79,7 +79,18 @@ export async function POST(request: Request) {
             });
         }
 
-        return NextResponse.json({ error: 'Only base64 uploads supported via this route currently' }, { status: 400 });
+        // Fetch a remote image server-side (e.g. an opponent crest from a league site)
+        if (/^https?:\/\//.test(url)) {
+            const user = await getSession(request);
+            const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 CanvasCrafter' } });
+            if (!res.ok) return NextResponse.json({ error: `Fetch failed (${res.status})` }, { status: 502 });
+            const buffer = Buffer.from(await res.arrayBuffer());
+            await fs.writeFile(path.join(IMAGES_DIR, `${id}.png`), buffer);
+            await fs.writeFile(path.join(IMAGES_DIR, `${id}.json`), JSON.stringify({ id, ...metadata, source: url, owner: user || undefined, timestamp: Date.now() }, null, 2));
+            return NextResponse.json({ success: true, url: `/api/images?id=${id}` });
+        }
+
+        return NextResponse.json({ error: 'Only base64 uploads or http(s) URLs supported' }, { status: 400 });
     } catch (e: any) {
         console.error("Image POST Error:", e.message);
         return NextResponse.json({ error: 'Failed to save image' }, { status: 500 });

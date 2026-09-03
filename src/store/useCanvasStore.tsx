@@ -141,6 +141,8 @@ interface CanvasContextType {
     saveWorkingTemplate: () => void;
     updateDefaultTemplate: () => void;
     resetTemplateToDefault: () => void;
+    applyFixture: (fx: any) => Promise<void>;
+    exportAllSizes: () => Promise<void>;
     activeTemplate: { id: string; tier: "default" | "working"; hasWorking: boolean } | null;
     deleteDesign: (id: string) => void;
     exportAsFormat: (format: 'png' | 'jpeg' | 'pdf') => void;
@@ -222,6 +224,8 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
     useEffect(() => { savedDesignsRef.current = savedDesigns; }, [savedDesigns]);
     const canvasSizeRef = useRef({ width: 800, height: 800 });
     useEffect(() => { canvasSizeRef.current = canvasSize; }, [canvasSize.width, canvasSize.height]);
+    const presetsRef = useRef<any[]>([]);
+    useEffect(() => { presetsRef.current = presets; }, [presets]);
 
     const forceUpdate = useCallback(() => {
         setUpdateTick(t => t + 1);
@@ -965,6 +969,79 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
 
     const saveWorkingTemplate = useCallback(() => writeTier('working'), [writeTier]);
     const updateDefaultTemplate = useCallback(() => writeTier('default'), [writeTier]);
+
+    // Fill the shared slots from a scraped fixture (opponent, date, time, venue, crest).
+    const applyFixture = useCallback(async (fx: any) => {
+        if (!canvas) return;
+        const tpl = activeTplRef.current;
+
+        let logo = fx.opponentLogo || "";
+        if (logo) {
+            try {
+                const id = `opp-${fx.opponentId || fx.opponent.toLowerCase().replace(/\W+/g, "-")}`;
+                const r = await fetch("/api/images", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ id, url: logo, metadata: { tags: ["opponent crest", fx.opponent] } }),
+                });
+                const j = await r.json();
+                if (j.url) logo = j.url;
+            } catch { /* fall back to remote url */ }
+        }
+
+        const d = new Date(fx.date + "T00:00:00");
+        const dateStr = d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" }).toUpperCase();
+        const venue = fx.venue || "";
+        const values: Record<string, any> = {
+            "Away Name": { text: String(fx.opponent).toUpperCase() },
+            "Away Logo": logo ? { src: logo } : undefined,
+            "Date": { text: dateStr },
+            "Time": { text: `FACE-OFF ${fx.time}${venue ? ` · ${venue.toUpperCase()}` : ""}` },
+            "Venue": { text: venue.toUpperCase() },
+            "Footer": { text: `NIHL NATIONAL · ${venue.toUpperCase()} · ${dateStr}` },
+        };
+
+        const names = new Set((canvas.getObjects() as any[]).map((o) => o.name).filter(Boolean));
+        const patch: Record<string, any> = {};
+        for (const [k, v] of Object.entries(values)) if (v && names.has(k)) patch[k] = v;
+
+        if (tpl) tpl.slots = { ...tpl.slots, ...patch };
+        await applySlots(canvas, patch);
+        canvas.getObjects().forEach((o: any) => { if (patch[o.name]) canvas.fire("object:modified", { target: o }); });
+        canvas.requestRenderAll();
+        forceUpdate();
+    }, [canvas, forceUpdate]);
+
+    // Export the open (responsive) template as a PNG at every preset size.
+    const exportAllSizes = useCallback(async () => {
+        if (!canvas || !(canvas as any)._isAlive) return;
+        const tpl = activeTplRef.current;
+        const sizes = presetsRef.current.length
+            ? presetsRef.current.map((p: any) => [p.width, p.height, p.name])
+            : [[1080, 1080, "square"], [1200, 675, "landscape"], [1080, 1350, "poster"], [1280, 576, "bigscreen"]];
+        const startW = canvasSizeRef.current.width, startH = canvasSizeRef.current.height;
+
+        for (const [w, h, label] of sizes as any[]) {
+            if (tpl) switchTemplateSize(w, h);
+            else { setCanvasSize({ width: w, height: h }); canvas.setDimensions({ width: w, height: h }); }
+            await new Promise((res) => setTimeout(res, 700));
+            canvas.discardActiveObject();
+            const z = canvas.getZoom();
+            canvas.setZoom(1);
+            canvas.setDimensions({ width: w, height: h });
+            canvas.renderAll();
+            const dataURL = canvas.toDataURL({ format: "png", multiplier: 2, quality: 1 });
+            canvas.setZoom(z);
+            const a = document.createElement("a");
+            a.download = `${(canvasName || "graphic").replace(/\W+/g, "-").toLowerCase()}-${String(label).replace(/\W+/g, "-").toLowerCase()}.png`;
+            a.href = dataURL;
+            a.click();
+            await new Promise((res) => setTimeout(res, 250));
+        }
+        if (tpl) switchTemplateSize(startW, startH);
+        else { setCanvasSize({ width: startW, height: startH }); canvas.setDimensions({ width: startW, height: startH }); }
+        setTimeout(fitToScreen, 80);
+    }, [canvas, canvasName, switchTemplateSize, fitToScreen]);
 
     // Throw away the working copy and reload the pristine default for the current size.
     const resetTemplateToDefault = useCallback(() => {
@@ -1727,7 +1804,7 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         duplicateSelected, copySelected, cutSelected, pasteSelected, releaseMask,
         groupSelected, ungroupSelected, alignSelected,
         maskShapeWithImage, saveToTemplate, loadTemplate,
-        switchTemplateSize, saveWorkingTemplate, updateDefaultTemplate, resetTemplateToDefault,
+        switchTemplateSize, saveWorkingTemplate, updateDefaultTemplate, resetTemplateToDefault, applyFixture, exportAllSizes,
         activeTemplate: activeTplRef.current
             ? { id: activeTplRef.current.id, tier: activeTplRef.current.tier,
                 hasWorking: !!(savedDesigns.find(d => d.id === activeTplRef.current!.id)?.working?.layouts) }
@@ -1749,7 +1826,7 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         duplicateSelected, copySelected, cutSelected, pasteSelected, releaseMask,
         groupSelected, ungroupSelected, alignSelected,
         maskShapeWithImage, saveToTemplate, loadTemplate, switchTemplateSize,
-        saveWorkingTemplate, updateDefaultTemplate, resetTemplateToDefault, updateTick,
+        saveWorkingTemplate, updateDefaultTemplate, resetTemplateToDefault, applyFixture, exportAllSizes, updateTick,
         deleteDesign, exportAsFormat,
         addCustomFont, removeCustomFont, removeBackground, setBackgroundImage,
         showGrid, setShowGrid, isHelpOpen, setIsHelpOpen, enterCropMode, confirmCrop, cancelCrop, isCropMode, applyEdgeStroke, smartResize,

@@ -1,19 +1,49 @@
 "use client";
 
 import { useCanvas } from "@/store/useCanvasStore";
-import { Trash2, Save, Check, Folder, ChevronRight, Globe, Clock, RotateCcw, Undo2 } from "lucide-react";
+import { Trash2, Save, Check, Folder, ChevronRight, Globe, Clock, RotateCcw, Undo2, Download, CalendarClock } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
+
+const PERIODS = [
+    "END OF THE 1ST PERIOD",
+    "END OF THE 2ND PERIOD",
+    "FULL TIME",
+    "FINAL SCORE AFTER OVERTIME",
+    "FINAL SCORE AFTER A SHOOTOUT",
+];
 
 export default function TemplatePanel() {
     const {
         savedDesigns, setSavedDesigns, saveToTemplate, loadTemplate, deleteDesign,
         brandKits, canvasName, designName, setDesignName, currentDesignId,
         activeTemplate, saveWorkingTemplate, updateDefaultTemplate, resetTemplateToDefault,
+        applyFixture, exportAllSizes, canvas, forceUpdate,
     } = useCanvas() as any;
     const [savedTier, setSavedTier] = useState<string | null>(null);
     const flash = (t: string) => { setSavedTier(t); setTimeout(() => setSavedTier(null), 2000); };
 
     const activeDesign = activeTemplate ? savedDesigns.find((d: any) => d.id === activeTemplate.id) : null;
+
+    // --- fixtures ---
+    const [fixtures, setFixtures] = useState<{ upcoming: any[]; recent: any[] } | null>(null);
+    const [fxError, setFxError] = useState(false);
+    const [exporting, setExporting] = useState(false);
+    useEffect(() => {
+        if (!activeTemplate || fixtures) return;
+        fetch("/api/fixtures").then((r) => r.json()).then((d) => {
+            if (d.error) setFxError(true); else setFixtures(d);
+        }).catch(() => setFxError(true));
+    }, [activeTemplate, fixtures]);
+
+    const setPeriod = (text: string) => {
+        if (!canvas) return;
+        const o = (canvas.getObjects() as any[]).find((x) => x.name === "Period");
+        if (!o) return;
+        o.set("text", text);
+        canvas.requestRenderAll();
+        canvas.fire("object:modified", { target: o });
+        forceUpdate?.();
+    };
 
     const [selectedBrand, setSelectedBrand] = useState<string>("");
     const [selectedParent, setSelectedParent] = useState<string>("none");
@@ -119,6 +149,66 @@ export default function TemplatePanel() {
                         className="btn btn-ghost btn-sm mt-1.5 w-full text-text-mute"
                     >
                         {savedTier === "default" ? <><Check className="h-3.5 w-3.5" /> Default updated</> : <><Undo2 className="h-3.5 w-3.5" /> Update the default layout</>}
+                    </button>
+
+                    {/* This match — from nihlnational.com */}
+                    <div className="mt-3.5 border-t border-line pt-3">
+                        <p className="section-label"><CalendarClock className="h-3.5 w-3.5" /> This match</p>
+                        {fxError && <p className="text-[11px] text-text-mute">Couldn't reach the fixture list. Fill the details in by hand.</p>}
+                        {!fxError && !fixtures && <p className="text-[11px] text-text-mute">Loading fixtures…</p>}
+                        {fixtures && (
+                            <select
+                                className="field"
+                                defaultValue=""
+                                onChange={(e) => {
+                                    const all = [...(fixtures.upcoming || []), ...(fixtures.recent || [])];
+                                    const fx = all.find((f) => f.id === e.target.value);
+                                    if (fx) applyFixture(fx);
+                                }}
+                            >
+                                <option value="" disabled>Pick a Seahawks game…</option>
+                                {fixtures.upcoming?.length > 0 && (
+                                    <optgroup label="Upcoming">
+                                        {fixtures.upcoming.map((f) => (
+                                            <option key={f.id} value={f.id}>
+                                                {new Date(f.date + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" })} · {f.isHome ? "vs" : "@"} {f.opponent}
+                                            </option>
+                                        ))}
+                                    </optgroup>
+                                )}
+                                {fixtures.recent?.length > 0 && (
+                                    <optgroup label="Recent">
+                                        {fixtures.recent.map((f) => (
+                                            <option key={f.id} value={f.id}>
+                                                {new Date(f.date + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" })} · {f.isHome ? "vs" : "@"} {f.opponent} {f.score ? `(${f.score})` : ""}
+                                            </option>
+                                        ))}
+                                    </optgroup>
+                                )}
+                            </select>
+                        )}
+                        <p className="mt-1.5 text-[11px] text-text-mute">Sets opponent, crest, date, time and venue across every size.</p>
+                    </div>
+
+                    {/* Score Update — quick period labels */}
+                    {activeTemplate.id === "sh-tpl-score-update" && (
+                        <div className="mt-3.5 border-t border-line pt-3">
+                            <p className="section-label">Period</p>
+                            <div className="flex flex-wrap gap-1.5">
+                                {["End 1st", "End 2nd", "Full time", "After OT", "After SO"].map((label, i) => (
+                                    <button key={label} onClick={() => setPeriod(PERIODS[i])} className="chip">{label}</button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Batch export */}
+                    <button
+                        onClick={async () => { setExporting(true); try { await exportAllSizes(); } finally { setExporting(false); } }}
+                        disabled={exporting}
+                        className="btn btn-sm mt-3.5 w-full"
+                    >
+                        <Download className="h-3.5 w-3.5" /> {exporting ? "Exporting…" : "Export all sizes (PNG)"}
                     </button>
                 </div>
             )}
