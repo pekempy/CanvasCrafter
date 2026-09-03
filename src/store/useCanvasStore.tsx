@@ -333,6 +333,22 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         return () => { window.removeEventListener("resize", onResize); cancelAnimationFrame(raf); };
     }, [canvas, fitToScreen]);
 
+    // Reconnect the responsive-template session after an autosave restore
+    // (canvas already holds the design; just re-attach tier tracking + slots).
+    useEffect(() => {
+        if (!canvas || !currentDesignId) return;
+        if (activeTplRef.current?.id === currentDesignId) return;
+        const design = savedDesigns.find(d => d.id === currentDesignId);
+        if (design && isResponsive(design)) {
+            activeTplRef.current = {
+                id: design.id,
+                tier: tierOf(design),
+                slots: { ...(tierOf(design) === "working" && design.working ? design.working.slots : design.default.slots || {}), ...captureSlots(canvas) },
+            };
+            forceUpdate();
+        }
+    }, [canvas, currentDesignId, savedDesigns, forceUpdate]);
+
     const lastRemoteState = useRef<{ [key: string]: Set<string> }>({});
     const lastActionTime = useRef(0);
 
