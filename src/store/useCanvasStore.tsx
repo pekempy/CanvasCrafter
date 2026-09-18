@@ -55,6 +55,14 @@ export interface AssetFolder {
     updatedAt?: number;
 }
 
+export interface Player {
+    id: string;
+    name: string;
+    number: string;
+    position: string;
+    folderId?: string;
+    photoUrl?: string;
+}
 interface CanvasContextType {
     canvas: fabric.Canvas | null;
     setCanvas: (canvas: fabric.Canvas | null) => void;
@@ -163,7 +171,10 @@ interface CanvasContextType {
     setAssetFolders: (folders: AssetFolder[]) => void;
     templateFolders: { id: string; name: string; designIds: string[] }[];
     setTemplateFolders: (folders: { id: string; name: string; designIds: string[] }[]) => void;
-
+    roster: Player[];
+    setRoster: (roster: Player[]) => void;
+    addOrUpdatePlayer: (player: Player) => void;
+    deletePlayer: (id: string) => void;
     // Custom Fonts
     customFonts: { name: string; dataUrl: string }[];
     setCustomFonts: (fonts: { name: string; dataUrl: string }[]) => void;
@@ -202,6 +213,7 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         pexelsKey: '',
         pixabayKey: ''
     });
+    const [roster, setRoster] = useState<Player[]>([]);
     const [clipboard, setClipboard] = useState<any>(null);
     const [presets, setPresets] = useState<{ id: string; name: string; width: number; height: number; iconType?: string }[]>([
         { id: "insta", name: "Instagram", width: 1080, height: 1080, iconType: 'instagram' },
@@ -359,9 +371,8 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
             const authRes = await fetch('/api/auth/status').then(r => r.json().catch(() => null));
             if (authRes?.username) setCurrentUser(authRes.username);
 
-            const keys = ["designs", "brandkits", "folders", "canvas_size", "custom_fonts", "presets", "template_folders", "canvas_name", "api_config", "theme"];
+            const keys = ["designs", "brandkits", "folders", "canvas_size", "custom_fonts", "presets", "template_folders", "canvas_name", "api_config", "theme", "roster"];
             const results = await Promise.all(keys.map(k => fetch(`/api/storage?key=${k}`).then(r => r.json().catch(() => null))));
-
             // Bootstrap the Hull Seahawks pack (templates + club kits + sizes) on a fresh install,
             // keeping anything the user already made.
             let designsData: any[] = Array.isArray(results[0]) ? results[0] : [];
@@ -399,7 +410,7 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
             if (results[7]) setCanvasName(results[7]);
             if (results[8]) setApiConfig(prev => ({ ...prev, ...results[8] }));
             if (results[9]) setTheme(results[9]);
-
+            if (results[10] && Array.isArray(results[10])) setRoster(results[10]);
             isLoaded.current = true;
             console.log("[Store] Initial load complete. Owner:", authRes?.username);
         };
@@ -502,7 +513,7 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         if (!isLoaded.current) return;
 
         // Use a hidden string ref to prevent infinite POST loops during polling
-        const currentDataString = JSON.stringify({ brandKits, assetFolders, canvasSize, customFonts, presets, templateFolders, canvasName, apiConfig, theme, savedDesigns });
+        const currentDataString = JSON.stringify({ brandKits, assetFolders, canvasSize, customFonts, presets, templateFolders, canvasName, apiConfig, theme, savedDesigns, roster });
         if ((window as any).__lastSyncedData === currentDataString) return;
         (window as any).__lastSyncedData = currentDataString;
 
@@ -519,7 +530,8 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         fetch("/api/storage?key=api_config", { method: 'POST', body: JSON.stringify(apiConfig) }).catch(() => { });
         fetch("/api/storage?key=theme", { method: 'POST', body: JSON.stringify(theme) }).catch(() => { });
         fetch("/api/storage?key=designs", { method: 'POST', body: JSON.stringify(savedDesigns) }).catch(() => { });
-    }, [brandKits, assetFolders, canvasSize, customFonts, presets, templateFolders, canvasName, apiConfig, theme, savedDesigns]);
+        fetch("/api/storage?key=roster", { method: 'POST', body: JSON.stringify(roster) }).catch(() => { });
+    }, [brandKits, assetFolders, canvasSize, customFonts, presets, templateFolders, canvasName, apiConfig, theme, savedDesigns, roster]);
 
     // Global Event Listeners (Moved to bottom of Provider)
 
@@ -849,6 +861,21 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
             console.error("[Store] Preset deletion failed:", e);
         }
     }, [presets]);
+    const addOrUpdatePlayer = useCallback((player: Player) => {
+        setRoster((prev) => {
+            const idx = prev.findIndex((p) => p.id === player.id);
+            if (idx >= 0) {
+                const next = [...prev];
+                next[idx] = player;
+                return next;
+            }
+            return [...prev, player];
+        });
+    }, []);
+
+    const deletePlayer = useCallback((id: string) => {
+        setRoster((prev) => prev.filter((p) => p.id !== id));
+    }, []);
 
     const deleteDesign = useCallback(async (id: string) => {
         console.log("[Store] Deleting design:", id);
@@ -1895,9 +1922,8 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
 
     const [isDrawingMode, setIsDrawingMode] = useState(false);
     const [brushSize, setBrushSize] = useState(5);
-    const [brushColor, setBrushColor] = useState("#3b82f6");
-    const [brushSmoothing, setBrushSmoothing] = useState(25);
-
+    const [brushColor, setBrushColor] = useState("#ffffff");
+    const [brushSmoothing, setBrushSmoothing] = useState(0.2);
     const contextValue = useMemo(() => ({
         canvas, selectedObject, theme, canvasSize, zoom, panOffset, fitToScreen,
         currentUser, setCurrentUser,
@@ -1931,6 +1957,7 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
                 hasWorking: !!(savedDesigns.find(d => d.id === activeTplRef.current!.id)?.working?.layouts) }
             : null,
         deleteDesign, exportAsFormat,
+        roster, setRoster, addOrUpdatePlayer, deletePlayer,
         setCanvas, setTheme, setCanvasSize, setZoom, setPanOffset,
         savingAssetUrl, setSavingAssetUrl
     }), [
@@ -1938,6 +1965,7 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         currentUser, setCurrentUser,
         updateTick, forceUpdate, savedDesigns, setSavedDesigns, canvasName, setCanvasName,
         brandKits, setBrandKits, assetFolders, setAssetFolders, templateFolders, setTemplateFolders,
+        roster, addOrUpdatePlayer, deletePlayer,
         designName, setDesignName,
         currentDesignId, setCurrentDesignId,
         customFonts, setCustomFonts, history.length, redoStack.length, apiConfig, setApiConfig, presets,

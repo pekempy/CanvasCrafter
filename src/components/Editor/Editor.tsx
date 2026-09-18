@@ -45,12 +45,15 @@ import PropertyBar from "@/components/Editor/PropertyBar";
 import CustomColorPicker from "@/components/Editor/CustomColorPicker";
 import BrandShortcuts from "@/components/Editor/BrandShortcuts";
 import QuickSwapPanel from "@/components/Editor/QuickSwapPanel";
+import RosterPanel from "@/components/Editor/RosterPanel";
+import { Users } from "lucide-react";
 
-type SidebarTab = "templates" | "assets" | "text" | "shapes" | "layers" | "brands" | "settings" | "swap";
+type SidebarTab = "templates" | "assets" | "text" | "shapes" | "layers" | "brands" | "settings" | "swap" | "roster";
 
 const NAV: { tab: SidebarTab; label: string; icon: React.ReactNode }[] = [
     { tab: "templates", label: "Templates", icon: <LayoutTemplate className="h-[18px] w-[18px]" /> },
     { tab: "swap", label: "Swap", icon: <Replace className="h-[18px] w-[18px]" /> },
+    { tab: "roster", label: "Roster", icon: <Users className="h-[18px] w-[18px]" /> },
     { tab: "brands", label: "Brands", icon: <Palette className="h-[18px] w-[18px]" /> },
     { tab: "text", label: "Text", icon: <Type className="h-[18px] w-[18px]" /> },
     { tab: "assets", label: "Assets", icon: <ImageIcon className="h-[18px] w-[18px]" /> },
@@ -249,6 +252,7 @@ function EditorContent({ username }: { username?: string }) {
                     />
                     {activeTab === "templates" && <TemplatePanel />}
                     {activeTab === "swap" && <QuickSwapPanel />}
+                    {activeTab === "roster" && <RosterPanel />}
                     {activeTab === "brands" && <BrandPanel />}
                     {activeTab === "settings" && <SettingsPanel />}
                     {activeTab === "assets" && <AssetPanel />}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCanvas } from "@/store/useCanvasStore";
-import { Replace, Type, Image as ImageIcon, Palette, ALargeSmall, Crosshair, Upload, Folder, Shield, Search, X } from "lucide-react";
+import { Replace, Type, Image as ImageIcon, Palette, ALargeSmall, Crosshair, Upload, Folder, Shield, Search, X, Users } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import WebFont from "webfontloader";
 import CustomColorPicker from "@/components/Editor/CustomColorPicker";
@@ -37,7 +37,7 @@ function Section({ icon, title, count, children }: { icon: React.ReactNode; titl
 }
 
 export default function QuickSwapPanel() {
-    const { canvas, updateTick, forceUpdate, brandKits, assetFolders, savedDesigns, currentDesignId } = useCanvas() as any;
+    const { canvas, updateTick, forceUpdate, brandKits, assetFolders, savedDesigns, currentDesignId, roster } = useCanvas() as any;
     const [, bump] = useState(0);
     const rerender = () => bump((v) => v + 1);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -49,6 +49,8 @@ export default function QuickSwapPanel() {
     const [filterBrandId, setFilterBrandId] = useState<string>("all");
     const [filterFolderId, setFilterFolderId] = useState<string>("all");
     const [assetSearch, setAssetSearch] = useState<string>("");
+    const [selectedPlayerId, setSelectedPlayerId] = useState<string>("");
+    const [selectedPlayerPhotoUrl, setSelectedPlayerPhotoUrl] = useState<string>("");
     useEffect(() => {
         if (!canvas) return;
         const h = () => rerender();
@@ -164,6 +166,78 @@ export default function QuickSwapPanel() {
         commit(obj);
     };
 
+    // Automagically swap a player across all matching slots/elements
+    const swapPlayer = async (player: any, chosenPhotoUrl?: string) => {
+        if (!canvas || !player) return;
+
+        const photoToUse = chosenPhotoUrl || player.photoUrl || (player.folderId && assetFolders.find((f: any) => f.id === player.folderId)?.assets?.[0]?.url) || "";
+        const playerName = player.name || "";
+        const playerNum = player.number || "";
+        const playerPos = player.position || "";
+
+        const allObjects = canvas.getObjects() as AnyObj[];
+
+        // 1. Identify text elements that match player patterns
+        allObjects.forEach((o) => {
+            if (!isText(o)) return;
+            const name = (o.name || "").trim().toLowerCase();
+            const currentText = (o.text || "").trim();
+
+            // Explicit layer name matches
+            if (name === "player name" || name === "player" || name === "name" || name === "player 1" || name === "players") {
+                o.set("text", playerName.toUpperCase());
+            } else if (name === "squad number" || name === "number" || name === "player number" || name === "#" || name === "big number 1") {
+                o.set("text", playerNum);
+            } else if (name === "position" || name === "player position") {
+                o.set("text", playerPos.toUpperCase());
+            }
+            // Heuristic detection based on current content if layer name is unset
+            else if (!o.name || o.name === "text" || o.name === "textbox") {
+                // If it looks like a jersey number (e.g. "6", "#6", "74", "#74")
+                if (/^#?\d{1,2}$/.test(currentText) && playerNum) {
+                    const hasHash = currentText.startsWith("#");
+                    o.set("text", hasHash ? `#${playerNum}` : playerNum);
+                }
+                // If text looks like a full player name or uppercase name
+                else if (roster && roster.some((p: any) => p.name && (currentText.toLowerCase() === p.name.toLowerCase() || p.name.toLowerCase().includes(currentText.toLowerCase())))) {
+                    o.set("text", currentText === currentText.toUpperCase() ? playerName.toUpperCase() : playerName);
+                }
+            }
+        });
+
+        // 2. Identify image elements that match player photo
+        if (photoToUse) {
+            const playerImages = allObjects.filter((o) => {
+                if (!isImage(o)) return false;
+                const name = (o.name || "").trim().toLowerCase();
+                if (name === "player photo" || name === "player" || name === "photo" || name === "player 1 photo" || name === "headshot") {
+                    return true;
+                }
+                return false;
+            });
+
+            // If explicit player images were found, update them
+            if (playerImages.length > 0) {
+                for (const imgObj of playerImages) {
+                    await setImageFromUrl(imgObj, photoToUse);
+                }
+            } else {
+                // Fallback: If there's an image that isn't a crest/logo/background, or if user selected one
+                const candidate = allObjects.find((o) => {
+                    if (!isImage(o)) return false;
+                    const name = (o.name || "").toLowerCase();
+                    return !name.includes("logo") && !name.includes("crest") && !name.includes("sponsor") && !name.includes("background");
+                });
+                if (candidate) {
+                    await setImageFromUrl(candidate, photoToUse);
+                }
+            }
+        }
+
+        canvas.requestRenderAll();
+        commit();
+    };
+
     const imgThumb = (o: AnyObj): string => {
         try { return o.getSrc?.() || o._element?.currentSrc || o._element?.src || ""; } catch { return ""; }
     };
@@ -199,7 +273,74 @@ export default function QuickSwapPanel() {
                 {objects.length === 0 && (
                     <p className="text-[12px] text-text-mute text-center py-14">Nothing on the canvas yet.</p>
                 )}
+                {/* Automagic Player Swap */}
+                {roster && roster.length > 0 && (
+                    <Section icon={<Users className="h-3.5 w-3.5 text-gold" />} title="Player Swap" count={roster.length}>
+                        <div className="rounded-app border border-line bg-surface-2 p-3 space-y-3">
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-semibold uppercase text-text-mute flex items-center justify-between">
+                                    <span>Choose Player</span>
+                                    <span className="text-gold font-normal lowercase">auto-fills name, #, photo</span>
+                                </label>
+                                <select
+                                    value={selectedPlayerId}
+                                    onChange={(e) => {
+                                        const pId = e.target.value;
+                                        setSelectedPlayerId(pId);
+                                        const p = roster.find((r: any) => r.id === pId);
+                                        if (p) {
+                                            const defaultPhoto = p.photoUrl || (p.folderId && assetFolders.find((f: any) => f.id === p.folderId)?.assets?.[0]?.url) || "";
+                                            setSelectedPlayerPhotoUrl(defaultPhoto);
+                                            swapPlayer(p, defaultPhoto);
+                                        }
+                                    }}
+                                    className="w-full rounded-md border border-line bg-white/5 px-2.5 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-gold cursor-pointer"
+                                >
+                                    <option value="" disabled className="bg-[#16191f]">Select a player to swap...</option>
+                                    {roster
+                                        .slice()
+                                        .sort((a: any, b: any) => (parseInt(a.number) || 999) - (parseInt(b.number) || 999))
+                                        .map((p: any) => (
+                                            <option key={p.id} value={p.id} className="bg-[#16191f]">
+                                                {p.number ? `#${p.number} ` : ""}{p.name} ({p.position || "Forward"})
+                                            </option>
+                                        ))}
+                                </select>
+                            </div>
 
+                            {/* Player Photo variant picker if selected player has multiple photos */}
+                            {(() => {
+                                const p = roster.find((r: any) => r.id === selectedPlayerId);
+                                if (!p || !p.folderId) return null;
+                                const fol = assetFolders.find((f: any) => f.id === p.folderId);
+                                if (!fol || fol.assets.length <= 1) return null;
+
+                                return (
+                                    <div className="space-y-1.5 pt-1 border-t border-line">
+                                        <label className="text-[9px] font-semibold uppercase text-text-mute">
+                                            Switch Photo Pose / Cutout ({fol.assets.length} available)
+                                        </label>
+                                        <div className="grid grid-cols-5 gap-1.5 max-h-24 overflow-y-auto p-1 bg-white/5 rounded-md border border-line">
+                                            {fol.assets.map((asset: any) => (
+                                                <button
+                                                    key={asset.id}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setSelectedPlayerPhotoUrl(asset.url);
+                                                        swapPlayer(p, asset.url);
+                                                    }}
+                                                    className={`relative aspect-square rounded overflow-hidden border transition-all ${selectedPlayerPhotoUrl === asset.url ? 'border-gold ring-1 ring-gold' : 'border-line opacity-60 hover:opacity-100'}`}
+                                                >
+                                                    <img src={asset.url} alt="" className="h-full w-full object-cover" />
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+                        </div>
+                    </Section>
+                )}
                 {images.length > 0 && (
                     <Section icon={<ImageIcon className="h-3.5 w-3.5" />} title="Images" count={images.length}>
                         {images.map((o, i) => (
