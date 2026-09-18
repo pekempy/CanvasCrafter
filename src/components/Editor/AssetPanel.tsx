@@ -13,6 +13,7 @@ import CustomAssetItem from "./CustomAssetItem";
 export default function AssetPanel() {
     const { addImage, assetFolders, setAssetFolders, maskShapeWithImage, selectedObject, brandKits, setBrandKits, apiConfig, setBackgroundImage, currentUser } = useCanvas();
     const [isUploading, setIsUploading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);
     const [activeTab, setActiveTab] = useState<"library" | "stock" | "clipart">("library");
     const [activeFolderId, setActiveFolderId] = useState("default");
     const [stockSearch, setStockSearch] = useState("");
@@ -241,58 +242,83 @@ export default function AssetPanel() {
         maskShapeWithImage(selectedObject, photo.urls.regular);
     };
 
-    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files ? Array.from(e.target.files) : [];
+        if (files.length === 0) return;
+        // Reset input immediately so the same files can be re-selected if needed
+        e.target.value = "";
+
         setIsUploading(true);
-        const reader = new FileReader();
-        reader.onload = async (event) => {
-            const dataUrl = event.target?.result as string;
-            const assetId = Date.now();
-            let finalUrl = dataUrl;
+        setUploadProgress({ current: 0, total: files.length });
 
+        const readFileAsDataUrl = (file: File): Promise<string> => {
+            const { promise, resolve, reject } = Promise.withResolvers<string>();
+            const reader = new FileReader();
+            reader.onload = (event) => resolve(event.target?.result as string);
+            reader.onerror = (err) => reject(err);
+            reader.readAsDataURL(file);
+            return promise;
+        };
+
+        // Determine target visibility based on global brand linkage
+        const isLinkedToGlobal = brandKits.some(k => k.assetFolderIds?.includes(activeFolderId) && (k as any).visibility === 'global');
+        const currentFolder = assetFolders.find(f => f.id === activeFolderId);
+        const nextVisibility = isLinkedToGlobal ? 'global' : (currentFolder?.visibility || 'private');
+
+        const newAssets: any[] = [];
+
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            setUploadProgress({ current: i + 1, total: files.length });
             try {
-                const res = await fetch('/api/images', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        id: assetId.toString(),
-                        url: dataUrl,
-                        metadata: { folderId: activeFolderId }
-                    })
-                });
-                const data = await res.json();
-                if (data.url) finalUrl = data.url;
-            } catch (e) {
-                console.error("Failed to upload image during manual upload", e);
-            }
+                const dataUrl = await readFileAsDataUrl(file);
+                const assetId = Date.now() + i;
+                let finalUrl = dataUrl;
 
+                try {
+                    const res = await fetch('/api/images', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            id: assetId.toString(),
+                            url: dataUrl,
+                            metadata: { folderId: activeFolderId }
+                        })
+                    });
+                    const data = await res.json();
+                    if (data.url) finalUrl = data.url;
+                } catch (err) {
+                    console.error("Failed to upload image to server", err);
+                }
+
+                newAssets.push({
+                    id: assetId,
+                    url: finalUrl,
+                    owner: currentUser || undefined,
+                    visibility: nextVisibility
+                });
+            } catch (err) {
+                console.error("Failed to read file", file.name, err);
+            }
+        }
+
+        if (newAssets.length > 0) {
             const updated = assetFolders.map(f => {
                 if (f.id === activeFolderId) {
-                    // Check if this folder is linked to any global brand
-                    const isLinkedToGlobal = brandKits.some(k => k.assetFolderIds?.includes(activeFolderId) && (k as any).visibility === 'global');
-                    const nextVisibility = isLinkedToGlobal ? 'global' : (f.visibility || 'private');
-
                     return {
                         ...f,
-                        assets: [{
-                            id: assetId,
-                            url: finalUrl,
-                            owner: currentUser || undefined,
-                            visibility: nextVisibility
-                        }, ...f.assets],
+                        assets: [...newAssets, ...f.assets],
                         updatedAt: Date.now()
                     };
                 }
                 return f;
             });
             setAssetFolders(updated);
-            addImage(finalUrl);
-            setIsUploading(false);
-        };
-        reader.readAsDataURL(file);
-    };
+        }
 
+        setIsUploading(false);
+        setUploadProgress(null);
+    };
     return (
         <div className="flex h-full w-full flex-col bg-[16191f]">
             {/* Tabs */}
@@ -647,15 +673,32 @@ export default function AssetPanel() {
                             )}
                         </div>
 
-                        <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={handleFileUpload}
+                            className="hidden"
+                            multiple
+                            accept="image/*"
+                        />
                         <button
                             onClick={() => fileInputRef.current?.click()}
-                            className="w-full py-8 mb-6 rounded-lg border-2 border-dashed border-line hover:border-gold/50 hover:bg-gold/5 transition-all flex flex-col items-center justify-center gap-3 group shrink-0"
+                            disabled={isUploading}
+                            className="w-full py-8 mb-6 rounded-lg border-2 border-dashed border-line hover:border-gold/50 hover:bg-gold/5 transition-all flex flex-col items-center justify-center gap-3 group shrink-0 disabled:opacity-60 disabled:pointer-events-none"
                         >
                             <div className="p-3 rounded-full bg-white/5 group-hover:bg-gold/10 transition-colors">
-                                <Upload className="h-5 w-5 text-text-mute group-hover:text-gold" />
+                                {isUploading ? (
+                                    <Loader2 className="h-5 w-5 text-gold animate-spin" />
+                                ) : (
+                                    <Upload className="h-5 w-5 text-text-mute group-hover:text-gold" />
+                                )}
                             </div>
-                            <p className="text-[10px] font-semibold uppercase tracking-normal text-text-dim group-hover:text-gold">Upload to {assetFolders.find(f => f.id === activeFolderId)?.name}</p>
+                            <p className="text-[10px] font-semibold uppercase tracking-normal text-text-dim group-hover:text-gold">
+                                {isUploading && uploadProgress
+                                    ? `Uploading ${uploadProgress.current} of ${uploadProgress.total}...`
+                                    : `Upload to ${assetFolders.find(f => f.id === activeFolderId)?.name || "Folder"}`}
+                            </p>
+                            <p className="text-[8px] text-text-mute font-medium">Select multiple images to bulk upload</p>
                         </button>
 
                         <div className="flex items-center gap-2 mb-3 px-1">
