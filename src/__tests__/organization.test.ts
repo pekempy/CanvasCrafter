@@ -46,4 +46,49 @@ describe('Organization Logic', () => {
         expect(filtered.map(f => f.id)).toContain(1);
         expect(filtered.map(f => f.id)).toContain(3);
     });
+
+    test('should support nested subfolders with parentId', () => {
+        interface TestFolder {
+            id: string;
+            name: string;
+            parentId?: string;
+            assets: { id: number; url: string }[];
+        }
+
+        const folders: TestFolder[] = [
+            { id: 'parent-1', name: 'Seahawks - Players', assets: [] },
+            { id: 'sub-1', name: '6 - Ethan Hehir', parentId: 'parent-1', assets: [{ id: 101, url: 'ethan.png' }] },
+            { id: 'sub-2', name: '74 - Player B', parentId: 'parent-1', assets: [{ id: 102, url: 'playerb.png' }] },
+            { id: 'other-1', name: 'Seahawks - Logos', assets: [{ id: 103, url: 'logo.png' }] }
+        ];
+
+        // Helper function matching the one in AssetPanel.tsx
+        const getDescendantFolderIds = (folderId: string): string[] => {
+            const childIds = folders.filter(f => f.parentId === folderId).map(f => f.id);
+            return [folderId, ...childIds.flatMap(getDescendantFolderIds)];
+        };
+
+        // Selecting parent folder should aggregate its assets and all subfolder assets
+        const parentTargetIds = new Set(getDescendantFolderIds('parent-1'));
+        expect(parentTargetIds).toContain('parent-1');
+        expect(parentTargetIds).toContain('sub-1');
+        expect(parentTargetIds).toContain('sub-2');
+        expect(parentTargetIds).not.toContain('other-1');
+
+        const parentAssets = folders
+            .filter(f => parentTargetIds.has(f.id))
+            .flatMap(f => f.assets);
+        expect(parentAssets).toHaveLength(2);
+        expect(parentAssets.map(a => a.id)).toEqual([101, 102]);
+
+        // Selecting subfolder should only include its own assets
+        const subTargetIds = new Set(getDescendantFolderIds('sub-1'));
+        expect(subTargetIds).toContain('sub-1');
+        expect(subTargetIds).not.toContain('parent-1');
+        const subAssets = folders
+            .filter(f => subTargetIds.has(f.id))
+            .flatMap(f => f.assets);
+        expect(subAssets).toHaveLength(1);
+        expect(subAssets[0].id).toBe(101);
+    });
 });

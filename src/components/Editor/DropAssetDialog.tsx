@@ -99,9 +99,19 @@ export default function DropAssetDialog({
                                     className="w-full bg-white/5 border border-line rounded-md px-4 py-4 text-xs font-bold text-white focus:outline-none focus:ring-2 focus:ring-gold/40 appearance-none transition-all hover:bg-white/10"
                                 >
                                     <option value="default">📂 Default Folder</option>
-                                    {availableFolders.filter(f => f.id !== 'default').map(folder => (
-                                        <option key={folder.id} value={folder.id}>📂 {folder.name}</option>
-                                    ))}
+                                    {(() => {
+                                        const nonDefault = availableFolders.filter(f => f.id !== 'default');
+                                        const renderFolderOptions = (parentId?: string, depth = 0): React.ReactNode[] => {
+                                            const items = nonDefault.filter(f => (f.parentId || undefined) === parentId);
+                                            return items.flatMap(f => [
+                                                <option key={f.id} value={f.id}>
+                                                    {depth > 0 ? `${'\u00A0'.repeat(depth * 2)}↳ ` : ''}📂 {f.name}
+                                                </option>,
+                                                ...renderFolderOptions(f.id, depth + 1)
+                                            ]);
+                                        };
+                                        return renderFolderOptions(undefined, 0);
+                                    })()}
                                 </select>
                             </div>
 

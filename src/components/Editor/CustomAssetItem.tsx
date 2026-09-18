@@ -230,11 +230,18 @@ export default function CustomAssetItem({ asset, folderId }: { asset: CustomAsse
                                     }}
                                 >
                                     <option value="move" disabled>MOVE...</option>
-                                    {assetFolders.map(f => (
-                                        <option key={f.id} value={(f as any).originalId || f.id} className="bg-[16191f] text-text-dim py-1">
-                                            {f.name}
-                                        </option>
-                                    ))}
+                                    {(() => {
+                                        const renderFolderOptions = (parentId?: string, depth = 0): React.ReactNode[] => {
+                                            const items = assetFolders.filter(f => (f.parentId || undefined) === parentId);
+                                            return items.flatMap(f => [
+                                                <option key={f.id} value={(f as any).originalId || f.id} className="bg-[#16191f] text-text-dim py-1">
+                                                    {depth > 0 ? `${'\u00A0'.repeat(depth * 2)}↳ ` : ''}{f.name}
+                                                </option>,
+                                                ...renderFolderOptions(f.id, depth + 1)
+                                            ]);
+                                        };
+                                        return renderFolderOptions(undefined, 0);
+                                    })()}
                                 </select>
                                 <div className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none text-gold">
                                     <Folder className="h-2.5 w-2.5" />

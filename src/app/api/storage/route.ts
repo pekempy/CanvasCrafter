@@ -225,14 +225,24 @@ export async function GET(request: Request) {
                             b.assetFolderIds.forEach((id: string) => globalFolderIds.add(id));
                         }
                     });
+                    // Expand globalFolderIds to include all descendant subfolders
+                    let expanded = true;
+                    while (expanded) {
+                        expanded = false;
+                        for (const folder of jsonData) {
+                            if (folder.parentId && globalFolderIds.has(folder.parentId) && !globalFolderIds.has(folder.id)) {
+                                globalFolderIds.add(folder.id);
+                                expanded = true;
+                            }
+                        }
+                    }
 
                     for (const folder of jsonData) {
-                        const isGlobalFolder = globalFolderIds.has(folder.id);
+                        const isGlobalFolder = globalFolderIds.has(folder.id) || (folder.originalId && globalFolderIds.has(folder.originalId));
                         if (isGlobalFolder && folder.visibility !== 'global') {
                             folder.visibility = 'global';
                             synced = true;
                         }
-
                         if (folder.assets && Array.isArray(folder.assets)) {
                             for (const asset of folder.assets) {
                                 if ((isGlobalFolder || (asset.brandId && globalBrandIds.has(asset.brandId))) && asset.visibility !== 'global') {
@@ -347,9 +357,16 @@ export async function GET(request: Request) {
                                 // Skip if the exact folder is already in the filtered list
                                 if (filtered.some((f: any) => f.id === folder.id && f.owner === folder.owner)) return;
 
-                                // Is the entire folder linked to a visible brand?
-                                const isLinkedFolder = brands.some((b: any) => visibleBrandIds.has(b.id) && b.assetFolderIds?.includes(folder.id));
-
+                                // Is the folder or any ancestor linked to a visible brand?
+                                const isFolderOrAncestorLinked = (f: any): boolean => {
+                                    if (brands.some((b: any) => visibleBrandIds.has(b.id) && b.assetFolderIds?.includes(f.id))) return true;
+                                    if (f.parentId) {
+                                        const parent = jsonData.find((p: any) => p.id === f.parentId);
+                                        if (parent) return isFolderOrAncestorLinked(parent);
+                                    }
+                                    return false;
+                                };
+                                const isLinkedFolder = isFolderOrAncestorLinked(folder);
                                 // Look for explicitly tagged individual assets OR orphaned assets sitting in 'default' that belong to linked folders
                                 const explicitAssets = (folder.assets || []).filter((asset: any) => {
                                     const explicitBrand = asset.brandId && visibleBrandIds.has(asset.brandId);
@@ -507,17 +524,28 @@ export async function POST(request: Request) {
                     }
                 });
 
+                // Expand globalFolderIds to include all descendant subfolders
+                let expanded = true;
+                while (expanded) {
+                    expanded = false;
+                    for (const folder of folders) {
+                        if (folder.parentId && globalFolderIds.has(folder.parentId) && !globalFolderIds.has(folder.id)) {
+                            globalFolderIds.add(folder.id);
+                            expanded = true;
+                        }
+                    }
+                }
+
                 let foldersChanged = false;
 
                 for (const folder of folders) {
-                    const isGlobalFolder = globalFolderIds.has(folder.id) || globalFolderIds.has(folder.originalId);
+                    const isGlobalFolder = globalFolderIds.has(folder.id) || (folder.originalId && globalFolderIds.has(folder.originalId));
                     const targetFolderVisibility = isGlobalFolder ? 'global' : 'private';
 
                     if (folder.id !== 'default' && folder.visibility !== targetFolderVisibility) {
                         folder.visibility = targetFolderVisibility;
                         foldersChanged = true;
                     }
-
                     if (folder.assets && Array.isArray(folder.assets)) {
                         for (const asset of folder.assets) {
                             const isGlobalAsset = isGlobalFolder || (asset.brandId && globalBrandIds.has(asset.brandId));

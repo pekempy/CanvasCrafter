@@ -51,8 +51,14 @@ export default function AssetPanel() {
         } else if (activeFolderId === "default") {
             sourceAssets = assetFolders.flatMap(f => f.assets.map(a => ({ ...a, folderId: f.id })));
         } else {
-            const folder = assetFolders.find(f => f.id === activeFolderId);
-            if (folder) sourceAssets = folder.assets.map(a => ({ ...a, folderId: activeFolderId }));
+            // Find the selected folder and all its descendant subfolders
+            const getDescendantFolderIds = (folderId: string): string[] => {
+                const childIds = assetFolders.filter(f => f.parentId === folderId).map(f => f.id);
+                return [folderId, ...childIds.flatMap(getDescendantFolderIds)];
+            };
+            const targetFolderIds = new Set(getDescendantFolderIds(activeFolderId));
+            const relevantFolders = assetFolders.filter(f => targetFolderIds.has(f.id));
+            sourceAssets = relevantFolders.flatMap(f => f.assets.map(a => ({ ...a, folderId: f.id })));
         }
 
         // Deduplicate by string ID to catch duplicates across folders or type mismatches
@@ -65,7 +71,6 @@ export default function AssetPanel() {
 
         return Array.from(uniqueAssets.values());
     }, [assetFolders, activeFolderId]);
-
     const filteredAssets = useMemo(() => {
         let results = assetsToDisplay;
 
@@ -460,13 +465,20 @@ export default function AssetPanel() {
                                         onChange={(e) => setActiveFolderId(e.target.value)}
                                         className="w-full bg-white/10 text-xs font-semibold uppercase tracking-normal text-white border border-line rounded-xl pl-3 pr-10 py-2 focus:outline-none focus:ring-2 focus:ring-gold/40 appearance-none transition-all hover:bg-white/20"
                                     >
-                                        <option value="favorites" className="bg-[16191f]">Favourite Assets</option>
+                                        <option value="favorites" className="bg-[#16191f]">Favourite Assets</option>
                                         <hr className="border-line" />
-                                        {assetFolders.map(f => (
-                                            <option key={f.id} value={f.id} className="bg-[16191f]">
-                                                {f.name}
-                                            </option>
-                                        ))}
+                                        {(() => {
+                                            const renderFolderOptions = (parentId?: string, depth = 0): React.ReactNode[] => {
+                                                const items = assetFolders.filter(f => (f.parentId || undefined) === parentId);
+                                                return items.flatMap(f => [
+                                                    <option key={f.id} value={f.id} className="bg-[#16191f]">
+                                                        {depth > 0 ? `${'\u00A0\u00A0'.repeat(depth)}↳ ` : ''}{f.name}
+                                                    </option>,
+                                                    ...renderFolderOptions(f.id, depth + 1)
+                                                ]);
+                                            };
+                                            return renderFolderOptions(undefined, 0);
+                                        })()}
                                     </select>
                                     <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-text-mute pointer-events-none" />
                                 </div>
@@ -474,7 +486,7 @@ export default function AssetPanel() {
                                     onClick={() => {
                                         const name = prompt("Enter new folder name:");
                                         if (name) {
-                                            const newId = Math.random().toString(36).substr(2, 9);
+                                            const newId = Math.random().toString(36).substring(2, 11);
                                             setAssetFolders([...assetFolders, {
                                                 id: newId,
                                                 name,
@@ -491,7 +503,33 @@ export default function AssetPanel() {
                                 >
                                     <FolderPlus className="h-4 w-4" />
                                 </button>
-                                {activeFolderId !== "default" && (
+                                {activeFolderId !== "default" && activeFolderId !== "favorites" && (
+                                    <button
+                                        onClick={() => {
+                                            const parentFolder = assetFolders.find(f => f.id === activeFolderId);
+                                            const name = prompt(`Enter new sub-folder name inside "${parentFolder?.name}":`);
+                                            if (name) {
+                                                const newId = Math.random().toString(36).substring(2, 11);
+                                                const parentVisibility = parentFolder?.visibility || 'private';
+                                                setAssetFolders([...assetFolders, {
+                                                    id: newId,
+                                                    name,
+                                                    parentId: activeFolderId,
+                                                    assets: [],
+                                                    owner: currentUser || undefined,
+                                                    visibility: parentVisibility,
+                                                    updatedAt: Date.now()
+                                                }]);
+                                                setActiveFolderId(newId);
+                                            }
+                                        }}
+                                        className="p-2 bg-white/10 text-gold rounded-xl hover:bg-white/20 transition-colors"
+                                        title="Create Sub-folder"
+                                    >
+                                        <Plus className="h-4 w-4" />
+                                    </button>
+                                )}
+                                {activeFolderId !== "default" && activeFolderId !== "favorites" && (
                                     <>
                                         <button
                                             onClick={() => {
@@ -509,7 +547,13 @@ export default function AssetPanel() {
                                         <button
                                             onClick={() => {
                                                 if (confirmingFolderDeleteId === activeFolderId) {
-                                                    setAssetFolders(assetFolders.filter(f => f.id !== activeFolderId));
+                                                    // Also remove any subfolders recursively
+                                                    const getDescendantIds = (fid: string): string[] => {
+                                                        const children = assetFolders.filter(f => f.parentId === fid).map(f => f.id);
+                                                        return [fid, ...children.flatMap(getDescendantIds)];
+                                                    };
+                                                    const toDelete = new Set(getDescendantIds(activeFolderId));
+                                                    setAssetFolders(assetFolders.filter(f => !toDelete.has(f.id)));
                                                     setActiveFolderId("default");
                                                     setConfirmingFolderDeleteId(null);
                                                 } else {
@@ -530,6 +574,22 @@ export default function AssetPanel() {
                                 )}
                             </div>
 
+                            {/* Subfolder Parent indicator / navigation breadcrumb */}
+                            {(() => {
+                                const current = assetFolders.find(f => f.id === activeFolderId);
+                                if (!current || !current.parentId) return null;
+                                const parent = assetFolders.find(f => f.id === current.parentId);
+                                if (!parent) return null;
+                                return (
+                                    <div className="flex items-center gap-1 text-[9px] font-medium text-text-mute px-1">
+                                        <span className="text-text-dim truncate cursor-pointer hover:text-gold transition-colors" onClick={() => setActiveFolderId(parent.id)}>
+                                            {parent.name}
+                                        </span>
+                                        <ChevronRight className="h-2.5 w-2.5 shrink-0" />
+                                        <span className="text-white font-bold truncate">{current.name}</span>
+                                    </div>
+                                );
+                            })()}
                             {/* Brand Kit Linking */}
                             {activeFolderId !== "default" && (
                                 <div className="flex items-center gap-2 mt-1 px-1">

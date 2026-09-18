@@ -48,6 +48,7 @@ export interface CustomAsset {
 export interface AssetFolder {
     id: string;
     name: string;
+    parentId?: string;
     assets: CustomAsset[];
     owner?: string;
     visibility?: 'private' | 'global';

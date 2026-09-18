@@ -296,11 +296,21 @@ export default function BrandPanel() {
                         const uniqueAssets = new Map<string, { asset: any, folder: any }>();
                         const searchTerms = assetSearch.toLowerCase().trim().split(/\s+/).filter(Boolean);
 
+                        // Helper to check if a folder or any of its ancestors is linked to this brand kit
+                        const isFolderOrAncestorLinked = (folder: any): boolean => {
+                            const fId = String(folder.id);
+                            const fRawId = String((folder as any).originalId || folder.id);
+                            if (linkedFolderIds.has(fId) || linkedFolderIds.has(fRawId)) return true;
+                            if (folder.parentId) {
+                                const parent = assetFolders.find(p => p.id === folder.parentId || (p as any).originalId === folder.parentId);
+                                if (parent) return isFolderOrAncestorLinked(parent);
+                            }
+                            return false;
+                        };
+
                         assetFolders.forEach(folder => {
                             if (folder.id === 'default' || folder.id?.includes('default_shared')) return;
-                            const fRawId = String((folder as any).originalId || folder.id);
-                            const isLinkedFolder = linkedFolderIds.has(String(folder.id)) || linkedFolderIds.has(fRawId);
-
+                            const isLinkedFolder = isFolderOrAncestorLinked(folder);
                             folder.assets.forEach(asset => {
                                 const sid = String(asset.id);
                                 if (uniqueAssets.has(sid)) return;
