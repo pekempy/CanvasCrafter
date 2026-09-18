@@ -77,7 +77,7 @@ export default function ContextMenu() {
     return (
         <div
             ref={menuRef}
-            className="fixed z-[999] w-56 overflow-hidden rounded-md border border-line bg-[16191f]/95 p-1.5 shadow-2xl backdrop-blur animate-in fade-in zoom-in-95 duration-200"
+            className="fixed z-[999] w-56 overflow-hidden rounded-xl border border-white/10 bg-[#0c0e12]/98 p-1.5 shadow-[0_20px_50px_rgba(0,0,0,0.85)] backdrop-blur-xl animate-in fade-in zoom-in-95 duration-200 ring-1 ring-black/40"
             style={{ top: position.y, left: position.x }}
             onClick={(e) => e.stopPropagation()}
         >
@@ -110,7 +110,7 @@ export default function ContextMenu() {
                     disabled={!selectedObject}
                 />
 
-                <div className="my-1 h-px bg-white/5" />
+                <div className="my-1 h-px bg-white/[0.08]" />
 
                 {(isMultiSelect || isGroup) && (
                     <>
@@ -120,7 +120,7 @@ export default function ContextMenu() {
                             shortcut="Ctrl+G"
                             onClick={() => { isGroup ? ungroupSelected() : groupSelected(); setIsVisible(false); }}
                         />
-                        <div className="my-1 h-px bg-white/5" />
+                        <div className="my-1 h-px bg-white/[0.08]" />
                     </>
                 )}
 
@@ -138,7 +138,7 @@ export default function ContextMenu() {
                     onClick={() => { sendBackwards(); setIsVisible(false); }}
                     disabled={!selectedObject}
                 />
-                <div className="my-1 h-px bg-white/5" />
+                <div className="my-1 h-px bg-white/[0.08]" />
                 <ContextItem
                     icon={<Layers className="h-3.5 w-3.5" />}
                     label="Bring to Front"
@@ -154,7 +154,7 @@ export default function ContextMenu() {
                     disabled={!selectedObject}
                 />
 
-                <div className="my-1 h-px bg-white/5" />
+                <div className="my-1 h-px bg-white/[0.08]" />
 
                 <ContextItem
                     icon={<Trash2 className="h-3.5 w-3.5 text-red-400" />}
@@ -167,7 +167,7 @@ export default function ContextMenu() {
 
                 {selectedObject?.type === 'image' && (
                     <>
-                        <div className="my-1 h-px bg-white/5" />
+                        <div className="my-1 h-px bg-white/[0.08]" />
                         <ContextItem
                             icon={<Save className="h-3.5 w-3.5 text-gold" />}
                             label="Save to Assets"
@@ -200,7 +200,7 @@ function ContextItem({
             onClick={onClick}
             disabled={disabled}
             className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-[10px] font-semibold uppercase tracking-normal transition-all
-                ${disabled ? 'opacity-30 cursor-not-allowed' : 'hover:bg-white/5 text-text-dim hover:text-white'} ${className}`}
+                ${disabled ? 'opacity-30 cursor-not-allowed' : 'hover:bg-white/10 text-white/80 hover:text-white'} ${className}`}
         >
             <div className="flex items-center gap-3">
                 <span className="opacity-70">{icon}</span>
