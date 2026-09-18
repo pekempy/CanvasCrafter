@@ -2,7 +2,19 @@ import { NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
 import { getSession } from '@/lib/security';
+import sharp from 'sharp';
 
+async function compressImageBuffer(inputBuffer: Buffer): Promise<Buffer> {
+    try {
+        // Compress using sharp PNG options with high compression effort & quality optimization
+        return await sharp(inputBuffer)
+            .png({ quality: 80, compressionLevel: 9, effort: 7 })
+            .toBuffer();
+    } catch (err) {
+        console.warn('Image compression fallback to original buffer:', err);
+        return inputBuffer;
+    }
+}
 // Define the images path
 const IMAGES_DIR = process.env.IMAGES_DIR || path.join(process.cwd(), 'images');
 
@@ -60,10 +72,10 @@ export async function POST(request: Request) {
         if (url.startsWith('data:image/')) {
             const user = await getSession(request);
             const base64Data = url.split(',')[1];
-            const buffer = Buffer.from(base64Data, 'base64');
+            const rawBuffer = Buffer.from(base64Data, 'base64');
+            const buffer = await compressImageBuffer(rawBuffer);
             const filePath = path.join(IMAGES_DIR, `${id}.png`);
             await fs.writeFile(filePath, buffer);
-
             // Save sidecar JSON
             const jsonPath = path.join(IMAGES_DIR, `${id}.json`);
             await fs.writeFile(jsonPath, JSON.stringify({
@@ -84,9 +96,9 @@ export async function POST(request: Request) {
             const user = await getSession(request);
             const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 CanvasCrafter' } });
             if (!res.ok) return NextResponse.json({ error: `Fetch failed (${res.status})` }, { status: 502 });
-            const buffer = Buffer.from(await res.arrayBuffer());
+            const rawBuffer = Buffer.from(await res.arrayBuffer());
+            const buffer = await compressImageBuffer(rawBuffer);
             await fs.writeFile(path.join(IMAGES_DIR, `${id}.png`), buffer);
-            await fs.writeFile(path.join(IMAGES_DIR, `${id}.json`), JSON.stringify({ id, ...metadata, source: url, owner: user || undefined, timestamp: Date.now() }, null, 2));
             return NextResponse.json({ success: true, url: `/api/images?id=${id}` });
         }
 

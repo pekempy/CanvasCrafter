@@ -78,7 +78,8 @@ async function scrape(): Promise<Fixture[]> {
         const H = decode(home), A = decode(away);
         if (!/seahawk/i.test(H) && !/seahawk/i.test(A)) continue;
         const isHome = /seahawk/i.test(H);
-        const opp = isHome ? A : H;
+        let opp = isHome ? A : H;
+        if (/solway/i.test(opp)) opp = "Solway IHC";
         const oppId = parseInt(isHome ? awayId : homeId) || null;
         const score = scoreRaw && /\d/.test(scoreRaw) ? decode(scoreRaw) : null;
         out.push({

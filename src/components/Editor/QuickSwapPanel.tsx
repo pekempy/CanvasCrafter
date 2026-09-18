@@ -1,11 +1,10 @@
 "use client";
 
 import { useCanvas } from "@/store/useCanvasStore";
-import { Replace, Type, Image as ImageIcon, Palette, ALargeSmall, Crosshair, Upload } from "lucide-react";
+import { Replace, Type, Image as ImageIcon, Palette, ALargeSmall, Crosshair, Upload, Folder, Shield, Search, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import WebFont from "webfontloader";
 import CustomColorPicker from "@/components/Editor/CustomColorPicker";
-
 /* Quick Swap — find & replace every image, text block, font and colour
    in the open design. Works on any design; layers named in the Layers
    panel (and template slots) show up with that name. */
@@ -38,12 +37,18 @@ function Section({ icon, title, count, children }: { icon: React.ReactNode; titl
 }
 
 export default function QuickSwapPanel() {
-    const { canvas, updateTick, forceUpdate, brandKits, savedDesigns, currentDesignId } = useCanvas() as any;
+    const { canvas, updateTick, forceUpdate, brandKits, assetFolders, savedDesigns, currentDesignId } = useCanvas() as any;
     const [, bump] = useState(0);
     const rerender = () => bump((v) => v + 1);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const pendingImg = useRef<AnyObj>(null);
 
+    // State for Asset Picker modal in Quick Swap
+    const [isAssetPickerOpen, setIsAssetPickerOpen] = useState(false);
+    const [selectedTargetObj, setSelectedTargetObj] = useState<AnyObj>(null);
+    const [filterBrandId, setFilterBrandId] = useState<string>("all");
+    const [filterFolderId, setFilterFolderId] = useState<string>("all");
+    const [assetSearch, setAssetSearch] = useState<string>("");
     useEffect(() => {
         if (!canvas) return;
         const h = () => rerender();
@@ -208,9 +213,23 @@ export default function QuickSwapPanel() {
                                     </span>
                                     <Crosshair className="h-3.5 w-3.5 shrink-0 text-text-mute" />
                                 </button>
-                                <button onClick={() => { pendingImg.current = o; fileInputRef.current?.click(); }} className="btn btn-sm btn-block">
-                                    <Upload className="h-3.5 w-3.5" /> Replace image
-                                </button>
+                                <div className="grid grid-cols-2 gap-1.5">
+                                    <button
+                                        onClick={() => {
+                                            setSelectedTargetObj(o);
+                                            setIsAssetPickerOpen(true);
+                                        }}
+                                        className="btn btn-sm btn-primary flex items-center justify-center gap-1 text-[11px]"
+                                    >
+                                        <Folder className="h-3.5 w-3.5" /> Pick asset
+                                    </button>
+                                    <button
+                                        onClick={() => { pendingImg.current = o; fileInputRef.current?.click(); }}
+                                        className="btn btn-sm flex items-center justify-center gap-1 text-[11px]"
+                                    >
+                                        <Upload className="h-3.5 w-3.5" /> Upload new
+                                    </button>
+                                </div>
                                 {brandKits.some((k: AnyObj) => (k.images || []).length) && (
                                     <div className="mt-2 flex flex-wrap gap-1.5">
                                         {brandKits.flatMap((k: AnyObj) => k.images || []).slice(0, 6).map((url: string, bi: number) => (
@@ -309,6 +328,157 @@ export default function QuickSwapPanel() {
                     </Section>
                 )}
             </div>
+
+            {/* Asset Picker Modal */}
+            {isAssetPickerOpen && selectedTargetObj && (
+                <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm animate-in fade-in duration-150">
+                    <div className="flex h-[85vh] max-h-[700px] w-full max-w-2xl flex-col rounded-xl border border-line bg-[#16191f] shadow-2xl overflow-hidden">
+                        {/* Modal Header */}
+                        <div className="flex items-center justify-between border-b border-line px-5 py-3.5 bg-white/5">
+                            <div>
+                                <h3 className="text-sm font-semibold text-white">Select Replacement Asset</h3>
+                                <p className="text-[11px] text-text-mute">
+                                    Replacing: <span className="text-gold font-medium">{selectedTargetObj.name?.trim() || "Image"}</span>
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => { setIsAssetPickerOpen(false); setSelectedTargetObj(null); }}
+                                className="rounded-lg p-1 text-text-mute hover:bg-white/10 hover:text-white transition-colors"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        </div>
+
+                        {/* Filters Bar */}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 border-b border-line p-3 bg-white/2">
+                            {/* Search */}
+                            <div className="relative">
+                                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-text-mute" />
+                                <input
+                                    type="text"
+                                    placeholder="Search tags / name..."
+                                    value={assetSearch}
+                                    onChange={(e) => setAssetSearch(e.target.value)}
+                                    className="w-full bg-white/5 border border-line rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder:text-text-mute focus:outline-none focus:ring-1 focus:ring-gold"
+                                />
+                            </div>
+
+                            {/* Brand Filter */}
+                            <select
+                                value={filterBrandId}
+                                onChange={(e) => setFilterBrandId(e.target.value)}
+                                className="w-full bg-white/5 border border-line rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-gold cursor-pointer"
+                            >
+                                <option value="all" className="bg-[#16191f]">All Brands</option>
+                                {brandKits.map((b: AnyObj) => (
+                                    <option key={b.id} value={b.id} className="bg-[#16191f]">{b.name}</option>
+                                ))}
+                            </select>
+
+                            {/* Folder Filter */}
+                            <select
+                                value={filterFolderId}
+                                onChange={(e) => setFilterFolderId(e.target.value)}
+                                className="w-full bg-white/5 border border-line rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-gold cursor-pointer"
+                            >
+                                <option value="all" className="bg-[#16191f]">All Folders</option>
+                                {assetFolders.map((f: AnyObj) => (
+                                    <option key={f.id} value={f.id} className="bg-[#16191f]">{f.name}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Assets Grid */}
+                        <div className="flex-1 overflow-y-auto p-4 scrollbar-thin scrollbar-thumb-white/10">
+                            {(() => {
+                                // Gather all candidate assets
+                                type CandidateAsset = { id: string | number; url: string; tags?: string[]; folderName?: string; brandName?: string };
+                                const list: CandidateAsset[] = [];
+                                const seenUrls = new Set<string>();
+
+                                // Collect from Brand Kit Images
+                                brandKits.forEach((b: AnyObj) => {
+                                    if (filterBrandId !== "all" && b.id !== filterBrandId) return;
+                                    (b.images || []).forEach((imgUrl: string, idx: number) => {
+                                        if (!seenUrls.has(imgUrl)) {
+                                            seenUrls.add(imgUrl);
+                                            list.push({ id: `brand-${b.id}-${idx}`, url: imgUrl, brandName: b.name, tags: [b.name, "brand"] });
+                                        }
+                                    });
+                                });
+
+                                // Collect from Asset Folders
+                                assetFolders.forEach((f: AnyObj) => {
+                                    if (filterFolderId !== "all" && f.id !== filterFolderId) return;
+
+                                    // If brand filter is set, ensure folder is linked or asset has matching brandId
+                                    const isFolderLinkedToBrand = filterBrandId === "all" || brandKits.some((b: AnyObj) => b.id === filterBrandId && (b.assetFolderIds || []).includes(f.id));
+
+                                    (f.assets || []).forEach((a: AnyObj) => {
+                                        if (filterBrandId !== "all" && !isFolderLinkedToBrand && a.brandId !== filterBrandId) return;
+                                        if (!seenUrls.has(a.url)) {
+                                            seenUrls.add(a.url);
+                                            list.push({ id: a.id, url: a.url, folderName: f.name, tags: a.tags });
+                                        }
+                                    });
+                                });
+
+                                // Filter by search term
+                                const q = assetSearch.trim().toLowerCase();
+                                const filtered = list.filter((item) => {
+                                    if (!q) return true;
+                                    const matchTag = (item.tags || []).some((t: string) => t.toLowerCase().includes(q));
+                                    const matchFolder = (item.folderName || "").toLowerCase().includes(q);
+                                    const matchBrand = (item.brandName || "").toLowerCase().includes(q);
+                                    return matchTag || matchFolder || matchBrand;
+                                });
+
+                                if (filtered.length === 0) {
+                                    return (
+                                        <div className="flex h-full flex-col items-center justify-center py-16 text-center opacity-40">
+                                            <ImageIcon className="h-10 w-10 mb-3" />
+                                            <p className="text-xs font-semibold uppercase tracking-wider text-text-mute">No assets found</p>
+                                        </div>
+                                    );
+                                }
+
+                                return (
+                                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                                        {filtered.map((item) => (
+                                            <button
+                                                key={item.id}
+                                                onClick={async () => {
+                                                    await setImageFromUrl(selectedTargetObj, item.url);
+                                                    setIsAssetPickerOpen(false);
+                                                    setSelectedTargetObj(null);
+                                                }}
+                                                className="group relative flex flex-col aspect-square rounded-lg border border-line bg-surface-3 p-2 hover:border-gold hover:bg-gold/5 transition-all text-left overflow-hidden"
+                                            >
+                                                <div className="flex-1 flex items-center justify-center overflow-hidden">
+                                                    <img src={item.url} alt="" className="max-h-full max-w-full object-contain transition-transform group-hover:scale-105" />
+                                                </div>
+                                                <div className="mt-1.5 truncate text-[9px] text-text-mute group-hover:text-gold transition-colors">
+                                                    {item.brandName || item.folderName || (item.tags && item.tags[0]) || "Asset"}
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                );
+                            })()}
+                        </div>
+
+                        {/* Modal Footer */}
+                        <div className="flex items-center justify-end border-t border-line px-5 py-3 bg-white/5">
+                            <button
+                                onClick={() => { setIsAssetPickerOpen(false); setSelectedTargetObj(null); }}
+                                className="btn btn-sm btn-ghost text-text-mute hover:text-white"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

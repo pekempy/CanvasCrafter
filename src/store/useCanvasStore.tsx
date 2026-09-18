@@ -771,7 +771,10 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
 
     const saveToTemplate = useCallback((name: string, brandId?: string, parentId?: string, forceNew?: boolean) => {
         if (!canvas || !(canvas as any)._isAlive) return;
-        const json = JSON.stringify(canvas.toObject(PERSISTENT_PROPS));
+        const canvasObj = canvas.toObject(PERSISTENT_PROPS);
+        canvasObj.width = canvasSize.width;
+        canvasObj.height = canvasSize.height;
+        const json = JSON.stringify(canvasObj);
         const thumbnail = canvas.toDataURL({ format: 'png', multiplier: 0.1 });
 
         let updated: any[];
@@ -832,7 +835,7 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         setCurrentDesignId(finalId);
         fetch("/api/storage?key=designs", { method: 'POST', body: JSON.stringify(updated) }).catch(() => { });
         return finalId;
-    }, [canvas, savedDesigns, currentDesignId]);
+    }, [canvas, canvasSize.width, canvasSize.height, savedDesigns, currentDesignId]);
 
     const deletePreset = useCallback(async (id: string) => {
         console.log("[Store] Deleting preset:", id);
@@ -880,17 +883,47 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
             }
             preloadFontsFromJSON(data).then(() => {
                 if (!(canvas as any)._isAlive) return;
-                if (data.width && data.height) {
-                    const newSize = { width: data.width, height: data.height };
+                let targetWidth = data.width;
+                let targetHeight = data.height;
+
+                // Fallback: If template data does not have explicit width/height, infer from backgroundImage or bounding box
+                if (!targetWidth || !targetHeight) {
+                    if (data.backgroundImage && data.backgroundImage.width && data.backgroundImage.height) {
+                        const sx = typeof data.backgroundImage.scaleX === "number" ? data.backgroundImage.scaleX : 1;
+                        const sy = typeof data.backgroundImage.scaleY === "number" ? data.backgroundImage.scaleY : 1;
+                        targetWidth = Math.round(data.backgroundImage.width * sx);
+                        targetHeight = Math.round(data.backgroundImage.height * sy);
+                    } else if (Array.isArray(data.objects) && data.objects.length > 0) {
+                        let maxRight = 0;
+                        let maxBottom = 0;
+                        data.objects.forEach((o: any) => {
+                            const left = typeof o.left === "number" ? o.left : 0;
+                            const top = typeof o.top === "number" ? o.top : 0;
+                            const w = (typeof o.width === "number" ? o.width : 0) * (typeof o.scaleX === "number" ? o.scaleX : 1);
+                            const h = (typeof o.height === "number" ? o.height : 0) * (typeof o.scaleY === "number" ? o.scaleY : 1);
+                            if (left + w > maxRight) maxRight = left + w;
+                            if (top + h > maxBottom) maxBottom = top + h;
+                        });
+                        if (maxRight > 0 && maxBottom > 0) {
+                            targetWidth = Math.round(maxRight);
+                            targetHeight = Math.round(maxBottom);
+                        }
+                    }
+                }
+
+                if (targetWidth && targetHeight) {
+                    const newSize = { width: targetWidth, height: targetHeight };
                     setCanvasSize(newSize);
                     canvas.setDimensions(newSize);
                 }
+
                 canvas.loadFromJSON(data)
                     .then(async () => {
                         if (!(canvas as any)._isAlive) return;
                         if (slots) await applySlots(canvas, slots);
                         canvas.renderAll();
-                        setTimeout(() => { if ((canvas as any)._isAlive) fitToScreen(); }, 100);
+                        setTimeout(() => { if ((canvas as any)._isAlive) fitToScreen(); }, 60);
+                        setTimeout(() => { if ((canvas as any)._isAlive) fitToScreen(); }, 200);
                     })
                     .catch(err => {
                         if (!(canvas as any)._isAlive) return;
@@ -992,8 +1025,56 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         if (!canvas) return;
         const tpl = activeTplRef.current;
 
-        let logo = fx.opponentLogo || "";
-        if (logo) {
+        const oppName = String(fx.opponent).trim();
+        const oppLower = oppName.toLowerCase();
+
+        // 1. Try to find a custom uploaded logo from Brand Kits / Asset Folders first
+        let logo = "";
+        try {
+            // Find a matching brand kit for the opponent (e.g. "Leeds Knights", "Solway IHC")
+            const matchingBrand = brandKits.find((b: any) => {
+                const bName = (b.name || "").toLowerCase();
+                return bName === oppLower || oppLower.includes(bName) || bName.includes(oppLower) ||
+                    (oppLower.includes("solway") && bName.includes("solway")) ||
+                    (oppLower.includes("milton keynes") && (bName.includes("milton keynes") || bName.includes("mk")));
+            });
+
+            if (matchingBrand) {
+                // Check brand kit images
+                if (matchingBrand.images && matchingBrand.images.length > 0) {
+                    logo = matchingBrand.images[0];
+                }
+                // Check brand kit asset folders
+                if (!logo && matchingBrand.assetFolderIds && matchingBrand.assetFolderIds.length > 0) {
+                    for (const fid of matchingBrand.assetFolderIds) {
+                        const folder = assetFolders.find(f => f.id === fid);
+                        if (folder && folder.assets && folder.assets.length > 0) {
+                            logo = folder.assets[0].url;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // Also check asset folders directly if not found in brand kit
+            if (!logo) {
+                const matchingFolder = assetFolders.find(f => {
+                    const fName = (f.name || "").toLowerCase();
+                    return fName === oppLower || oppLower.includes(fName) || fName.includes(oppLower) ||
+                        (oppLower.includes("solway") && fName.includes("solway")) ||
+                        (oppLower.includes("milton keynes") && (fName.includes("milton keynes") || fName.includes("mk")));
+                });
+                if (matchingFolder && matchingFolder.assets && matchingFolder.assets.length > 0) {
+                    logo = matchingFolder.assets[0].url;
+                }
+            }
+        } catch (e) {
+            console.warn("Could not find team logo in assets:", e);
+        }
+
+        // Fallback to fixture's scraped opponent logo if no user asset was found
+        if (!logo && fx.opponentLogo) {
+            logo = fx.opponentLogo;
             try {
                 const id = `opp-${fx.opponentId || fx.opponent.toLowerCase().replace(/\W+/g, "-")}`;
                 const r = await fetch("/api/images", {
@@ -1009,25 +1090,48 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         const d = new Date(fx.date + "T00:00:00");
         const dateStr = d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" }).toUpperCase();
         const venue = fx.venue || "";
-        const values: Record<string, any> = {
-            "Away Name": { text: String(fx.opponent).toUpperCase() },
-            "Away Logo": logo ? { src: logo } : undefined,
-            "Date": { text: dateStr },
-            "Time": { text: `FACE-OFF ${fx.time}${venue ? ` · ${venue.toUpperCase()}` : ""}` },
-            "Venue": { text: venue.toUpperCase() },
-            "Footer": { text: `NIHL NATIONAL · ${venue.toUpperCase()} · ${dateStr}` },
-        };
 
-        const names = new Set((canvas.getObjects() as any[]).map((o) => o.name).filter(Boolean));
+        // Standard slot targets + aliases (including "AWAY TEAM NAME", "Away Logo", "Opponent Logo", etc.)
         const patch: Record<string, any> = {};
-        for (const [k, v] of Object.entries(values)) if (v && names.has(k)) patch[k] = v;
+        const objects = canvas.getObjects() as any[];
+
+        objects.forEach((o) => {
+            const name = o.name;
+            if (!name) return;
+            const norm = name.trim().toLowerCase();
+
+            // Away Team Name
+            if (norm === "away name" || norm === "away team name" || norm === "away" || norm === "opponent") {
+                patch[name] = { text: oppName.toUpperCase() };
+            }
+            // Away / Opponent Logo
+            else if (logo && (norm === "away logo" || norm === "away crest" || norm === "opponent logo" || norm === "opponent crest")) {
+                patch[name] = { src: logo };
+            }
+            // Date
+            else if (norm === "date" || norm === "match date") {
+                patch[name] = { text: dateStr };
+            }
+            // Time
+            else if (norm === "time" || norm === "match time") {
+                patch[name] = { text: `FACE-OFF ${fx.time}${venue ? ` · ${venue.toUpperCase()}` : ""}` };
+            }
+            // Venue
+            else if (norm === "venue") {
+                patch[name] = { text: venue.toUpperCase() };
+            }
+            // Footer
+            else if (norm === "footer") {
+                patch[name] = { text: `NIHL NATIONAL · ${venue.toUpperCase()} · ${dateStr}` };
+            }
+        });
 
         if (tpl) tpl.slots = { ...tpl.slots, ...patch };
         await applySlots(canvas, patch);
         canvas.getObjects().forEach((o: any) => { if (patch[o.name]) canvas.fire("object:modified", { target: o }); });
         canvas.requestRenderAll();
         forceUpdate();
-    }, [canvas, forceUpdate]);
+    }, [canvas, brandKits, assetFolders, forceUpdate]);
 
     // Export the open (responsive) template as a PNG at every preset size.
     const exportAllSizes = useCallback(async () => {
