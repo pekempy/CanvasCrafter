@@ -485,7 +485,7 @@ export default function AssetPanel() {
                         {/* Folder Management Header */}
                         <div className="flex flex-col gap-3 mb-6 bg-[1d222a] p-3 rounded-md border border-line">
                             <div className="flex items-center gap-2">
-                                <div className="relative flex-1">
+                                <div className="relative flex-1 min-w-0">
                                     <SearchableFolderSelect
                                         folders={assetFolders}
                                         selectedId={activeFolderId}

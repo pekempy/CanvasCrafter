@@ -85,10 +85,6 @@ export default function SearchableFolderSelect({
 
         const f = folders.find(fold => fold.id === selectedId || (fold as any).originalId === selectedId);
         if (f) {
-            if (f.parentId) {
-                const parent = folders.find(p => p.id === f.parentId || (p as any).originalId === f.parentId);
-                return parent ? `${parent.name} ↳ ${f.name}` : f.name;
-            }
             return f.name;
         }
         return "Select Folder...";
