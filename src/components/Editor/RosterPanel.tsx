@@ -5,6 +5,7 @@ import { Users, Plus, Trash2, Edit2, Folder, Image as ImageIcon, Check, X, Searc
 import React, { useState, useMemo } from "react";
 import { normalizeSearchString } from "@/utils/normalize";
 import { sortFoldersNaturally } from "@/utils/folderSort";
+import SearchableFolderSelect from "./SearchableFolderSelect";
 
 export default function RosterPanel() {
     const { roster, addOrUpdatePlayer, deletePlayer, assetFolders } = useCanvas();
@@ -280,33 +281,21 @@ export default function RosterPanel() {
                             <label className="text-[9px] font-semibold uppercase text-text-mute flex items-center gap-1">
                                 <Folder className="h-2.5 w-2.5 text-gold" /> Linked Asset Folder
                             </label>
-                            <select
-                                value={folderId}
-                                onChange={(e) => {
-                                    setFolderId(e.target.value);
-                                    // Default photo to first in selected folder if not already set
-                                    const fol = assetFolders.find(f => f.id === e.target.value);
+                            <SearchableFolderSelect
+                                folders={assetFolders}
+                                selectedId={folderId}
+                                allowEmpty={true}
+                                emptyLabel="No Folder Linked"
+                                showCounts={true}
+                                placeholder="Search player folders..."
+                                onSelect={(fId) => {
+                                    setFolderId(fId);
+                                    const fol = assetFolders.find(f => f.id === fId);
                                     if (fol && fol.assets.length > 0 && !photoUrl) {
                                         setPhotoUrl(fol.assets[0].url);
                                     }
                                 }}
-                                className="w-full rounded-md border border-line bg-white/5 px-2 py-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-gold cursor-pointer"
-                            >
-                                <option value="" className="bg-[#16191f]">No Folder Linked</option>
-                                {(() => {
-                                    const renderOptions = (parentId?: string, depth = 0): React.ReactNode[] => {
-                                        const rawItems = assetFolders.filter(f => (f.parentId || undefined) === parentId);
-                                        const items = sortFoldersNaturally(rawItems);
-                                        return items.flatMap(f => [
-                                            <option key={f.id} value={f.id} className="bg-[#16191f]">
-                                                {depth > 0 ? `${'\u00A0\u00A0'.repeat(depth)}↳ ` : ''}{f.name} ({f.assets.length} photos)
-                                            </option>,
-                                            ...renderOptions(f.id, depth + 1)
-                                        ]);
-                                    };
-                                    return renderOptions(undefined, 0);
-                                })()}
-                            </select>
+                            />
                         </div>
 
                         {/* Headshot Photo Preview / Picker */}

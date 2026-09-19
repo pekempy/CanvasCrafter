@@ -9,8 +9,8 @@ import {
 import { useState, useRef, useEffect, useMemo } from "react";
 import { normalizeSearchString } from "@/utils/normalize";
 import { sortFoldersNaturally } from "@/utils/folderSort";
-
 import CustomAssetItem from "./CustomAssetItem";
+import SearchableFolderSelect from "./SearchableFolderSelect";
 
 export default function AssetPanel() {
     const { addImage, assetFolders, setAssetFolders, maskShapeWithImage, selectedObject, brandKits, setBrandKits, apiConfig, setBackgroundImage, currentUser } = useCanvas();
@@ -486,28 +486,14 @@ export default function AssetPanel() {
                         <div className="flex flex-col gap-3 mb-6 bg-[1d222a] p-3 rounded-md border border-line">
                             <div className="flex items-center gap-2">
                                 <div className="relative flex-1">
-                                    <select
-                                        value={activeFolderId}
-                                        onChange={(e) => setActiveFolderId(e.target.value)}
-                                        className="w-full bg-white/10 text-xs font-semibold uppercase tracking-normal text-white border border-line rounded-xl pl-3 pr-10 py-2 focus:outline-none focus:ring-2 focus:ring-gold/40 appearance-none transition-all hover:bg-white/20"
-                                    >
-                                        <option value="favorites" className="bg-[#16191f]">Favourite Assets</option>
-                                        <hr className="border-line" />
-                                        {(() => {
-                                            const renderFolderOptions = (parentId?: string, depth = 0): React.ReactNode[] => {
-                                                const rawItems = assetFolders.filter(f => (f.parentId || undefined) === parentId);
-                                                const items = sortFoldersNaturally(rawItems);
-                                                return items.flatMap(f => [
-                                                    <option key={f.id} value={f.id} className="bg-[#16191f]">
-                                                        {depth > 0 ? `${'\u00A0\u00A0'.repeat(depth)}↳ ` : ''}{f.name}
-                                                    </option>,
-                                                    ...renderFolderOptions(f.id, depth + 1)
-                                                ]);
-                                            };
-                                            return renderFolderOptions(undefined, 0);
-                                        })()}
-                                    </select>
-                                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-text-mute pointer-events-none" />
+                                    <SearchableFolderSelect
+                                        folders={assetFolders}
+                                        selectedId={activeFolderId}
+                                        onSelect={(id) => setActiveFolderId(id)}
+                                        includeSpecial={true}
+                                        showCounts={true}
+                                        placeholder="Search folder..."
+                                    />
                                 </div>
                                 <button
                                     onClick={() => {
