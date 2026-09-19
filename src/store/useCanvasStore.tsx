@@ -58,6 +58,8 @@ export interface AssetFolder {
 export interface Player {
     id: string;
     name: string;
+    firstName?: string;
+    lastName?: string;
     number: string;
     position: string;
     folderId?: string;

@@ -173,6 +173,8 @@ export default function QuickSwapPanel() {
 
         const photoToUse = chosenPhotoUrl || player.photoUrl || (player.folderId && assetFolders.find((f: any) => f.id === player.folderId)?.assets?.[0]?.url) || "";
         const playerName = player.name || "";
+        const firstName = player.firstName || (playerName.includes(" ") ? playerName.split(/\s+/)[0] : playerName);
+        const lastName = player.lastName || (playerName.includes(" ") ? playerName.split(/\s+/).slice(1).join(" ") : "");
         const playerNum = player.number || "";
         const playerPos = player.position || "";
         const sponsorName = player.sponsorName || "";
@@ -191,8 +193,20 @@ export default function QuickSwapPanel() {
                 return false;
             };
 
-            // Player Name matches
-            if ((name.includes("player") && name.includes("name")) || name === "player" || name === "name" || name === `player ${slotIndex}`) {
+            // First Name matches
+            if ((name.includes("first") && name.includes("name")) || name === "firstname" || name === `player ${slotIndex} first` || name === `player ${slotIndex} firstname`) {
+                if (isMatchingSlot(slotIndex)) {
+                    o.set("text", firstName.toUpperCase());
+                }
+            }
+            // Last Name matches
+            else if ((name.includes("last") && name.includes("name")) || name === "lastname" || name === "surname" || name === `player ${slotIndex} last` || name === `player ${slotIndex} lastname`) {
+                if (isMatchingSlot(slotIndex)) {
+                    o.set("text", lastName.toUpperCase());
+                }
+            }
+            // Full Player Name matches (first AND last)
+            else if ((name.includes("player") && name.includes("name")) || name === "player" || name === "name" || name === `player ${slotIndex}`) {
                 if (isMatchingSlot(slotIndex)) {
                     o.set("text", playerName.toUpperCase());
                 }
@@ -226,7 +240,7 @@ export default function QuickSwapPanel() {
                 if (/^#?\d{1,2}$/.test(currentText) && playerNum && slotIndex === 1) {
                     const hasHash = currentText.startsWith("#");
                     o.set("text", hasHash ? `#${playerNum}` : playerNum);
-                } else if (roster && roster.some((p: any) => p.name && currentText.toLowerCase() === p.name.toLowerCase()) && slotIndex === 1) {
+                } else if (roster && roster.some((p: any) => p.name && (currentText.toLowerCase() === p.name.toLowerCase() || (p.lastName && currentText.toLowerCase() === p.lastName.toLowerCase()))) && slotIndex === 1) {
                     o.set("text", currentText === currentText.toUpperCase() ? playerName.toUpperCase() : playerName);
                 }
             }

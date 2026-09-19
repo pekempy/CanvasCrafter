@@ -15,6 +15,8 @@ export default function RosterPanel() {
 
     // Form state
     const [name, setName] = useState("");
+    const [firstName, setFirstName] = useState("");
+    const [lastName, setLastName] = useState("");
     const [number, setNumber] = useState("");
     const [position, setPosition] = useState("Forward");
     const [folderId, setFolderId] = useState("");
@@ -27,8 +29,9 @@ export default function RosterPanel() {
         setIsCreating(true);
         setEditingPlayer(null);
         setName("");
+        setFirstName("");
+        setLastName("");
         setNumber("");
-        setPosition("Forward");
         setFolderId("");
         setPhotoUrl("");
         setSponsorAssetId("");
@@ -40,6 +43,8 @@ export default function RosterPanel() {
         setEditingPlayer(p);
         setIsCreating(false);
         setName(p.name);
+        setFirstName(p.firstName || "");
+        setLastName(p.lastName || "");
         setNumber(p.number);
         setPosition(p.position || "Forward");
         setFolderId(p.folderId || "");
@@ -68,9 +73,28 @@ export default function RosterPanel() {
         }
 
         const id = editingPlayer ? editingPlayer.id : `p-${Date.now()}`;
+        // Compute full name if not explicitly given, or extract first/last if missing
+        let finalFullName = name.trim();
+        let finalFirst = firstName.trim();
+        let finalLast = lastName.trim();
+
+        if (!finalFullName && (finalFirst || finalLast)) {
+            finalFullName = `${finalFirst} ${finalLast}`.trim();
+        } else if (finalFullName && (!finalFirst && !finalLast)) {
+            const parts = finalFullName.split(/\s+/);
+            if (parts.length > 1) {
+                finalFirst = parts[0];
+                finalLast = parts.slice(1).join(" ");
+            } else {
+                finalLast = finalFullName;
+            }
+        }
+
         addOrUpdatePlayer({
             id,
-            name: name.trim(),
+            name: finalFullName,
+            firstName: finalFirst || undefined,
+            lastName: finalLast || undefined,
             number: number.trim(),
             position: position.trim(),
             folderId: folderId || undefined,
@@ -237,9 +261,40 @@ export default function RosterPanel() {
                             </button>
                         </div>
 
+                        <div className="grid grid-cols-2 gap-2">
+                            <div className="space-y-1">
+                                <label className="text-[9px] font-semibold uppercase text-text-mute">First Name</label>
+                                <input
+                                    type="text"
+                                    placeholder="e.g. Ethan"
+                                    value={firstName}
+                                    onChange={(e) => {
+                                        const v = e.target.value;
+                                        setFirstName(v);
+                                        setName(`${v} ${lastName}`.trim());
+                                    }}
+                                    className="w-full rounded-md border border-line bg-white/5 px-2.5 py-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-gold"
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-[9px] font-semibold uppercase text-text-mute">Last Name</label>
+                                <input
+                                    type="text"
+                                    placeholder="e.g. Hehir"
+                                    value={lastName}
+                                    onChange={(e) => {
+                                        const v = e.target.value;
+                                        setLastName(v);
+                                        setName(`${firstName} ${v}`.trim());
+                                    }}
+                                    className="w-full rounded-md border border-line bg-white/5 px-2.5 py-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-gold"
+                                />
+                            </div>
+                        </div>
+
                         <div className="grid grid-cols-3 gap-2">
                             <div className="col-span-2 space-y-1">
-                                <label className="text-[9px] font-semibold uppercase text-text-mute">Player Name</label>
+                                <label className="text-[9px] font-semibold uppercase text-text-mute">Full Display Name</label>
                                 <input
                                     type="text"
                                     required
