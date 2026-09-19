@@ -1,7 +1,7 @@
 "use client";
 
 import { useCanvas, Player } from "@/store/useCanvasStore";
-import { Users, Plus, Trash2, Edit2, Folder, Image as ImageIcon, Check, X, Search, Sparkles } from "lucide-react";
+import { Users, Plus, Trash2, Edit2, Folder, Image as ImageIcon, Check, X, Search, Sparkles, Award } from "lucide-react";
 import React, { useState, useMemo } from "react";
 
 export default function RosterPanel() {
@@ -16,6 +16,9 @@ export default function RosterPanel() {
     const [position, setPosition] = useState("Forward");
     const [folderId, setFolderId] = useState("");
     const [photoUrl, setPhotoUrl] = useState("");
+    const [sponsorAssetId, setSponsorAssetId] = useState("");
+    const [sponsorUrl, setSponsorUrl] = useState("");
+    const [sponsorName, setSponsorName] = useState("");
 
     const openCreate = () => {
         setIsCreating(true);
@@ -25,6 +28,9 @@ export default function RosterPanel() {
         setPosition("Forward");
         setFolderId("");
         setPhotoUrl("");
+        setSponsorAssetId("");
+        setSponsorUrl("");
+        setSponsorName("");
     };
 
     const openEdit = (p: Player) => {
@@ -35,6 +41,9 @@ export default function RosterPanel() {
         setPosition(p.position || "Forward");
         setFolderId(p.folderId || "");
         setPhotoUrl(p.photoUrl || "");
+        setSponsorAssetId(p.sponsorAssetId || "");
+        setSponsorUrl(p.sponsorUrl || "");
+        setSponsorName(p.sponsorName || "");
     };
 
     const cancelForm = () => {
@@ -62,7 +71,10 @@ export default function RosterPanel() {
             number: number.trim(),
             position: position.trim(),
             folderId: folderId || undefined,
-            photoUrl: finalPhoto || undefined
+            photoUrl: finalPhoto || undefined,
+            sponsorAssetId: sponsorAssetId || undefined,
+            sponsorUrl: sponsorUrl || undefined,
+            sponsorName: sponsorName.trim() || undefined
         });
 
         cancelForm();
@@ -121,6 +133,24 @@ export default function RosterPanel() {
         const f = assetFolders.find(fold => fold.id === folderId);
         return f ? f.assets : [];
     }, [folderId, assetFolders]);
+
+    // All available sponsor assets across all asset folders (especially Seahawks - Sponsors)
+    const allSponsorAssets = useMemo(() => {
+        const list: { id: string; url: string; name: string; folderName: string }[] = [];
+        assetFolders.forEach(f => {
+            f.assets.forEach(a => {
+                const tagNames = Array.isArray(a.tags) ? a.tags.join(" ") : "";
+                const isLikelySponsor = f.name.toLowerCase().includes("sponsor") || tagNames.toLowerCase().includes("sponsor");
+                list.push({
+                    id: String(a.id),
+                    url: a.url,
+                    name: (a.tags && a.tags.length > 0 ? a.tags[0] : "") || (isLikelySponsor ? f.name : "Asset"),
+                    folderName: f.name
+                });
+            });
+        });
+        return list;
+    }, [assetFolders]);
 
     return (
         <div className="flex h-full w-full flex-col bg-[16191f] text-white">
@@ -269,6 +299,62 @@ export default function RosterPanel() {
                             </div>
                         )}
 
+                        {/* Assign Sponsor Asset */}
+                        <div className="space-y-2 pt-2 border-t border-line">
+                            <label className="text-[9px] font-semibold uppercase text-text-mute flex items-center justify-between">
+                                <span className="flex items-center gap-1">
+                                    <Award className="h-3 w-3 text-gold" /> Player Sponsor Asset
+                                </span>
+                                {sponsorUrl && (
+                                    <button
+                                        type="button"
+                                        onClick={() => { setSponsorAssetId(""); setSponsorUrl(""); setSponsorName(""); }}
+                                        className="text-[8px] text-red-400 hover:underline"
+                                    >
+                                        Clear Sponsor
+                                    </button>
+                                )}
+                            </label>
+
+                            {/* Custom Sponsor Name */}
+                            <input
+                                type="text"
+                                placeholder="Sponsor Name (e.g. Southwood Garden Centre)"
+                                value={sponsorName}
+                                onChange={(e) => setSponsorName(e.target.value)}
+                                className="w-full rounded-md border border-line bg-white/5 px-2.5 py-1 text-xs text-white placeholder:text-text-mute focus:outline-none focus:ring-1 focus:ring-gold"
+                            />
+
+                            {/* Select from existing assets */}
+                            <div className="space-y-1">
+                                <p className="text-[8px] text-text-mute">Choose sponsor logo from assets:</p>
+                                <div className="grid grid-cols-5 gap-1.5 max-h-24 overflow-y-auto p-1.5 bg-white/5 rounded-md border border-line">
+                                    {allSponsorAssets.map((asset) => (
+                                        <button
+                                            type="button"
+                                            key={asset.id}
+                                            onClick={() => {
+                                                setSponsorAssetId(asset.id);
+                                                setSponsorUrl(asset.url);
+                                                if (!sponsorName && asset.name && asset.name !== "Asset") {
+                                                    setSponsorName(asset.name);
+                                                }
+                                            }}
+                                            className={`group relative flex flex-col aspect-square rounded overflow-hidden border p-1 transition-all ${sponsorUrl === asset.url ? 'border-gold bg-gold/20 ring-1 ring-gold' : 'border-line bg-surface hover:border-gold/50'}`}
+                                            title={`${asset.name} (${asset.folderName})`}
+                                        >
+                                            <img src={asset.url} alt="" className="h-full w-full object-contain" />
+                                            {sponsorUrl === asset.url && (
+                                                <div className="absolute inset-0 bg-gold/20 flex items-center justify-center">
+                                                    <Check className="h-3 w-3 text-white drop-shadow" />
+                                                </div>
+                                            )}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
                         <div className="flex items-center justify-end gap-2 pt-2 border-t border-line">
                             <button
                                 type="button"
@@ -334,6 +420,15 @@ export default function RosterPanel() {
                                                     <span className="truncate flex items-center gap-0.5 text-text-dim">
                                                         <Folder className="h-2.5 w-2.5" />
                                                         {linkedFolder.assets.length} photos
+                                                    </span>
+                                                </>
+                                            )}
+                                            {player.sponsorUrl && (
+                                                <>
+                                                    <span>•</span>
+                                                    <span className="truncate flex items-center gap-1 text-gold">
+                                                        <Award className="h-2.5 w-2.5" />
+                                                        {player.sponsorName || "Sponsored"}
                                                     </span>
                                                 </>
                                             )}

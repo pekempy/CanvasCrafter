@@ -62,6 +62,9 @@ export interface Player {
     position: string;
     folderId?: string;
     photoUrl?: string;
+    sponsorAssetId?: string;
+    sponsorUrl?: string;
+    sponsorName?: string;
 }
 interface CanvasContextType {
     canvas: fabric.Canvas | null;

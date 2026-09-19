@@ -174,7 +174,8 @@ export default function QuickSwapPanel() {
         const playerName = player.name || "";
         const playerNum = player.number || "";
         const playerPos = player.position || "";
-
+        const sponsorName = player.sponsorName || "";
+        const sponsorUrl = player.sponsorUrl || "";
         const allObjects = canvas.getObjects() as AnyObj[];
 
         // 1. Identify text elements that match player patterns
@@ -190,6 +191,10 @@ export default function QuickSwapPanel() {
                 o.set("text", playerNum);
             } else if (name === "position" || name === "player position") {
                 o.set("text", playerPos.toUpperCase());
+            } else if (name === "sponsor line" || name === "player sponsor" || name === "sponsor name") {
+                if (sponsorName) {
+                    o.set("text", sponsorName.toUpperCase());
+                }
             }
             // Heuristic detection based on current content if layer name is unset
             else if (!o.name || o.name === "text" || o.name === "textbox") {
@@ -201,6 +206,8 @@ export default function QuickSwapPanel() {
                 // If text looks like a full player name or uppercase name
                 else if (roster && roster.some((p: any) => p.name && (currentText.toLowerCase() === p.name.toLowerCase() || p.name.toLowerCase().includes(currentText.toLowerCase())))) {
                     o.set("text", currentText === currentText.toUpperCase() ? playerName.toUpperCase() : playerName);
+                } else if (sponsorName && (currentText.toLowerCase().includes("sponsored by") || currentText.toLowerCase().includes("sponsor"))) {
+                    o.set("text", `SPONSORED BY: ${sponsorName.toUpperCase()}`);
                 }
             }
         });
@@ -231,6 +238,17 @@ export default function QuickSwapPanel() {
                 if (candidate) {
                     await setImageFromUrl(candidate, photoToUse);
                 }
+            }
+        }
+        // 3. Identify sponsor logo image elements if player has a sponsor
+        if (sponsorUrl) {
+            const sponsorImages = allObjects.filter((o) => {
+                if (!isImage(o)) return false;
+                const name = (o.name || "").trim().toLowerCase();
+                return name === "sponsor logo" || name === "player sponsor logo" || name === "sponsor" || name === "sponsor 1";
+            });
+            for (const sImg of sponsorImages) {
+                await setImageFromUrl(sImg, sponsorUrl);
             }
         }
 
