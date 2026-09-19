@@ -14,7 +14,7 @@ import TypographyEffects from "./TypographyEffects";
 import EdgeBorderPanel from "./EdgeBorderPanel";
 import * as fabric from "fabric";
 import CustomColorPicker from "./CustomColorPicker";
-
+import { applyTextFit, TextFitRule } from "@/utils/textFit";
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
     return (
         <section className="mb-5">
@@ -204,11 +204,54 @@ export default function PropertiesPanel() {
                                     <input
                                         type="number"
                                         value={Math.round(o.fontSize || 40)}
-                                        onChange={(e) => updateSelectedObject({ fontSize: parseInt(e.target.value) || 1 })}
+                                        onChange={(e) => {
+                                            const newSize = parseInt(e.target.value) || 1;
+                                            o.baseFontSize = newSize;
+                                            o.set("baseFontSize", newSize);
+                                            updateSelectedObject({ fontSize: newSize, baseFontSize: newSize });
+                                            applyTextFit(o);
+                                        }}
                                         className="w-14 bg-transparent py-1.5 pl-2 text-right text-[13px] text-text outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
                                         style={{ border: "none" }}
                                     />
                                     <span className="text-[11px] text-text-mute">px</span>
+                                </div>
+                            </div>
+
+                            {/* Fit-width / Auto-sizing rules */}
+                            <div className="mt-3 pt-3 border-t border-line flex items-center justify-between">
+                                <div>
+                                    <span className="text-[12px] text-text-dim block">Fit Width Rule</span>
+                                    <span className="text-[9px] text-text-mute">How text fits this box</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                    {[
+                                        { id: "none", label: "Fixed", desc: "No auto-scaling" },
+                                        { id: "shrink", label: "Fit / Shrink", desc: "Shrinks font if text overflows box width" },
+                                        { id: "auto", label: "Auto-Fill", desc: "Scales font up/down to fill width" },
+                                        { id: "wrap", label: "Wrap", desc: "Wraps text onto new lines" },
+                                    ].map((rule) => {
+                                        const active = (o.textFitRule || "none") === rule.id;
+                                        return (
+                                            <button
+                                                key={rule.id}
+                                                type="button"
+                                                title={rule.desc}
+                                                onClick={() => {
+                                                    const fitRule = rule.id as TextFitRule;
+                                                    o.set("textFitRule", fitRule);
+                                                    if (!o.baseFontSize) o.set("baseFontSize", o.fontSize || 40);
+                                                    applyTextFit(o, fitRule);
+                                                    canvas?.requestRenderAll();
+                                                    canvas?.fire("object:modified", { target: o });
+                                                    updateSelectedObject({ textFitRule: fitRule, dirty: true });
+                                                }}
+                                                className={`px-2 py-1 rounded text-[10px] font-bold transition-all border ${active ? 'bg-gold/20 border-gold text-gold' : 'bg-surface-3 border-line text-text-mute hover:text-white'}`}
+                                            >
+                                                {rule.label}
+                                            </button>
+                                        );
+                                    })}
                                 </div>
                             </div>
                             <div className="mt-3 pt-3 border-t border-line flex items-center justify-between">

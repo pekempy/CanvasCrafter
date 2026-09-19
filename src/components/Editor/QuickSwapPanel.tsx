@@ -4,6 +4,7 @@ import { useCanvas } from "@/store/useCanvasStore";
 import { Replace, Type, Image as ImageIcon, Palette, ALargeSmall, Crosshair, Upload, Folder, Shield, Search, X, Users } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { normalizeSearchString } from "@/utils/normalize";
+import { applyTextFit } from "@/utils/textFit";
 import WebFont from "webfontloader";
 import CustomColorPicker from "@/components/Editor/CustomColorPicker";
 /* Quick Swap — find & replace every image, text block, font and colour
@@ -251,8 +252,12 @@ export default function QuickSwapPanel() {
                     o.set("text", currentText === currentText.toUpperCase() ? playerName.toUpperCase() : playerName);
                 }
             }
-        });
 
+            // If object has a fit-width rule, automatically resize/fit text to the bounding box
+            if (o.textFitRule && o.textFitRule !== "none") {
+                applyTextFit(o);
+            }
+        });
         // 2. Identify image elements that match player photo for this slot
         if (photoToUse) {
             const playerImages = allObjects.filter((o) => {

@@ -18,7 +18,7 @@ import SEED_PRESETS from "@/lib/seed/presets.json";
 const PERSISTENT_PROPS = [
     'id', 'name', 'lockMovementX', 'lockMovementY', 'lockRotation', 
     'lockScalingX', 'lockScalingY', 'lockSkewingX', 'lockScalingFlip',
-    'hasControls', 'selectable', 'evented', 'editable', 'isEdgeBorderGroup', 'textCasing'
+    'hasControls', 'selectable', 'evented', 'editable', 'isEdgeBorderGroup', 'textCasing', 'textFitRule', 'baseFontSize'
 ];
 
 interface BrandKit {

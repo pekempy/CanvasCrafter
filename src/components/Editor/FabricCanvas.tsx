@@ -8,7 +8,7 @@ import { preloadFontsFromJSON } from "@/utils/fontLoader";
 const PERSISTENT_PROPS = [
     'id', 'name', 'lockMovementX', 'lockMovementY', 'lockRotation', 
     'lockScalingX', 'lockScalingY', 'lockSkewingX', 'lockScalingFlip',
-    'hasControls', 'selectable', 'evented', 'editable', 'isEdgeBorderGroup', 'textCasing'
+    'hasControls', 'selectable', 'evented', 'editable', 'isEdgeBorderGroup', 'textCasing', 'textFitRule', 'baseFontSize'
 ];
 
 export default function FabricCanvas() {
