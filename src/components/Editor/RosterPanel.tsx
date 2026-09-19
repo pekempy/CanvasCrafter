@@ -134,21 +134,40 @@ export default function RosterPanel() {
         return f ? f.assets : [];
     }, [folderId, assetFolders]);
 
-    // All available sponsor assets across all asset folders (especially Seahawks - Sponsors)
+    // All available sponsor assets: filter specifically to Seahawks - Sponsors or folders/assets marked as sponsor
     const allSponsorAssets = useMemo(() => {
         const list: { id: string; url: string; name: string; folderName: string }[] = [];
-        assetFolders.forEach(f => {
-            f.assets.forEach(a => {
-                const tagNames = Array.isArray(a.tags) ? a.tags.join(" ") : "";
-                const isLikelySponsor = f.name.toLowerCase().includes("sponsor") || tagNames.toLowerCase().includes("sponsor");
-                list.push({
-                    id: String(a.id),
-                    url: a.url,
-                    name: (a.tags && a.tags.length > 0 ? a.tags[0] : "") || (isLikelySponsor ? f.name : "Asset"),
-                    folderName: f.name
+        
+        // Find folders that are designated for sponsors
+        const sponsorFolders = assetFolders.filter(f => f.name.toLowerCase().includes("sponsor"));
+
+        if (sponsorFolders.length > 0) {
+            sponsorFolders.forEach(f => {
+                f.assets.forEach(a => {
+                    list.push({
+                        id: String(a.id),
+                        url: a.url,
+                        name: (a.tags && a.tags.length > 0 ? a.tags[0] : "") || f.name,
+                        folderName: f.name
+                    });
                 });
             });
-        });
+        } else {
+            // Fallback only if no sponsor folder exists: look for explicit sponsor tags
+            assetFolders.forEach(f => {
+                f.assets.forEach(a => {
+                    const tagNames = Array.isArray(a.tags) ? a.tags.join(" ").toLowerCase() : "";
+                    if (tagNames.includes("sponsor")) {
+                        list.push({
+                            id: String(a.id),
+                            url: a.url,
+                            name: (a.tags && a.tags.length > 0 ? a.tags[0] : "") || "Sponsor",
+                            folderName: f.name
+                        });
+                    }
+                });
+            });
+        }
         return list;
     }, [assetFolders]);
 
