@@ -215,7 +215,8 @@ export default function QuickSwapPanel() {
                 o.set("text", playerPos.toUpperCase());
             }
             // Sponsor line matches
-            else if ((name.includes("sponsor") && !name.includes("logo")) && isMatchingSlot(slotIndex)) {
+            // Player sponsor text line matches (must be explicitly player sponsor)
+            else if ((name === "player sponsor" || name === "player sponsor name" || name === "player sponsor line") && isMatchingSlot(slotIndex)) {
                 if (sponsorName) {
                     o.set("text", sponsorName.toUpperCase());
                 }
@@ -236,6 +237,8 @@ export default function QuickSwapPanel() {
             const playerImages = allObjects.filter((o) => {
                 if (!isImage(o)) return false;
                 const name = (o.name || "").trim().toLowerCase();
+                // Never treat a sponsor layer as the player photo
+                if (name.includes("sponsor")) return false;
                 const isPlayerImage = name.includes("player") || name.includes("photo") || name.includes("headshot");
                 if (!isPlayerImage) return false;
                 if (name.includes(String(slotIndex))) return true;
@@ -260,18 +263,19 @@ export default function QuickSwapPanel() {
             }
         }
 
-        // 3. Identify sponsor logo image elements if player has a sponsor
+        // 3. Identify Player Sponsor logo image elements if player has a sponsor
+        // Strictly target layers named "player sponsor" or "player sponsor logo", NEVER general "sponsor logo"
         if (sponsorUrl) {
-            const sponsorImages = allObjects.filter((o) => {
+            const playerSponsorImages = allObjects.filter((o) => {
                 if (!isImage(o)) return false;
                 const name = (o.name || "").trim().toLowerCase();
-                const isSponsor = name.includes("sponsor") && (name.includes("logo") || name === "sponsor");
-                if (!isSponsor) return false;
+                const isPlayerSponsor = name === "player sponsor" || name === "player sponsor logo" || name === `player ${slotIndex} sponsor` || name === `player ${slotIndex} sponsor logo`;
+                if (!isPlayerSponsor) return false;
                 if (name.includes(String(slotIndex))) return true;
                 if (slotIndex === 1 && !name.match(/\d/)) return true;
                 return false;
             });
-            for (const sImg of sponsorImages) {
+            for (const sImg of playerSponsorImages) {
                 await setImageFromUrl(sImg, sponsorUrl);
             }
         }
