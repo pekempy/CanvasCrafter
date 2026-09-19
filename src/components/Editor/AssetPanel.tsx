@@ -7,6 +7,8 @@ import {
     Globe, Cloud, AlertCircle, Info, Trash2, Shield, ChevronDown, Star, Heart
 } from "lucide-react";
 import { useState, useRef, useEffect, useMemo } from "react";
+import { normalizeSearchString } from "@/utils/normalize";
+import { sortFoldersNaturally } from "@/utils/folderSort";
 
 import CustomAssetItem from "./CustomAssetItem";
 
@@ -87,11 +89,11 @@ export default function AssetPanel() {
             results = results.filter(a => a.isFavorite);
         }
 
-        const searchTerms = librarySearch.toLowerCase().trim().split(/\s+/).filter(Boolean);
+        const searchTerms = normalizeSearchString(librarySearch).split(/\s+/).filter(Boolean);
         if (searchTerms.length === 0) return results;
 
         return results.filter(asset => {
-            const tags = (asset.tags || []).map((t: string) => t.toLowerCase());
+            const tags = (asset.tags || []).map((t: string) => normalizeSearchString(t));
             
             return searchTerms.every(term => {
                 const isNumeric = /^\d+$/.test(term);
@@ -99,10 +101,8 @@ export default function AssetPanel() {
                 return tags.some((tag: string) => {
                     if (tag === term) return true;
                     if (isNumeric) {
-                        // Numeric queries must match an exact number in the tag (e.g., "74" matches "74-bg" but not "73")
                         return tag.split(/[^0-9]/).some(part => part === term);
                     }
-                    // Text queries match any substring (e.g., "hehir" matches "6,EHehir")
                     return tag.includes(term);
                 });
             });
@@ -495,7 +495,8 @@ export default function AssetPanel() {
                                         <hr className="border-line" />
                                         {(() => {
                                             const renderFolderOptions = (parentId?: string, depth = 0): React.ReactNode[] => {
-                                                const items = assetFolders.filter(f => (f.parentId || undefined) === parentId);
+                                                const rawItems = assetFolders.filter(f => (f.parentId || undefined) === parentId);
+                                                const items = sortFoldersNaturally(rawItems);
                                                 return items.flatMap(f => [
                                                     <option key={f.id} value={f.id} className="bg-[#16191f]">
                                                         {depth > 0 ? `${'\u00A0\u00A0'.repeat(depth)}↳ ` : ''}{f.name}

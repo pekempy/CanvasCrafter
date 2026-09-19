@@ -1,6 +1,7 @@
 "use client";
 
 import { useCanvas, CustomAsset } from "@/store/useCanvasStore";
+import { sortFoldersNaturally } from "@/utils/folderSort";
 import { Trash2, Heart, Tag, Plus, X, Info, Globe, Folder } from "lucide-react";
 import { useState } from "react";
 
@@ -232,7 +233,8 @@ export default function CustomAssetItem({ asset, folderId }: { asset: CustomAsse
                                     <option value="move" disabled>MOVE...</option>
                                     {(() => {
                                         const renderFolderOptions = (parentId?: string, depth = 0): React.ReactNode[] => {
-                                            const items = assetFolders.filter(f => (f.parentId || undefined) === parentId);
+                                            const rawItems = assetFolders.filter(f => (f.parentId || undefined) === parentId);
+                                            const items = sortFoldersNaturally(rawItems);
                                             return items.flatMap(f => [
                                                 <option key={f.id} value={(f as any).originalId || f.id} className="bg-[#16191f] text-text-dim py-1">
                                                     {depth > 0 ? `${'\u00A0'.repeat(depth * 2)}↳ ` : ''}{f.name}

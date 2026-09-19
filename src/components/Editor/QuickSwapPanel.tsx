@@ -3,6 +3,7 @@
 import { useCanvas } from "@/store/useCanvasStore";
 import { Replace, Type, Image as ImageIcon, Palette, ALargeSmall, Crosshair, Upload, Folder, Shield, Search, X, Users } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { normalizeSearchString } from "@/utils/normalize";
 import WebFont from "webfontloader";
 import CustomColorPicker from "@/components/Editor/CustomColorPicker";
 /* Quick Swap — find & replace every image, text block, font and colour
@@ -635,12 +636,12 @@ export default function QuickSwapPanel() {
                                 });
 
                                 // Filter by search term
-                                const q = assetSearch.trim().toLowerCase();
+                                const q = normalizeSearchString(assetSearch);
                                 const filtered = list.filter((item) => {
                                     if (!q) return true;
-                                    const matchTag = (item.tags || []).some((t: string) => t.toLowerCase().includes(q));
-                                    const matchFolder = (item.folderName || "").toLowerCase().includes(q);
-                                    const matchBrand = (item.brandName || "").toLowerCase().includes(q);
+                                    const matchTag = (item.tags || []).some((t: string) => normalizeSearchString(t).includes(q));
+                                    const matchFolder = normalizeSearchString(item.folderName).includes(q);
+                                    const matchBrand = normalizeSearchString(item.brandName).includes(q);
                                     return matchTag || matchFolder || matchBrand;
                                 });
 

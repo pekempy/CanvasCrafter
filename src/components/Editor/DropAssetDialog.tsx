@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useCanvas } from "@/store/useCanvasStore";
+import { sortFoldersNaturally } from "@/utils/folderSort";
 import { X, Image as ImageIcon, Plus, Folder, Shield, ArrowRight, Tag } from "lucide-react";
 
 export default function DropAssetDialog({
@@ -102,7 +103,8 @@ export default function DropAssetDialog({
                                     {(() => {
                                         const nonDefault = availableFolders.filter(f => f.id !== 'default');
                                         const renderFolderOptions = (parentId?: string, depth = 0): React.ReactNode[] => {
-                                            const items = nonDefault.filter(f => (f.parentId || undefined) === parentId);
+                                            const rawItems = nonDefault.filter(f => (f.parentId || undefined) === parentId);
+                                            const items = sortFoldersNaturally(rawItems);
                                             return items.flatMap(f => [
                                                 <option key={f.id} value={f.id}>
                                                     {depth > 0 ? `${'\u00A0'.repeat(depth * 2)}↳ ` : ''}📂 {f.name}

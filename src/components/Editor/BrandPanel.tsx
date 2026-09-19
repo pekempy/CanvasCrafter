@@ -3,12 +3,12 @@
 import { useCanvas } from "@/store/useCanvasStore";
 import { GOOGLE_FONTS } from "@/lib/fonts";
 import {
-    Plus, Palette, Type, Shield, Trash2,
-    ChevronRight, Hash, Edit3, Save, X, Search,
-    Check, PlusCircle, MinusCircle, ChevronLeft, Image as ImageIcon,
-    ChevronDown, Layout, Clock, Globe, Folder
+    Plus, PlusCircle, MinusCircle, Palette, Type, Shield, Trash2,
+    ChevronRight, ChevronLeft, Hash, Edit3, Save, X, Search, Globe,
+    Upload, Eye, EyeOff, Layout, Folder, ChevronDown, Image as ImageIcon
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { normalizeSearchString } from "@/utils/normalize";
 import WebFont from "webfontloader";
 import CustomAssetItem from "./CustomAssetItem";
 import FontPicker from "./FontPicker";
@@ -294,7 +294,7 @@ export default function BrandPanel() {
                         // 1. Collect all assets that should be in this brand view
                         const linkedFolderIds = new Set((activeKit.assetFolderIds || []).map(id => String(id)));
                         const uniqueAssets = new Map<string, { asset: any, folder: any }>();
-                        const searchTerms = assetSearch.toLowerCase().trim().split(/\s+/).filter(Boolean);
+                        const searchTerms = normalizeSearchString(assetSearch).split(/\s+/).filter(Boolean);
 
                         // Helper to check if a folder or any of its ancestors is linked to this brand kit
                         const isFolderOrAncestorLinked = (folder: any): boolean => {
@@ -319,7 +319,7 @@ export default function BrandPanel() {
                                 const shouldInclude = isLinkedFolder || asset.brandId === activeKit.id || linkedFolderIds.has(aFolderId);
                                 
                                 if (shouldInclude) {
-                                    const tags = (asset.tags || []).map((t: string) => t.toLowerCase());
+                                    const tags = (asset.tags || []).map((t: string) => normalizeSearchString(t));
                                     
                                     const matches = searchTerms.length === 0 || searchTerms.every(term => {
                                         const isNumeric = /^\d+$/.test(term);

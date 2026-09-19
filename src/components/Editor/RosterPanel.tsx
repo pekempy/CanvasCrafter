@@ -3,6 +3,8 @@
 import { useCanvas, Player } from "@/store/useCanvasStore";
 import { Users, Plus, Trash2, Edit2, Folder, Image as ImageIcon, Check, X, Search, Sparkles, Award } from "lucide-react";
 import React, { useState, useMemo } from "react";
+import { normalizeSearchString } from "@/utils/normalize";
+import { sortFoldersNaturally } from "@/utils/folderSort";
 
 export default function RosterPanel() {
     const { roster, addOrUpdatePlayer, deletePlayer, assetFolders } = useCanvas();
@@ -117,9 +119,16 @@ export default function RosterPanel() {
     };
 
     const filteredRoster = useMemo(() => {
-        const q = search.trim().toLowerCase();
+        const q = normalizeSearchString(search);
         return roster
-            .filter(p => !q || p.name.toLowerCase().includes(q) || p.number.includes(q) || (p.position && p.position.toLowerCase().includes(q)))
+            .filter(p => {
+                if (!q) return true;
+                const normName = normalizeSearchString(p.name);
+                const normNumber = normalizeSearchString(p.number);
+                const normPos = normalizeSearchString(p.position);
+                const normSponsor = normalizeSearchString(p.sponsorName);
+                return normName.includes(q) || normNumber.includes(q) || normPos.includes(q) || normSponsor.includes(q);
+            })
             .sort((a, b) => {
                 const numA = parseInt(a.number) || 999;
                 const numB = parseInt(b.number) || 999;
@@ -284,11 +293,19 @@ export default function RosterPanel() {
                                 className="w-full rounded-md border border-line bg-white/5 px-2 py-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-gold cursor-pointer"
                             >
                                 <option value="" className="bg-[#16191f]">No Folder Linked</option>
-                                {assetFolders.map(f => (
-                                    <option key={f.id} value={f.id} className="bg-[#16191f]">
-                                        {f.parentId ? "↳ " : ""}{f.name} ({f.assets.length} photos)
-                                    </option>
-                                ))}
+                                {(() => {
+                                    const renderOptions = (parentId?: string, depth = 0): React.ReactNode[] => {
+                                        const rawItems = assetFolders.filter(f => (f.parentId || undefined) === parentId);
+                                        const items = sortFoldersNaturally(rawItems);
+                                        return items.flatMap(f => [
+                                            <option key={f.id} value={f.id} className="bg-[#16191f]">
+                                                {depth > 0 ? `${'\u00A0\u00A0'.repeat(depth)}↳ ` : ''}{f.name} ({f.assets.length} photos)
+                                            </option>,
+                                            ...renderOptions(f.id, depth + 1)
+                                        ]);
+                                    };
+                                    return renderOptions(undefined, 0);
+                                })()}
                             </select>
                         </div>
 
