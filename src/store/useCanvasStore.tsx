@@ -1144,7 +1144,68 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         // Clean formatted date: "Sunday 27th Sep 17:30"
         const formattedDate = `${weekday} ${dayNum}${nth(dayNum)} ${monthShort}${timeStr}`;
         const venue = fx.venue || "";
-        // Standard slot targets + aliases (including "AWAY TEAM NAME", "Away Logo", "Opponent Logo", etc.)
+
+        // Helper to format any date object cleanly as "Sunday 27th Sep 17:30"
+        const formatCleanDate = (dateIso: string, timeVal?: string) => {
+            const dateObj = new Date(dateIso + "T00:00:00");
+            const wDay = dateObj.toLocaleDateString("en-GB", { weekday: "long" });
+            const dNum = dateObj.getDate();
+            const mShort = dateObj.toLocaleDateString("en-GB", { month: "short" });
+            const tVal = timeVal ? ` ${timeVal}` : "";
+            return `${wDay} ${dNum}${nth(dNum)} ${mShort}${tVal}`;
+        };
+
+        // Helper to resolve logo for any opponent team name
+        const resolveTeamLogo = (teamName: string) => {
+            const tLower = teamName.toLowerCase().trim();
+            const brand = brandKits.find((b: any) => {
+                const bName = (b.name || "").toLowerCase();
+                return bName === tLower || tLower.includes(bName) || bName.includes(tLower) ||
+                    (tLower.includes("solway") && bName.includes("solway")) ||
+                    (tLower.includes("milton keynes") && (bName.includes("milton keynes") || bName.includes("mk")));
+            });
+            if (brand) {
+                if (brand.images && brand.images.length > 0) return brand.images[0];
+                if (brand.assetFolderIds && brand.assetFolderIds.length > 0) {
+                    for (const fid of brand.assetFolderIds) {
+                        const folder = assetFolders.find(f => f.id === fid);
+                        if (folder && folder.assets && folder.assets.length > 0) return folder.assets[0].url;
+                    }
+                }
+            }
+            const fol = assetFolders.find(f => {
+                const fName = (f.name || "").toLowerCase();
+                return fName === tLower || tLower.includes(fName) || fName.includes(tLower) ||
+                    (tLower.includes("solway") && fName.includes("solway")) ||
+                    (tLower.includes("milton keynes") && (fName.includes("milton keynes") || fName.includes("mk")));
+            });
+            if (fol && fol.assets && fol.assets.length > 0) return fol.assets[0].url;
+            return "";
+        };
+
+        // 2. Compute "Next Game" and "Next Home Game" relative to this fixture
+        let nextGameData: any = null;
+        let nextHomeGameData: any = null;
+        try {
+            const fxResp = await fetch("/api/fixtures").then(r => r.json()).catch(() => null);
+            const allUpcoming: any[] = fxResp?.upcoming || [];
+            // Find fixtures strictly following this game's date
+            const laterFixtures = allUpcoming.filter(f => f.date > fx.date || (f.date === fx.date && f.id !== fx.id));
+            if (laterFixtures.length > 0) {
+                nextGameData = laterFixtures[0];
+                nextHomeGameData = laterFixtures.find(f => f.isHome) || null;
+            }
+        } catch { /* ignore */ }
+
+        const nextOppName = nextGameData ? String(nextGameData.opponent).trim() : "";
+        const nextOppLogo = nextGameData ? (resolveTeamLogo(nextOppName) || nextGameData.opponentLogo || "") : "";
+        const nextGameDateStr = nextGameData ? formatCleanDate(nextGameData.date, nextGameData.time) : "";
+
+        const nextHomeOppName = nextHomeGameData ? String(nextHomeGameData.opponent).trim() : "";
+        const nextHomeOppLogo = nextHomeGameData ? (resolveTeamLogo(nextHomeOppName) || nextHomeGameData.opponentLogo || "") : "";
+        const nextHomeDateStr = nextHomeGameData ? formatCleanDate(nextHomeGameData.date, nextHomeGameData.time) : "";
+
+        // Standard slot targets + aliases (including "AWAY TEAM NAME", "Away Logo", "Next Away Team Logo", etc.)
         const patch: Record<string, any> = {};
         const objects = canvas.getObjects() as any[];
 
@@ -1161,10 +1222,33 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
             else if (logo && (norm === "away logo" || norm === "away crest" || norm === "opponent logo" || norm === "opponent crest")) {
                 patch[name] = { src: logo };
             }
-            // Date
+            // Next Away Team / Opponent Name
+            else if (nextOppName && (norm === "next away name" || norm === "next away team" || norm === "next away team name" || norm === "next opponent" || norm === "next team name")) {
+                patch[name] = { text: nextOppName.toUpperCase() };
+            }
+            // Next Away Team / Opponent Logo
+            else if (nextOppLogo && (norm === "next away logo" || norm === "next away team logo" || norm === "next away crest" || norm === "next opponent logo" || norm === "next team logo")) {
+                patch[name] = { src: nextOppLogo };
+            }
+            // Next Home Opponent Name
+            else if (nextHomeOppName && (norm === "next home opponent" || norm === "next home away name" || norm === "next home team name")) {
+                patch[name] = { text: nextHomeOppName.toUpperCase() };
+            }
+            // Next Home Opponent Logo
+            else if (nextHomeOppLogo && (norm === "next home logo" || norm === "next home away logo" || norm === "next home crest")) {
+                patch[name] = { src: nextHomeOppLogo };
+            }
             // Date (formatted as "Sunday 27th Sep 17:30")
             else if (norm === "date" || norm === "match date" || norm === "match datetime" || norm === "game date") {
                 patch[name] = { text: formattedDate };
+            }
+            // Next Game Date
+            else if (nextGameDateStr && (norm === "next date" || norm === "next game date" || norm === "next match date")) {
+                patch[name] = { text: nextGameDateStr };
+            }
+            // Next Home Game Date
+            else if (nextHomeDateStr && (norm === "next home date" || norm === "next home game date")) {
+                patch[name] = { text: nextHomeDateStr };
             }
             // Time
             else if (norm === "time" || norm === "match time") {

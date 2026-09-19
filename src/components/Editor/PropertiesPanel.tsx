@@ -161,9 +161,9 @@ export default function PropertiesPanel() {
 
                             <div className="flex flex-wrap gap-1">
                                 {(isText ? [
-                                    "Player Name", "First Name", "Last Name", "Squad Number", "Position", "Player Sponsor", "Away Name", "Date", "Time", "Venue", "Footer"
+                                    "Player Name", "First Name", "Last Name", "Squad Number", "Position", "Player Sponsor", "Away Name", "Date", "Next Date", "Time", "Venue", "Footer"
                                 ] : [
-                                    "Player Photo", "Player Sponsor", "Away Logo", "Home Logo", "Sponsor Logo", "Photo Panel"
+                                    "Player Photo", "Player Sponsor", "Away Logo", "Next Away Logo", "Home Logo", "Sponsor Logo", "Photo Panel"
                                 ]).map((preset) => {
                                     const currentName = (o.name || "").toLowerCase();
                                     // Check if current layer has slot 2 or 3
