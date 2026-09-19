@@ -1115,9 +1115,22 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         }
 
         const d = new Date(fx.date + "T00:00:00");
-        const dateStr = d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" }).toUpperCase();
+        const weekday = d.toLocaleDateString("en-GB", { weekday: "long" });
+        const dayNum = d.getDate();
+        const nth = (n: number) => {
+            if (n > 3 && n < 21) return "th";
+            switch (n % 10) {
+                case 1: return "st";
+                case 2: return "nd";
+                case 3: return "rd";
+                default: return "th";
+            }
+        };
+        const monthShort = d.toLocaleDateString("en-GB", { month: "short" });
+        const timeStr = fx.time ? ` ${fx.time}` : "";
+        // Clean formatted date: "Sunday 27th Sep 17:30"
+        const formattedDate = `${weekday} ${dayNum}${nth(dayNum)} ${monthShort}${timeStr}`;
         const venue = fx.venue || "";
-
         // Standard slot targets + aliases (including "AWAY TEAM NAME", "Away Logo", "Opponent Logo", etc.)
         const patch: Record<string, any> = {};
         const objects = canvas.getObjects() as any[];
@@ -1136,8 +1149,9 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
                 patch[name] = { src: logo };
             }
             // Date
-            else if (norm === "date" || norm === "match date") {
-                patch[name] = { text: dateStr };
+            // Date (formatted as "Sunday 27th Sep 17:30")
+            else if (norm === "date" || norm === "match date" || norm === "match datetime" || norm === "game date") {
+                patch[name] = { text: formattedDate };
             }
             // Time
             else if (norm === "time" || norm === "match time") {
@@ -1149,7 +1163,7 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
             }
             // Footer
             else if (norm === "footer") {
-                patch[name] = { text: `NIHL NATIONAL · ${venue.toUpperCase()} · ${dateStr}` };
+                patch[name] = { text: `NIHL NATIONAL · ${venue.toUpperCase()} · ${formattedDate.toUpperCase()}` };
             }
         });
 
