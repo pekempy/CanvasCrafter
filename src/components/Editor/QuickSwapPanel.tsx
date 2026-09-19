@@ -180,8 +180,14 @@ export default function QuickSwapPanel() {
         const sponsorName = player.sponsorName || "";
         const sponsorUrl = player.sponsorUrl || "";
         const allObjects = canvas.getObjects() as AnyObj[];
+        const applyCasing = (o: AnyObj, rawVal: string, defaultTransform: "as-is" | "uppercase" = "as-is") => {
+            const casing = o.textCasing || (defaultTransform === "uppercase" ? "uppercase" : "preserve");
+            if (casing === "uppercase") return rawVal.toUpperCase();
+            if (casing === "lowercase") return rawVal.toLowerCase();
+            if (casing === "titlecase") return rawVal.replace(/\w\S*/g, (txt: string) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
+            return rawVal;
+        };
 
-        // 1. Identify text elements that match player patterns for this slot
         allObjects.forEach((o) => {
             if (!isText(o)) return;
             const name = (o.name || "").trim().toLowerCase();
@@ -193,22 +199,22 @@ export default function QuickSwapPanel() {
                 return false;
             };
 
-            // First Name matches
+            // First Name matches (default preserves original casing, or uses object's textCasing setting)
             if ((name.includes("first") && name.includes("name")) || name === "firstname" || name === `player ${slotIndex} first` || name === `player ${slotIndex} firstname`) {
                 if (isMatchingSlot(slotIndex)) {
-                    o.set("text", firstName.toUpperCase());
+                    o.set("text", applyCasing(o, firstName, "as-is"));
                 }
             }
-            // Last Name matches
+            // Last Name matches (default uppercase per user preference, configurable via textCasing)
             else if ((name.includes("last") && name.includes("name")) || name === "lastname" || name === "surname" || name === `player ${slotIndex} last` || name === `player ${slotIndex} lastname`) {
                 if (isMatchingSlot(slotIndex)) {
-                    o.set("text", lastName.toUpperCase());
+                    o.set("text", applyCasing(o, lastName, "uppercase"));
                 }
             }
             // Full Player Name matches (first AND last)
             else if ((name.includes("player") && name.includes("name")) || name === "player" || name === "name" || name === `player ${slotIndex}`) {
                 if (isMatchingSlot(slotIndex)) {
-                    o.set("text", playerName.toUpperCase());
+                    o.set("text", applyCasing(o, playerName, "as-is"));
                 }
             }
             // Combined "Players" text (e.g. "PLAYER ONE & PLAYER TWO")

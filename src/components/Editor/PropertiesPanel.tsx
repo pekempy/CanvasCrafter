@@ -173,6 +173,39 @@ export default function PropertiesPanel() {
                                     <span className="text-[11px] text-text-mute">px</span>
                                 </div>
                             </div>
+                            <div className="mt-3 pt-3 border-t border-line flex items-center justify-between">
+                                <span className="text-[12px] text-text-dim">Casing</span>
+                                <div className="flex items-center gap-1">
+                                    {[
+                                        { id: "preserve", label: "As-is" },
+                                        { id: "uppercase", label: "UPPER" },
+                                        { id: "lowercase", label: "lower" },
+                                        { id: "titlecase", label: "Title" }
+                                    ].map((c) => {
+                                        const active = (o.textCasing || "preserve") === c.id;
+                                        return (
+                                            <button
+                                                key={c.id}
+                                                type="button"
+                                                onClick={() => {
+                                                    o.set("textCasing", c.id);
+                                                    let current = o.text || "";
+                                                    if (c.id === "uppercase") current = current.toUpperCase();
+                                                    else if (c.id === "lowercase") current = current.toLowerCase();
+                                                    else if (c.id === "titlecase") current = current.replace(/\w\S*/g, (txt: string) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
+                                                    o.set("text", current);
+                                                    canvas?.requestRenderAll();
+                                                    canvas?.fire("object:modified", { target: o });
+                                                    updateSelectedObject({ textCasing: c.id, text: current });
+                                                }}
+                                                className={`px-2 py-1 rounded text-[10px] font-bold transition-all border ${active ? 'bg-gold/20 border-gold text-gold' : 'bg-surface-3 border-line text-text-mute hover:text-white'}`}
+                                            >
+                                                {c.label}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
                         </Card>
                         <div className="mt-2"><TypographyEffects /></div>
                     </Section>
