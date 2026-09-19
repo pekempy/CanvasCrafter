@@ -118,8 +118,7 @@ export default function PropertiesPanel() {
                         <div className="space-y-2">
                             <input
                                 type="text"
-                                value={o.name || ""}
-                                placeholder={isText ? "e.g. Player Name, Squad Number, Away Name" : "e.g. Player Photo, Away Logo, Sponsor"}
+                                placeholder={isText ? "e.g. Player Name, Squad Number, Player Sponsor" : "e.g. Player Photo, Player Sponsor, Away Logo"}
                                 onChange={(e) => {
                                     const val = e.target.value;
                                     o.set("name", val);
@@ -131,9 +130,9 @@ export default function PropertiesPanel() {
                             />
                             <div className="flex flex-wrap gap-1">
                                 {(isText ? [
-                                    "Player Name", "Squad Number", "Position", "Away Name", "Date", "Time", "Venue", "Footer"
+                                    "Player Name", "Squad Number", "Position", "Player Sponsor", "Away Name", "Date", "Time", "Venue", "Footer"
                                 ] : [
-                                    "Player Photo", "Away Logo", "Home Logo", "Sponsor Logo", "Photo Panel"
+                                    "Player Photo", "Player Sponsor", "Away Logo", "Home Logo", "Sponsor Logo", "Photo Panel"
                                 ]).map((preset) => (
                                     <button
                                         key={preset}
