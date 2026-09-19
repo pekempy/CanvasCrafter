@@ -50,7 +50,7 @@ export default function QuickSwapPanel() {
     const [filterBrandId, setFilterBrandId] = useState<string>("all");
     const [filterFolderId, setFilterFolderId] = useState<string>("all");
     const [assetSearch, setAssetSearch] = useState<string>("");
-    const [playerSlots, setPlayerSlots] = useState<Record<number, { playerId: string; photoUrl: string }>>({});
+    const [playerSlots, setPlayerSlots] = useState<Record<number, { playerId: string; photoUrl: string; sponsorUrl: string }>>({});
 
     useEffect(() => {
         if (!canvas) return;
@@ -168,7 +168,7 @@ export default function QuickSwapPanel() {
     };
 
     // Automagically swap a player into a specific slot index (slotIndex: 1, 2, 3...)
-    const swapPlayerSlot = async (slotIndex: number, player: any, chosenPhotoUrl?: string) => {
+    const swapPlayerSlot = async (slotIndex: number, player: any, chosenPhotoUrl?: string, chosenSponsorUrl?: string) => {
         if (!canvas || !player) return;
 
         const photoToUse = chosenPhotoUrl || player.photoUrl || (player.folderId && assetFolders.find((f: any) => f.id === player.folderId)?.assets?.[0]?.url) || "";
@@ -178,7 +178,7 @@ export default function QuickSwapPanel() {
         const playerNum = player.number || "";
         const playerPos = player.position || "";
         const sponsorName = player.sponsorName || "";
-        const sponsorUrl = player.sponsorUrl || "";
+        const sponsorUrl = chosenSponsorUrl !== undefined ? chosenSponsorUrl : (player.sponsorUrl || "");
         const allObjects = canvas.getObjects() as AnyObj[];
         const applyCasing = (o: AnyObj, rawVal: string, defaultTransform: "as-is" | "uppercase" = "as-is") => {
             const casing = o.textCasing || (defaultTransform === "uppercase" ? "uppercase" : "preserve");
@@ -352,9 +352,28 @@ export default function QuickSwapPanel() {
                         <Section icon={<Users className="h-3.5 w-3.5 text-gold" />} title={`Player Swap (${totalSlots} ${totalSlots > 1 ? "Players" : "Player"})`} count={totalSlots}>
                             <div className="space-y-3">
                                 {slotIndices.map((slotNum) => {
-                                    const currentSlotData = playerSlots[slotNum] || { playerId: "", photoUrl: "" };
+                                    const currentSlotData = playerSlots[slotNum] || { playerId: "", photoUrl: "", sponsorUrl: "" };
                                     const selectedP = roster.find((r: any) => r.id === currentSlotData.playerId);
                                     const fol = selectedP?.folderId ? assetFolders.find((f: any) => f.id === selectedP.folderId) : null;
+
+                                    // Find candidate sponsor assets for this player
+                                    // 1. From sponsor folders matching the sponsor's name or all sponsor folder assets
+                                    const sponsorAssets = (() => {
+                                        if (!selectedP) return [];
+                                        const sponsorFolders = assetFolders.filter((f: any) => f.name.toLowerCase().includes("sponsor"));
+                                        const allSponsorAssets = sponsorFolders.flatMap((f: any) => f.assets || []);
+                                        
+                                        // If player has a specific sponsor name, try prioritizing matching assets
+                                        if (selectedP.sponsorName) {
+                                            const sName = selectedP.sponsorName.toLowerCase();
+                                            const matches = allSponsorAssets.filter((a: any) => {
+                                                const tagStr = (a.tags || []).join(" ").toLowerCase();
+                                                return tagStr.includes(sName) || sName.includes(tagStr);
+                                            });
+                                            if (matches.length > 0) return matches;
+                                        }
+                                        return allSponsorAssets;
+                                    })();
 
                                     return (
                                         <div key={slotNum} className="rounded-app border border-line bg-surface-2 p-3 space-y-2.5">
@@ -380,11 +399,12 @@ export default function QuickSwapPanel() {
                                                         const p = roster.find((r: any) => r.id === pId);
                                                         if (p) {
                                                             const defaultPhoto = p.photoUrl || (p.folderId && assetFolders.find((f: any) => f.id === p.folderId)?.assets?.[0]?.url) || "";
+                                                            const defaultSponsor = p.sponsorUrl || "";
                                                             setPlayerSlots(prev => ({
                                                                 ...prev,
-                                                                [slotNum]: { playerId: pId, photoUrl: defaultPhoto }
+                                                                [slotNum]: { playerId: pId, photoUrl: defaultPhoto, sponsorUrl: defaultSponsor }
                                                             }));
-                                                            swapPlayerSlot(slotNum, p, defaultPhoto);
+                                                            swapPlayerSlot(slotNum, p, defaultPhoto, defaultSponsor);
                                                         }
                                                     }}
                                                     className="w-full rounded-md border border-line bg-white/5 px-2.5 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-gold cursor-pointer"
@@ -426,6 +446,54 @@ export default function QuickSwapPanel() {
                                                                 <img src={asset.url} alt="" className="h-full w-full object-cover" />
                                                             </button>
                                                         ))}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Sponsor variant / logo picker (light/dark or different sponsor logos) */}
+                                            {selectedP && sponsorAssets.length > 0 && (
+                                                <div className="space-y-1 pt-1.5 border-t border-line">
+                                                    <div className="flex items-center justify-between">
+                                                        <p className="text-[8px] font-semibold uppercase text-text-mute">
+                                                            Sponsor Logo ({selectedP.sponsorName ? `${selectedP.sponsorName} / ` : ""}{sponsorAssets.length} options):
+                                                        </p>
+                                                        {currentSlotData.sponsorUrl && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setPlayerSlots(prev => ({
+                                                                        ...prev,
+                                                                        [slotNum]: { ...prev[slotNum], sponsorUrl: "" }
+                                                                    }));
+                                                                    swapPlayerSlot(slotNum, selectedP, currentSlotData.photoUrl, "");
+                                                                }}
+                                                                className="text-[8px] text-text-mute hover:text-red-400"
+                                                            >
+                                                                Clear
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                    <div className="grid grid-cols-5 gap-1.5 max-h-20 overflow-y-auto p-1 bg-white/5 rounded-md border border-line">
+                                                        {sponsorAssets.map((asset: any) => {
+                                                            const isSelected = currentSlotData.sponsorUrl === asset.url;
+                                                            return (
+                                                                <button
+                                                                    key={asset.id}
+                                                                    type="button"
+                                                                    title={asset.tags?.[0] || "Sponsor Logo"}
+                                                                    onClick={() => {
+                                                                        setPlayerSlots(prev => ({
+                                                                            ...prev,
+                                                                            [slotNum]: { ...prev[slotNum], sponsorUrl: asset.url }
+                                                                        }));
+                                                                        swapPlayerSlot(slotNum, selectedP, currentSlotData.photoUrl, asset.url);
+                                                                    }}
+                                                                    className={`relative aspect-square rounded overflow-hidden border p-1 transition-all ${isSelected ? 'border-gold bg-gold/20 ring-1 ring-gold' : 'border-line bg-black/40 hover:border-gold/50'}`}
+                                                                >
+                                                                    <img src={asset.url} alt="" className="h-full w-full object-contain" />
+                                                                </button>
+                                                            );
+                                                        })}
                                                     </div>
                                                 </div>
                                             )}
