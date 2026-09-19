@@ -26,6 +26,7 @@ import {
     Maximize2,
     Grid3x3,
     MousePointer2,
+    X,
 } from "lucide-react";
 import FabricCanvas from "@/components/Editor/FabricCanvas";
 import Toolbar from "@/components/Editor/Toolbar";
@@ -60,12 +61,11 @@ const NAV: { tab: SidebarTab; label: string; icon: React.ReactNode }[] = [
     { tab: "shapes", label: "Shapes", icon: <Shapes className="h-[18px] w-[18px]" /> },
     { tab: "layers", label: "Layers", icon: <LayersIcon className="h-[18px] w-[18px]" /> },
 ];
-
 function EditorContent({ username }: { username?: string }) {
     const [activeTab, setActiveTab] = useState<SidebarTab>("templates");
     const [droppedImage, setDroppedImage] = useState<string | null>(null);
     const [isHoveringFile, setIsHoveringFile] = useState(false);
-
+    const [isStartDismissed, setIsStartDismissed] = useState(false);
     const {
         addRect, addText, addCircle, addTriangle, addStar,
         addHexagon, addDiamond, addArrow, addHeart,
@@ -179,10 +179,12 @@ function EditorContent({ username }: { username?: string }) {
     };
 
     const objectCount = canvas ? canvas.getObjects().filter((o: any) => !o.excludeFromExport).length : 0;
-    const isEmpty = !!canvas && objectCount === 0;
+    const hasActiveBackground = !!(canvas && (canvas.backgroundImage || canvas.backgroundColor));
+    const isEmpty = !!canvas && objectCount === 0 && !hasActiveBackground && !isStartDismissed;
 
     const applyFormat = (w: number, h: number) => {
         switchTemplateSize(w, h);
+        setIsStartDismissed(true);
         setTimeout(fitToScreen, 60);
     };
 
@@ -334,11 +336,14 @@ function EditorContent({ username }: { username?: string }) {
                                 presets={presets}
                                 canvasSize={canvasSize}
                                 onPick={applyFormat}
-                                onTemplates={() => setActiveTab("templates")}
+                                onTemplates={() => {
+                                    setIsStartDismissed(true);
+                                    setActiveTab("templates");
+                                }}
+                                onClose={() => setIsStartDismissed(true)}
                             />
                         )}
                     </div>
-
                     {/* Bottom bar — zoom only */}
                     <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex items-center gap-1 rounded-app border border-line bg-surface px-1.5 py-1.5 z-40 shadow-lg">
                         <button className={`icon-btn ${showGrid ? "is-active" : ""}`} onClick={() => setShowGrid(!showGrid)} title="Toggle grid">
@@ -418,7 +423,7 @@ function ShapeButton({ icon, label, onClick }: { icon: React.ReactNode; label: s
     );
 }
 
-function StartOverlay({ presets, canvasSize, onPick, onTemplates }: any) {
+function StartOverlay({ presets, canvasSize, onPick, onTemplates, onClose }: any) {
     const list = (presets && presets.length ? presets : [
         { id: "ig", name: "Instagram square", width: 1080, height: 1080 },
         { id: "xfb", name: "X / Facebook", width: 1200, height: 675 },
@@ -427,7 +432,16 @@ function StartOverlay({ presets, canvasSize, onPick, onTemplates }: any) {
     ]);
     return (
         <div className="absolute inset-0 z-20 flex items-center justify-center bg-bg/80 backdrop-blur-[2px]">
-            <div className="w-full max-w-[440px] px-6">
+            <div className="relative w-full max-w-[440px] px-6 rounded-2xl border border-line bg-surface p-6 shadow-2xl">
+                {onClose && (
+                    <button
+                        onClick={onClose}
+                        title="Dismiss overlay"
+                        className="absolute right-4 top-4 rounded-lg p-1.5 text-text-mute hover:bg-white/10 hover:text-white transition-colors"
+                    >
+                        <X className="h-4 w-4" />
+                    </button>
+                )}
                 <h1 className="mb-1 text-[26px] leading-tight text-text" style={{ fontFamily: "var(--font-display)" }}>
                     New graphic
                 </h1>
@@ -459,6 +473,11 @@ function StartOverlay({ presets, canvasSize, onPick, onTemplates }: any) {
                 <button onClick={onTemplates} className="btn btn-block mt-3">
                     <LayoutTemplate className="h-4 w-4" /> Open a template
                 </button>
+                {onClose && (
+                    <button onClick={onClose} className="btn btn-ghost btn-sm btn-block mt-2 text-text-mute hover:text-white">
+                        Start with blank canvas
+                    </button>
+                )}
             </div>
         </div>
     );
