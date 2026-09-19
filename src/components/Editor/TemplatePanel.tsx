@@ -48,11 +48,11 @@ export default function TemplatePanel() {
     const [fxError, setFxError] = useState(false);
     const [exporting, setExporting] = useState(false);
     useEffect(() => {
-        if (!activeTemplate || fixtures) return;
+        if (fixtures) return;
         fetch("/api/fixtures").then((r) => r.json()).then((d) => {
             if (d.error) setFxError(true); else setFixtures(d);
         }).catch(() => setFxError(true));
-    }, [activeTemplate, fixtures]);
+    }, [fixtures]);
 
     const setPeriod = (text: string) => {
         if (!canvas) return;
@@ -132,9 +132,47 @@ export default function TemplatePanel() {
             <div className="panel-head"><h2>Templates</h2></div>
 
             <div className="flex-1 overflow-y-auto">
+                {/* Always-Visible "This match" Game Picker */}
+                <Section title="This match" icon={<CalendarClock className="h-3.5 w-3.5 text-gold" />} defaultOpen={true}>
+                    {fxError && <p className="text-[11px] text-text-mute">Couldn't reach the fixture list — fill the details in by hand.</p>}
+                    {!fxError && !fixtures && <p className="text-[11px] text-text-mute">Loading fixtures…</p>}
+                    {fixtures && (
+                        <select
+                            className="field cursor-pointer"
+                            defaultValue=""
+                            onChange={(e) => {
+                                const all = [...(fixtures.upcoming || []), ...(fixtures.recent || [])];
+                                const fx = all.find((f) => f.id === e.target.value);
+                                if (fx) applyFixture(fx);
+                            }}
+                        >
+                            <option value="" disabled>Pick a Seahawks game…</option>
+                            {fixtures.upcoming?.length > 0 && (
+                                <optgroup label="Upcoming">
+                                    {fixtures.upcoming.map((f) => (
+                                        <option key={f.id} value={f.id}>
+                                            {new Date(f.date + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" })} · {f.isHome ? "vs" : "@"} {f.opponent}
+                                        </option>
+                                    ))}
+                                </optgroup>
+                            )}
+                            {fixtures.recent?.length > 0 && (
+                                <optgroup label="Recent">
+                                    {fixtures.recent.map((f) => (
+                                        <option key={f.id} value={f.id}>
+                                            {new Date(f.date + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" })} · {f.isHome ? "vs" : "@"} {f.opponent} {f.score ? `(${f.score})` : ""}
+                                        </option>
+                                    ))}
+                                </optgroup>
+                            )}
+                        </select>
+                    )}
+                    <p className="mt-1.5 text-[11px] text-text-mute">Auto-swaps opponent crest, name, date, time and venue on canvas.</p>
+                </Section>
+
                 {activeDesign && (
                     <>
-                        {/* Identity bar — always visible */}
+                        {/* Identity bar — visible when template loaded */}
                         <div className="flex items-center gap-2 border-b border-line bg-surface-2 px-3.5 py-2.5">
                             <Folder className="h-3.5 w-3.5 shrink-0 text-gold" />
                             <p className="min-w-0 flex-1 truncate text-[13px] font-medium text-text">{activeDesign.name}</p>
@@ -142,54 +180,6 @@ export default function TemplatePanel() {
                                 {activeTemplate.tier === "working" ? "Working copy" : "Default"}
                             </span>
                         </div>
-
-                        <Section title="This match" icon={<CalendarClock className="h-3.5 w-3.5 text-text-mute" />}>
-                            {fxError && <p className="text-[11px] text-text-mute">Couldn't reach the fixture list — fill the details in by hand.</p>}
-                            {!fxError && !fixtures && <p className="text-[11px] text-text-mute">Loading fixtures…</p>}
-                            {fixtures && (
-                                <select
-                                    className="field"
-                                    defaultValue=""
-                                    onChange={(e) => {
-                                        const all = [...(fixtures.upcoming || []), ...(fixtures.recent || [])];
-                                        const fx = all.find((f) => f.id === e.target.value);
-                                        if (fx) applyFixture(fx);
-                                    }}
-                                >
-                                    <option value="" disabled>Pick a Seahawks game…</option>
-                                    {fixtures.upcoming?.length > 0 && (
-                                        <optgroup label="Upcoming">
-                                            {fixtures.upcoming.map((f) => (
-                                                <option key={f.id} value={f.id}>
-                                                    {new Date(f.date + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" })} · {f.isHome ? "vs" : "@"} {f.opponent}
-                                                </option>
-                                            ))}
-                                        </optgroup>
-                                    )}
-                                    {fixtures.recent?.length > 0 && (
-                                        <optgroup label="Recent">
-                                            {fixtures.recent.map((f) => (
-                                                <option key={f.id} value={f.id}>
-                                                    {new Date(f.date + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" })} · {f.isHome ? "vs" : "@"} {f.opponent} {f.score ? `(${f.score})` : ""}
-                                                </option>
-                                            ))}
-                                        </optgroup>
-                                    )}
-                                </select>
-                            )}
-                            <p className="mt-1.5 text-[11px] text-text-mute">Sets opponent, crest, date, time and venue across every size.</p>
-
-                            {activeTemplate.id === "sh-tpl-score-update" && (
-                                <div className="mt-3">
-                                    <p className="mb-1.5 text-[11px] font-medium text-text-dim">Period label</p>
-                                    <div className="flex flex-wrap gap-1.5">
-                                        {["End 1st", "End 2nd", "Full time", "After OT", "After SO"].map((label, i) => (
-                                            <button key={label} onClick={() => setPeriod(PERIODS[i])} className="chip">{label}</button>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-                        </Section>
 
                         <Section title="Save & versions" icon={<Save className="h-3.5 w-3.5 text-text-mute" />}>
                             <div className="grid grid-cols-2 gap-2">
