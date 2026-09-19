@@ -376,13 +376,8 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
 
             const keys = ["designs", "brandkits", "folders", "canvas_size", "custom_fonts", "presets", "template_folders", "canvas_name", "api_config", "theme", "roster"];
             const results = await Promise.all(keys.map(k => fetch(`/api/storage?key=${k}`).then(r => r.json().catch(() => null))));
-            // Bootstrap the Hull Seahawks pack (templates + club kits + sizes) on a fresh install,
-            // keeping anything the user already made.
+            // Use whatever designs exist in storage; do not resurrect deleted templates.
             let designsData: any[] = Array.isArray(results[0]) ? results[0] : [];
-            if (!designsData.some((d: any) => typeof d?.id === "string" && d.id.startsWith("sh-tpl-"))) {
-                designsData = [...(SEED_DESIGNS as any[]), ...designsData];
-                fetch("/api/storage?key=designs", { method: "POST", body: JSON.stringify(designsData) }).catch(() => { });
-            }
             setSavedDesigns(designsData);
             lastRemoteState.current["designs"] = new Set(designsData.map((d: any) => d.id));
 
