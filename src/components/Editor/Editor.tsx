@@ -236,8 +236,7 @@ function EditorContent({ username }: { username?: string }) {
                 </div>
             )}
 
-            <div className="flex flex-1 overflow-hidden relative">
-                {/* Nav rail */}
+            <div className="flex flex-1 relative">
                 <nav className="flex w-[76px] shrink-0 flex-col items-stretch border-r border-line bg-surface py-2">
                     {NAV.map((n) => (
                         <NavItem key={n.tab} {...n} active={activeTab === n.tab} onClick={() => updateActiveTab(n.tab)} />
@@ -247,7 +246,7 @@ function EditorContent({ username }: { username?: string }) {
                 </nav>
 
                 {/* Left dock — active panel */}
-                <aside style={{ width: sidebarWidth }} className="relative shrink-0 border-r border-line bg-surface flex flex-col h-full">
+                <aside style={{ width: sidebarWidth }} className="relative shrink-0 border-r border-line bg-surface flex flex-col h-full z-30">
                     <div
                         onMouseDown={(e) => { e.preventDefault(); setIsResizing(true); }}
                         className={`absolute right-0 top-0 h-full w-1 translate-x-1/2 cursor-col-resize z-50 transition-colors ${isResizing ? "bg-gold" : "hover:bg-gold/50"}`}

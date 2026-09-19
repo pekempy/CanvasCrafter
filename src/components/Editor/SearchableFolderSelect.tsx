@@ -111,9 +111,9 @@ export default function SearchableFolderSelect({
                 <ChevronDown className={`h-3.5 w-3.5 text-text-mute shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`} />
             </button>
 
-            {/* Dropdown Menu */}
+            {/* Dropdown Menu - wider and allowed to overflow sidebar */}
             {isOpen && (
-                <div className="absolute left-0 right-0 top-full mt-1.5 z-50 rounded-xl border border-line bg-[#16191f] shadow-2xl p-1.5 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150">
+                <div className="absolute left-0 top-full mt-1.5 z-[100] w-[min(90vw,420px)] rounded-xl border border-line bg-[#16191f]/98 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.7)] p-2 backdrop-blur-2xl ring-1 ring-white/10 animate-in fade-in zoom-in-95 duration-150">
                     {/* Search Field */}
                     <div className="relative mb-1.5 px-1 pt-1">
                         <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-text-mute" />
@@ -129,7 +129,7 @@ export default function SearchableFolderSelect({
                     </div>
 
                     {/* Options List */}
-                    <div className="max-h-64 overflow-y-auto space-y-0.5 scrollbar-thin scrollbar-thumb-white/10 pr-0.5">
+                    <div className="max-h-80 overflow-y-auto space-y-0.5 scrollbar-thin scrollbar-thumb-white/10 pr-0.5">
                         {includeSpecial && !search && (
                             <>
                                 <button
