@@ -51,6 +51,7 @@ export default function QuickSwapPanel() {
     const [filterFolderId, setFilterFolderId] = useState<string>("all");
     const [assetSearch, setAssetSearch] = useState<string>("");
     const [playerSlots, setPlayerSlots] = useState<Record<number, { playerId: string; photoUrl: string; sponsorUrl: string }>>({});
+    const [manualSlotCount, setManualSlotCount] = useState<number | null>(null);
 
     useEffect(() => {
         if (!canvas) return;
@@ -345,11 +346,39 @@ export default function QuickSwapPanel() {
                     const allObjNames = objects.map((o: AnyObj) => (o.name || "").toLowerCase());
                     const hasPlayer2 = allObjNames.some((n: string) => n.includes("player 2") || n.includes("number 2") || n.includes("photo 2") || n.includes("big number 2"));
                     const hasPlayer3 = allObjNames.some((n: string) => n.includes("player 3") || n.includes("number 3") || n.includes("photo 3"));
-                    const totalSlots = hasPlayer3 ? 3 : (hasPlayer2 ? 2 : 1);
+                    const detectedSlots = hasPlayer3 ? 3 : (hasPlayer2 ? 2 : 1);
+                    const totalSlots = manualSlotCount !== null ? manualSlotCount : detectedSlots;
                     const slotIndices = Array.from({ length: totalSlots }, (_, i) => i + 1);
 
                     return (
                         <Section icon={<Users className="h-3.5 w-3.5 text-gold" />} title={`Player Swap (${totalSlots} ${totalSlots > 1 ? "Players" : "Player"})`} count={totalSlots}>
+                            {/* Slot Count Controller */}
+                            <div className="flex items-center justify-between mb-2.5 px-0.5">
+                                <span className="text-[10px] text-text-mute font-semibold uppercase">Active Players:</span>
+                                <div className="flex items-center gap-1">
+                                    {[1, 2, 3].map((num) => (
+                                        <button
+                                            key={num}
+                                            type="button"
+                                            onClick={() => setManualSlotCount(num)}
+                                            className={`h-5 min-w-[24px] px-1.5 rounded text-[10px] font-extrabold transition-all border ${totalSlots === num ? 'bg-gold text-black border-gold' : 'bg-surface-3 border-line text-text-dim hover:text-white'}`}
+                                        >
+                                            {num}
+                                        </button>
+                                    ))}
+                                    {manualSlotCount !== null && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setManualSlotCount(null)}
+                                            className="text-[9px] text-text-mute hover:text-gold transition-colors ml-1 underline"
+                                            title="Auto-detect based on layer names"
+                                        >
+                                            Auto
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+
                             <div className="space-y-3">
                                 {slotIndices.map((slotNum) => {
                                     const currentSlotData = playerSlots[slotNum] || { playerId: "", photoUrl: "", sponsorUrl: "" };

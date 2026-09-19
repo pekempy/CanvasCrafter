@@ -128,26 +128,64 @@ export default function PropertiesPanel() {
                                 }}
                                 className="w-full rounded-md border border-line bg-surface px-2.5 py-1.5 text-xs text-text focus:outline-none focus:ring-1 focus:ring-gold font-medium"
                             />
+                            <div className="flex items-center gap-1 mb-1">
+                                <span className="text-[10px] text-text-mute font-bold uppercase">Assign To:</span>
+                                {[
+                                    { id: "1", label: "Player 1 (Main)" },
+                                    { id: "2", label: "Player 2" },
+                                    { id: "3", label: "Player 3" },
+                                ].map((slot) => {
+                                    const slotNum = slot.id;
+                                    const currentName = o.name || "";
+                                    const isSlotActive = slotNum === "1" ? (!currentName.includes("2") && !currentName.includes("3")) : currentName.includes(slotNum);
+                                    return (
+                                        <button
+                                            key={slot.id}
+                                            type="button"
+                                            onClick={() => {
+                                                let base = currentName.replace(/\b(1|2|3)\b/g, "").replace(/\s+/g, " ").trim();
+                                                if (!base) base = isText ? "Player Name" : "Player Photo";
+                                                const newName = slotNum === "1" ? base : `${base} ${slotNum}`;
+                                                o.set("name", newName);
+                                                canvas?.requestRenderAll();
+                                                canvas?.fire("object:modified", { target: o });
+                                                updateSelectedObject({ name: newName });
+                                            }}
+                                            className={`rounded px-2 py-0.5 text-[9px] font-bold transition-colors border ${isSlotActive ? 'bg-gold text-black border-gold' : 'bg-white/5 border-line text-text-mute hover:text-white'}`}
+                                        >
+                                            {slot.label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+
                             <div className="flex flex-wrap gap-1">
                                 {(isText ? [
                                     "Player Name", "First Name", "Last Name", "Squad Number", "Position", "Player Sponsor", "Away Name", "Date", "Time", "Venue", "Footer"
                                 ] : [
                                     "Player Photo", "Player Sponsor", "Away Logo", "Home Logo", "Sponsor Logo", "Photo Panel"
-                                ]).map((preset) => (
-                                    <button
-                                        key={preset}
-                                        type="button"
-                                        onClick={() => {
-                                            o.set("name", preset);
-                                            canvas?.requestRenderAll();
-                                            canvas?.fire("object:modified", { target: o });
-                                            updateSelectedObject({ name: preset });
-                                        }}
-                                        className={`rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase transition-colors border ${o.name === preset ? 'bg-gold/20 border-gold text-gold' : 'bg-white/5 border-line text-text-mute hover:text-text hover:bg-white/10'}`}
-                                    >
-                                        {preset}
-                                    </button>
-                                ))}
+                                ]).map((preset) => {
+                                    const currentName = (o.name || "").toLowerCase();
+                                    // Check if current layer has slot 2 or 3
+                                    const slotMatch = (o.name || "").match(/\b(2|3)\b/);
+                                    const targetName = slotMatch ? `${preset} ${slotMatch[1]}` : preset;
+
+                                    return (
+                                        <button
+                                            key={preset}
+                                            type="button"
+                                            onClick={() => {
+                                                o.set("name", targetName);
+                                                canvas?.requestRenderAll();
+                                                canvas?.fire("object:modified", { target: o });
+                                                updateSelectedObject({ name: targetName });
+                                            }}
+                                            className={`rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase transition-colors border ${o.name === targetName ? 'bg-gold/20 border-gold text-gold' : 'bg-white/5 border-line text-text-mute hover:text-text hover:bg-white/10'}`}
+                                        >
+                                            {preset}
+                                        </button>
+                                    );
+                                })}
                             </div>
                             <p className="text-[10px] text-text-mute leading-snug">
                                 Tag this layer so <strong>Quick Swap</strong> and <strong>This Match</strong> know where to swap in names, numbers, or logos.
