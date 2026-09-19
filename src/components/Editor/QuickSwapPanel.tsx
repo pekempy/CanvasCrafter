@@ -181,7 +181,19 @@ export default function QuickSwapPanel() {
         const playerPos = player.position || "";
         const sponsorName = player.sponsorName || "";
         const sponsorUrl = chosenSponsorUrl !== undefined ? chosenSponsorUrl : (player.sponsorUrl || "");
-        const allObjects = canvas.getObjects() as AnyObj[];
+        // Helper to flatten objects and inspect inside any Groups (e.g. grouped First + Last name)
+        const flattenObjects = (objs: AnyObj[]): AnyObj[] => {
+            const list: AnyObj[] = [];
+            objs.forEach((o) => {
+                list.push(o);
+                if (o.type === "group" && typeof o.getObjects === "function") {
+                    list.push(...flattenObjects(o.getObjects()));
+                }
+            });
+            return list;
+        };
+
+        const allObjects = flattenObjects(canvas.getObjects() as AnyObj[]);
         const applyCasing = (o: AnyObj, rawVal: string, defaultTransform: "as-is" | "uppercase" = "as-is") => {
             const casing = o.textCasing || (defaultTransform === "uppercase" ? "uppercase" : "preserve");
             if (casing === "uppercase") return rawVal.toUpperCase();
@@ -191,7 +203,6 @@ export default function QuickSwapPanel() {
         };
 
         allObjects.forEach((o) => {
-            if (!isText(o)) return;
             const name = (o.name || "").trim().toLowerCase();
             const currentText = (o.text || "").trim();
 
