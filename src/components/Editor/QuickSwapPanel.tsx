@@ -252,10 +252,11 @@ export default function QuickSwapPanel() {
                     o.set("text", currentText === currentText.toUpperCase() ? playerName.toUpperCase() : playerName);
                 }
             }
-
-            // If object has a fit-width rule, automatically resize/fit text to the bounding box
-            if (o.textFitRule && o.textFitRule !== "none") {
-                applyTextFit(o);
+            // Auto-fit text if object has a fit-width rule OR if it is a player name slot
+            const isNameSlot = name.includes("name") || name.includes("player");
+            const effectiveRule = o.textFitRule && o.textFitRule !== "none" ? o.textFitRule : (isNameSlot ? "shrink" : "none");
+            if (effectiveRule !== "none") {
+                applyTextFit(o, effectiveRule);
             }
         });
         // 2. Identify image elements that match player photo for this slot

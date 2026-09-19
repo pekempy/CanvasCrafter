@@ -17,7 +17,13 @@ export function applyTextFit(obj: any, rule?: TextFitRule, targetWidth?: number)
     const fitRule: TextFitRule = rule || obj.textFitRule || "none";
     if (fitRule === "none") return;
 
-    const availableWidth = targetWidth || obj.width || 300;
+    // In Fabric, text objects can have scaleX !== 1 (e.g. scaleX = 2.97, width = 320)
+    // The rendered width on canvas is obj.width * obj.scaleX
+    const scaleX = typeof obj.scaleX === "number" && obj.scaleX > 0 ? obj.scaleX : 1;
+    
+    // Normalised box width that unscaled text must fit into
+    let boxWidth = (targetWidth || obj.width || 300);
+
     const baseFontSize = obj.baseFontSize || obj.fontSize || 40;
     if (!obj.baseFontSize) obj.baseFontSize = baseFontSize;
 
@@ -26,24 +32,16 @@ export function applyTextFit(obj: any, rule?: TextFitRule, targetWidth?: number)
 
     if (fitRule === "wrap") {
         obj.set({
-            width: availableWidth,
+            width: boxWidth,
             splitByGrapheme: false,
         });
         obj.setCoords();
         return;
     }
 
-    // Measuring single-line text width accurately
-    // Fabric Textbox/IText calculates line widths using getLineWidth or canvas measuring
-    const minFontSize = 10;
-    const maxFontSize = fitRule === "auto" ? baseFontSize * 2 : baseFontSize;
-
-    // Binary search or iterative scaling to find best fontSize for availableWidth
-    let low = minFontSize;
-    let high = maxFontSize;
-    let bestSize = low;
-
-    // Use a temporary canvas 2D context for sub-millisecond font measuring
+    // Fabric Textbox wraps lines whenever any line width exceeds `obj.width`.
+    // To prevent multi-word strings like "De la bertouche" from wrapping:
+    // 1. Measure text on single line
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
@@ -53,9 +51,12 @@ export function applyTextFit(obj: any, rule?: TextFitRule, targetWidth?: number)
     const measured100 = ctx.measureText(text).width;
     if (measured100 <= 0) return;
 
-    // Width at font size F is approximately (F / 100) * measured100
-    // We want (F / 100) * measured100 <= availableWidth
-    const calculatedFont = Math.floor((availableWidth / measured100) * 100);
+    const minFontSize = 8;
+    const maxFontSize = fitRule === "auto" ? baseFontSize * 2 : baseFontSize;
+
+    // Width of text at font size F is (F / 100) * measured100
+    // We require: (F / 100) * measured100 <= boxWidth
+    const calculatedFont = Math.floor((boxWidth / measured100) * 100);
 
     let targetFont = baseFontSize;
     if (fitRule === "shrink") {
@@ -64,9 +65,16 @@ export function applyTextFit(obj: any, rule?: TextFitRule, targetWidth?: number)
         targetFont = Math.max(minFontSize, Math.min(maxFontSize, calculatedFont));
     }
 
+    const actualLineWidth = (targetFont / 100) * measured100;
+
+    // CRITICAL: obj.width on a Fabric Textbox MUST be >= actualLineWidth,
+    // otherwise Fabric's wrap algorithm breaks words across multiple lines.
+    const finalBoxWidth = Math.max(boxWidth, Math.ceil(actualLineWidth) + 4);
+
     obj.set({
         fontSize: targetFont,
-        width: Math.max(availableWidth, Math.ceil((targetFont / 100) * measured100)),
+        width: finalBoxWidth,
+        splitByGrapheme: false,
     });
     obj.setCoords();
 }
