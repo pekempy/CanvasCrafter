@@ -147,17 +147,32 @@ export default function TemplatePanel() {
                             }}
                         >
                             <option value="" disabled>Pick a Seahawks game…</option>
-                            {fixtures.upcoming?.length > 0 && (
-                                <optgroup label="Upcoming">
-                                    {fixtures.upcoming.map((f) => (
+
+                            {/* Prioritized: Upcoming Home Games */}
+                            {fixtures.upcoming?.filter(f => f.isHome).length > 0 && (
+                                <optgroup label="Upcoming Home Games (Recommended)">
+                                    {fixtures.upcoming.filter(f => f.isHome).map((f) => (
                                         <option key={f.id} value={f.id}>
-                                            {new Date(f.date + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" })} · {f.isHome ? "vs" : "@"} {f.opponent}
+                                            ★ {new Date(f.date + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })} · vs {f.opponent} ({f.time})
                                         </option>
                                     ))}
                                 </optgroup>
                             )}
+
+                            {/* Upcoming Away Games */}
+                            {fixtures.upcoming?.filter(f => !f.isHome).length > 0 && (
+                                <optgroup label="Upcoming Away Games">
+                                    {fixtures.upcoming.filter(f => !f.isHome).map((f) => (
+                                        <option key={f.id} value={f.id}>
+                                            {new Date(f.date + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })} · @ {f.opponent} ({f.time})
+                                        </option>
+                                    ))}
+                                </optgroup>
+                            )}
+
+                            {/* Recent Played Games */}
                             {fixtures.recent?.length > 0 && (
-                                <optgroup label="Recent">
+                                <optgroup label="Recent Games">
                                     {fixtures.recent.map((f) => (
                                         <option key={f.id} value={f.id}>
                                             {new Date(f.date + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" })} · {f.isHome ? "vs" : "@"} {f.opponent} {f.score ? `(${f.score})` : ""}

@@ -98,10 +98,15 @@ export default function FabricCanvas() {
             backgroundColor: theme === 'dark' ? '#1a1d24' : '#ffffff',
             preserveObjectStacking: true,
             subTargetCheck: true,
+            controlsAboveOverlay: true,
         });
+
+        // Ensure controls are drawn even if object corners fall outside the canvas bounds
+        instance.controlsAboveOverlay = true;
 
         (instance as any)._isAlive = true;
         fabricCanvasRef.current = instance;
+        (window as any).__fabricCanvas = instance;
         setCanvas(instance);
 
         // Initial load from storage
@@ -237,6 +242,7 @@ export default function FabricCanvas() {
             }
             (instance as any)._isAlive = false;
             fabricCanvasRef.current = null;
+            (window as any).__fabricCanvas = null;
             setCanvas(null);
             instance.dispose();
         };
@@ -246,7 +252,6 @@ export default function FabricCanvas() {
         const canvasInstance = fabricCanvasRef.current;
         if (canvasInstance && (canvasInstance as any)._isAlive) {
             const z = zoom / 100;
-
             canvasInstance.setDimensions({
                 width: canvasSize.width * z,
                 height: canvasSize.height * z

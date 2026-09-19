@@ -948,6 +948,19 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
                     .then(async () => {
                         if (!(canvas as any)._isAlive) return;
                         if (slots) await applySlots(canvas, slots);
+
+                        // If canvas contains match-related slots (e.g. Date, Away Logo, Away Name), auto-populate with the next upcoming HOME game
+                        const objNames = (canvas.getObjects() as any[]).map(o => (o.name || "").toLowerCase());
+                        const hasMatchSlots = objNames.some(n => n.includes("away") || n.includes("date") || n.includes("time") || n.includes("venue") || n.includes("footer"));
+                        if (hasMatchSlots) {
+                            fetch("/api/fixtures").then(r => r.json()).then(fxData => {
+                                const nextHomeGame = (fxData?.upcoming || []).find((f: any) => f.isHome);
+                                if (nextHomeGame) {
+                                    applyFixture(nextHomeGame);
+                                }
+                            }).catch(() => { });
+                        }
+
                         canvas.renderAll();
                         setTimeout(() => { if ((canvas as any)._isAlive) fitToScreen(); }, 60);
                         setTimeout(() => { if ((canvas as any)._isAlive) fitToScreen(); }, 200);
