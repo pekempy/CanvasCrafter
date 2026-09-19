@@ -49,8 +49,8 @@ export default function QuickSwapPanel() {
     const [filterBrandId, setFilterBrandId] = useState<string>("all");
     const [filterFolderId, setFilterFolderId] = useState<string>("all");
     const [assetSearch, setAssetSearch] = useState<string>("");
-    const [selectedPlayerId, setSelectedPlayerId] = useState<string>("");
-    const [selectedPlayerPhotoUrl, setSelectedPlayerPhotoUrl] = useState<string>("");
+    const [playerSlots, setPlayerSlots] = useState<Record<number, { playerId: string; photoUrl: string }>>({});
+
     useEffect(() => {
         if (!canvas) return;
         const h = () => rerender();
@@ -166,8 +166,8 @@ export default function QuickSwapPanel() {
         commit(obj);
     };
 
-    // Automagically swap a player across all matching slots/elements
-    const swapPlayer = async (player: any, chosenPhotoUrl?: string) => {
+    // Automagically swap a player into a specific slot index (slotIndex: 1, 2, 3...)
+    const swapPlayerSlot = async (slotIndex: number, player: any, chosenPhotoUrl?: string) => {
         if (!canvas || !player) return;
 
         const photoToUse = chosenPhotoUrl || player.photoUrl || (player.folderId && assetFolders.find((f: any) => f.id === player.folderId)?.assets?.[0]?.url) || "";
@@ -178,58 +178,76 @@ export default function QuickSwapPanel() {
         const sponsorUrl = player.sponsorUrl || "";
         const allObjects = canvas.getObjects() as AnyObj[];
 
-        // 1. Identify text elements that match player patterns
+        // 1. Identify text elements that match player patterns for this slot
         allObjects.forEach((o) => {
             if (!isText(o)) return;
             const name = (o.name || "").trim().toLowerCase();
             const currentText = (o.text || "").trim();
 
-            // Explicit layer name matches
-            if (name === "player name" || name === "player" || name === "name" || name === "player 1" || name === "players") {
-                o.set("text", playerName.toUpperCase());
-            } else if (name === "squad number" || name === "number" || name === "player number" || name === "#" || name === "big number 1") {
+            const isMatchingSlot = (targetSlot: number) => {
+                if (name.includes(String(targetSlot))) return true;
+                if (targetSlot === 1 && !name.match(/\d/)) return true;
+                return false;
+            };
+
+            // Player Name matches
+            if ((name.includes("player") && name.includes("name")) || name === "player" || name === "name" || name === `player ${slotIndex}`) {
+                if (isMatchingSlot(slotIndex)) {
+                    o.set("text", playerName.toUpperCase());
+                }
+            }
+            // Combined "Players" text (e.g. "PLAYER ONE & PLAYER TWO")
+            else if (name === "players" || currentText.includes("&")) {
+                const parts = currentText.split(/\s*&\s*/);
+                if (parts.length >= 2) {
+                    if (slotIndex === 1) parts[0] = playerName.toUpperCase();
+                    if (slotIndex === 2) parts[1] = playerName.toUpperCase();
+                    o.set("text", parts.join("  &  "));
+                }
+            }
+            // Squad Number matches
+            else if ((name.includes("number") || name.includes("squad") || name === "#") && isMatchingSlot(slotIndex)) {
                 o.set("text", playerNum);
-            } else if (name === "position" || name === "player position") {
+            }
+            // Position matches
+            else if (name.includes("position") && isMatchingSlot(slotIndex)) {
                 o.set("text", playerPos.toUpperCase());
-            } else if (name === "sponsor line" || name === "player sponsor" || name === "sponsor name") {
+            }
+            // Sponsor line matches
+            else if ((name.includes("sponsor") && !name.includes("logo")) && isMatchingSlot(slotIndex)) {
                 if (sponsorName) {
                     o.set("text", sponsorName.toUpperCase());
                 }
             }
-            // Heuristic detection based on current content if layer name is unset
+            // Fallback heuristics for unnamed objects
             else if (!o.name || o.name === "text" || o.name === "textbox") {
-                // If it looks like a jersey number (e.g. "6", "#6", "74", "#74")
-                if (/^#?\d{1,2}$/.test(currentText) && playerNum) {
+                if (/^#?\d{1,2}$/.test(currentText) && playerNum && slotIndex === 1) {
                     const hasHash = currentText.startsWith("#");
                     o.set("text", hasHash ? `#${playerNum}` : playerNum);
-                }
-                // If text looks like a full player name or uppercase name
-                else if (roster && roster.some((p: any) => p.name && (currentText.toLowerCase() === p.name.toLowerCase() || p.name.toLowerCase().includes(currentText.toLowerCase())))) {
+                } else if (roster && roster.some((p: any) => p.name && currentText.toLowerCase() === p.name.toLowerCase()) && slotIndex === 1) {
                     o.set("text", currentText === currentText.toUpperCase() ? playerName.toUpperCase() : playerName);
-                } else if (sponsorName && (currentText.toLowerCase().includes("sponsored by") || currentText.toLowerCase().includes("sponsor"))) {
-                    o.set("text", `SPONSORED BY: ${sponsorName.toUpperCase()}`);
                 }
             }
         });
 
-        // 2. Identify image elements that match player photo
+        // 2. Identify image elements that match player photo for this slot
         if (photoToUse) {
             const playerImages = allObjects.filter((o) => {
                 if (!isImage(o)) return false;
                 const name = (o.name || "").trim().toLowerCase();
-                if (name === "player photo" || name === "player" || name === "photo" || name === "player 1 photo" || name === "headshot") {
-                    return true;
-                }
+                const isPlayerImage = name.includes("player") || name.includes("photo") || name.includes("headshot");
+                if (!isPlayerImage) return false;
+                if (name.includes(String(slotIndex))) return true;
+                if (slotIndex === 1 && !name.match(/\d/)) return true;
                 return false;
             });
 
-            // If explicit player images were found, update them
             if (playerImages.length > 0) {
                 for (const imgObj of playerImages) {
                     await setImageFromUrl(imgObj, photoToUse);
                 }
-            } else {
-                // Fallback: If there's an image that isn't a crest/logo/background, or if user selected one
+            } else if (slotIndex === 1) {
+                // Fallback for single/unnamed candidate
                 const candidate = allObjects.find((o) => {
                     if (!isImage(o)) return false;
                     const name = (o.name || "").toLowerCase();
@@ -240,12 +258,17 @@ export default function QuickSwapPanel() {
                 }
             }
         }
+
         // 3. Identify sponsor logo image elements if player has a sponsor
         if (sponsorUrl) {
             const sponsorImages = allObjects.filter((o) => {
                 if (!isImage(o)) return false;
                 const name = (o.name || "").trim().toLowerCase();
-                return name === "sponsor logo" || name === "player sponsor logo" || name === "sponsor" || name === "sponsor 1";
+                const isSponsor = name.includes("sponsor") && (name.includes("logo") || name === "sponsor");
+                if (!isSponsor) return false;
+                if (name.includes(String(slotIndex))) return true;
+                if (slotIndex === 1 && !name.match(/\d/)) return true;
+                return false;
             });
             for (const sImg of sponsorImages) {
                 await setImageFromUrl(sImg, sponsorUrl);
@@ -291,74 +314,103 @@ export default function QuickSwapPanel() {
                 {objects.length === 0 && (
                     <p className="text-[12px] text-text-mute text-center py-14">Nothing on the canvas yet.</p>
                 )}
-                {/* Automagic Player Swap */}
-                {roster && roster.length > 0 && (
-                    <Section icon={<Users className="h-3.5 w-3.5 text-gold" />} title="Player Swap" count={roster.length}>
-                        <div className="rounded-app border border-line bg-surface-2 p-3 space-y-3">
-                            <div className="space-y-1">
-                                <label className="text-[10px] font-semibold uppercase text-text-mute flex items-center justify-between">
-                                    <span>Choose Player</span>
-                                    <span className="text-gold font-normal lowercase">auto-fills name, #, photo</span>
-                                </label>
-                                <select
-                                    value={selectedPlayerId}
-                                    onChange={(e) => {
-                                        const pId = e.target.value;
-                                        setSelectedPlayerId(pId);
-                                        const p = roster.find((r: any) => r.id === pId);
-                                        if (p) {
-                                            const defaultPhoto = p.photoUrl || (p.folderId && assetFolders.find((f: any) => f.id === p.folderId)?.assets?.[0]?.url) || "";
-                                            setSelectedPlayerPhotoUrl(defaultPhoto);
-                                            swapPlayer(p, defaultPhoto);
-                                        }
-                                    }}
-                                    className="w-full rounded-md border border-line bg-white/5 px-2.5 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-gold cursor-pointer"
-                                >
-                                    <option value="" disabled className="bg-[#16191f]">Select a player to swap...</option>
-                                    {roster
-                                        .slice()
-                                        .sort((a: any, b: any) => (parseInt(a.number) || 999) - (parseInt(b.number) || 999))
-                                        .map((p: any) => (
-                                            <option key={p.id} value={p.id} className="bg-[#16191f]">
-                                                {p.number ? `#${p.number} ` : ""}{p.name} ({p.position || "Forward"})
-                                            </option>
-                                        ))}
-                                </select>
-                            </div>
+                {/* Automagic Multi-Player Swap */}
+                {roster && roster.length > 0 && (() => {
+                    // Inspect canvas to detect how many player slots are present
+                    const allObjNames = objects.map((o: AnyObj) => (o.name || "").toLowerCase());
+                    const hasPlayer2 = allObjNames.some((n: string) => n.includes("player 2") || n.includes("number 2") || n.includes("photo 2") || n.includes("big number 2"));
+                    const hasPlayer3 = allObjNames.some((n: string) => n.includes("player 3") || n.includes("number 3") || n.includes("photo 3"));
+                    const totalSlots = hasPlayer3 ? 3 : (hasPlayer2 ? 2 : 1);
+                    const slotIndices = Array.from({ length: totalSlots }, (_, i) => i + 1);
 
-                            {/* Player Photo variant picker if selected player has multiple photos */}
-                            {(() => {
-                                const p = roster.find((r: any) => r.id === selectedPlayerId);
-                                if (!p || !p.folderId) return null;
-                                const fol = assetFolders.find((f: any) => f.id === p.folderId);
-                                if (!fol || fol.assets.length <= 1) return null;
+                    return (
+                        <Section icon={<Users className="h-3.5 w-3.5 text-gold" />} title={`Player Swap (${totalSlots} ${totalSlots > 1 ? "Players" : "Player"})`} count={totalSlots}>
+                            <div className="space-y-3">
+                                {slotIndices.map((slotNum) => {
+                                    const currentSlotData = playerSlots[slotNum] || { playerId: "", photoUrl: "" };
+                                    const selectedP = roster.find((r: any) => r.id === currentSlotData.playerId);
+                                    const fol = selectedP?.folderId ? assetFolders.find((f: any) => f.id === selectedP.folderId) : null;
 
-                                return (
-                                    <div className="space-y-1.5 pt-1 border-t border-line">
-                                        <label className="text-[9px] font-semibold uppercase text-text-mute">
-                                            Switch Photo Pose / Cutout ({fol.assets.length} available)
-                                        </label>
-                                        <div className="grid grid-cols-5 gap-1.5 max-h-24 overflow-y-auto p-1 bg-white/5 rounded-md border border-line">
-                                            {fol.assets.map((asset: any) => (
-                                                <button
-                                                    key={asset.id}
-                                                    type="button"
-                                                    onClick={() => {
-                                                        setSelectedPlayerPhotoUrl(asset.url);
-                                                        swapPlayer(p, asset.url);
+                                    return (
+                                        <div key={slotNum} className="rounded-app border border-line bg-surface-2 p-3 space-y-2.5">
+                                            <div className="flex items-center justify-between border-b border-line pb-1.5">
+                                                <span className="text-[11px] font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                                                    <span className="flex h-4 w-4 items-center justify-center rounded bg-gold/20 text-gold text-[10px] font-extrabold">
+                                                        {slotNum}
+                                                    </span>
+                                                    Player {slotNum}
+                                                </span>
+                                                {selectedP && selectedP.sponsorName && (
+                                                    <span className="text-[9px] text-gold font-medium truncate max-w-[130px]">
+                                                        Sponsored by {selectedP.sponsorName}
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            <div className="space-y-1">
+                                                <select
+                                                    value={currentSlotData.playerId}
+                                                    onChange={(e) => {
+                                                        const pId = e.target.value;
+                                                        const p = roster.find((r: any) => r.id === pId);
+                                                        if (p) {
+                                                            const defaultPhoto = p.photoUrl || (p.folderId && assetFolders.find((f: any) => f.id === p.folderId)?.assets?.[0]?.url) || "";
+                                                            setPlayerSlots(prev => ({
+                                                                ...prev,
+                                                                [slotNum]: { playerId: pId, photoUrl: defaultPhoto }
+                                                            }));
+                                                            swapPlayerSlot(slotNum, p, defaultPhoto);
+                                                        }
                                                     }}
-                                                    className={`relative aspect-square rounded overflow-hidden border transition-all ${selectedPlayerPhotoUrl === asset.url ? 'border-gold ring-1 ring-gold' : 'border-line opacity-60 hover:opacity-100'}`}
+                                                    className="w-full rounded-md border border-line bg-white/5 px-2.5 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-gold cursor-pointer"
                                                 >
-                                                    <img src={asset.url} alt="" className="h-full w-full object-cover" />
-                                                </button>
-                                            ))}
+                                                    <option value="" disabled className="bg-[#16191f]">
+                                                        Select Player {slotNum}...
+                                                    </option>
+                                                    {roster
+                                                        .slice()
+                                                        .sort((a: any, b: any) => (parseInt(a.number) || 999) - (parseInt(b.number) || 999))
+                                                        .map((p: any) => (
+                                                            <option key={p.id} value={p.id} className="bg-[#16191f]">
+                                                                {p.number ? `#${p.number} ` : ""}{p.name} ({p.position || "Forward"})
+                                                            </option>
+                                                        ))}
+                                                </select>
+                                            </div>
+
+                                            {/* Photo pose variant picker if selected player has multiple photos */}
+                                            {fol && fol.assets.length > 1 && (
+                                                <div className="space-y-1 pt-1 border-t border-line">
+                                                    <p className="text-[8px] font-semibold uppercase text-text-mute">
+                                                        Pose / Photo ({fol.assets.length} available):
+                                                    </p>
+                                                    <div className="grid grid-cols-5 gap-1.5 max-h-20 overflow-y-auto p-1 bg-white/5 rounded-md border border-line">
+                                                        {fol.assets.map((asset: any) => (
+                                                            <button
+                                                                key={asset.id}
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setPlayerSlots(prev => ({
+                                                                        ...prev,
+                                                                        [slotNum]: { ...prev[slotNum], photoUrl: asset.url }
+                                                                    }));
+                                                                    swapPlayerSlot(slotNum, selectedP, asset.url);
+                                                                }}
+                                                                className={`relative aspect-square rounded overflow-hidden border transition-all ${currentSlotData.photoUrl === asset.url ? 'border-gold ring-1 ring-gold' : 'border-line opacity-60 hover:opacity-100'}`}
+                                                            >
+                                                                <img src={asset.url} alt="" className="h-full w-full object-cover" />
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
-                                    </div>
-                                );
-                            })()}
-                        </div>
-                    </Section>
-                )}
+                                    );
+                                })}
+                            </div>
+                        </Section>
+                    );
+                })()}
                 {images.length > 0 && (
                     <Section icon={<ImageIcon className="h-3.5 w-3.5" />} title="Images" count={images.length}>
                         {images.map((o, i) => (
