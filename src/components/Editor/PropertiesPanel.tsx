@@ -112,6 +112,51 @@ export default function PropertiesPanel() {
             </div>
 
             <div className="panel-body">
+                {/* Layer / Template Slot Name */}
+                <Section title="Template Slot / Layer Name">
+                    <Card>
+                        <div className="space-y-2">
+                            <input
+                                type="text"
+                                value={o.name || ""}
+                                placeholder={isText ? "e.g. Player Name, Squad Number, Away Name" : "e.g. Player Photo, Away Logo, Sponsor"}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    o.set("name", val);
+                                    canvas?.requestRenderAll();
+                                    canvas?.fire("object:modified", { target: o });
+                                    updateSelectedObject({ name: val });
+                                }}
+                                className="w-full rounded-md border border-line bg-surface px-2.5 py-1.5 text-xs text-text focus:outline-none focus:ring-1 focus:ring-gold font-medium"
+                            />
+                            <div className="flex flex-wrap gap-1">
+                                {(isText ? [
+                                    "Player Name", "Squad Number", "Position", "Away Name", "Date", "Time", "Venue", "Footer"
+                                ] : [
+                                    "Player Photo", "Away Logo", "Home Logo", "Sponsor Logo", "Photo Panel"
+                                ]).map((preset) => (
+                                    <button
+                                        key={preset}
+                                        type="button"
+                                        onClick={() => {
+                                            o.set("name", preset);
+                                            canvas?.requestRenderAll();
+                                            canvas?.fire("object:modified", { target: o });
+                                            updateSelectedObject({ name: preset });
+                                        }}
+                                        className={`rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase transition-colors border ${o.name === preset ? 'bg-gold/20 border-gold text-gold' : 'bg-white/5 border-line text-text-mute hover:text-text hover:bg-white/10'}`}
+                                    >
+                                        {preset}
+                                    </button>
+                                ))}
+                            </div>
+                            <p className="text-[10px] text-text-mute leading-snug">
+                                Tag this layer so <strong>Quick Swap</strong> and <strong>This Match</strong> know where to swap in names, numbers, or logos.
+                            </p>
+                        </div>
+                    </Card>
+                </Section>
+
                 {isText && (
                     <Section title="Text">
                         <Card>
