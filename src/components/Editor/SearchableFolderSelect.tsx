@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { Folder, ChevronDown, Search, Check, Star } from "lucide-react";
 import { AssetFolder } from "@/store/useCanvasStore";
 import { sortFoldersNaturally } from "@/utils/folderSort";
@@ -31,12 +32,42 @@ export default function SearchableFolderSelect({
 }: SearchableFolderSelectProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [search, setSearch] = useState("");
-    const containerRef = useRef<HTMLDivElement>(null);
+    const buttonRef = useRef<HTMLButtonElement>(null);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+    const [menuPosition, setMenuPosition] = useState<{ top: number; left: number; width: number } | null>(null);
+
+    // Update position whenever opened or window resized/scrolled
+    const updatePosition = () => {
+        if (!buttonRef.current) return;
+        const rect = buttonRef.current.getBoundingClientRect();
+        const width = Math.min(Math.max(400, rect.width * 1.5), window.innerWidth - rect.left - 16);
+        setMenuPosition({
+            top: rect.bottom + 6,
+            left: rect.left,
+            width: Math.max(320, width)
+        });
+    };
+
+    useEffect(() => {
+        if (isOpen) {
+            updatePosition();
+            window.addEventListener("resize", updatePosition);
+            window.addEventListener("scroll", updatePosition, true);
+        }
+        return () => {
+            window.removeEventListener("resize", updatePosition);
+            window.removeEventListener("scroll", updatePosition, true);
+        };
+    }, [isOpen]);
 
     // Close on click outside
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
-            if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+            const target = e.target as Node;
+            if (
+                buttonRef.current && !buttonRef.current.contains(target) &&
+                dropdownRef.current && !dropdownRef.current.contains(target)
+            ) {
                 setIsOpen(false);
             }
         };
@@ -93,11 +124,15 @@ export default function SearchableFolderSelect({
     }, [flatTree, search]);
 
     return (
-        <div ref={containerRef} className={`relative select-none ${isOpen ? "z-[9999]" : ""} ${className}`}>
+        <div className={`relative select-none ${className}`}>
             {/* Trigger Button */}
             <button
+                ref={buttonRef}
                 type="button"
-                onClick={() => setIsOpen(!isOpen)}
+                onClick={() => {
+                    if (!isOpen) updatePosition();
+                    setIsOpen(!isOpen);
+                }}
                 className="w-full flex items-center justify-between gap-2 bg-white/10 text-xs font-semibold uppercase tracking-normal text-white border border-line rounded-xl px-3 py-2 text-left focus:outline-none focus:ring-2 focus:ring-gold/40 hover:bg-white/15 transition-all"
             >
                 <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -111,11 +146,20 @@ export default function SearchableFolderSelect({
                 <ChevronDown className={`h-3.5 w-3.5 text-text-mute shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`} />
             </button>
 
-            {/* Dropdown Menu - wider and allowed to overflow sidebar */}
-            {isOpen && (
-                <div className="absolute left-0 top-full mt-1.5 z-[9999] w-[min(90vw,440px)] rounded-xl border border-line bg-[#16191f]/98 shadow-[0_25px_60px_rgba(0,0,0,0.85)] p-2 backdrop-blur-2xl ring-1 ring-white/10 animate-in fade-in zoom-in-95 duration-150">
+            {/* Portal Dropdown Menu - Escapes all overflow clipping containers entirely */}
+            {isOpen && menuPosition && typeof document !== "undefined" && createPortal(
+                <div
+                    ref={dropdownRef}
+                    className="fixed z-[100000] rounded-xl border border-line bg-[#16191f]/98 shadow-[0_25px_60px_rgba(0,0,0,0.9)] p-2 backdrop-blur-2xl ring-1 ring-white/15 animate-in fade-in zoom-in-95 duration-150"
+                    style={{
+                        top: `${menuPosition.top}px`,
+                        left: `${menuPosition.left}px`,
+                        width: `${menuPosition.width}px`,
+                        maxHeight: "80vh"
+                    }}
+                >
                     {/* Search Field */}
-                    <div className="relative mb-1.5 px-1 pt-1">
+                    <div className="relative mb-2 px-1 pt-1">
                         <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-text-mute" />
                         <input
                             type="text"
@@ -129,7 +173,7 @@ export default function SearchableFolderSelect({
                     </div>
 
                     {/* Options List */}
-                    <div className="max-h-80 overflow-y-auto space-y-0.5 scrollbar-thin scrollbar-thumb-white/10 pr-0.5">
+                    <div className="max-h-72 overflow-y-auto space-y-0.5 scrollbar-thin scrollbar-thumb-white/10 pr-0.5">
                         {includeSpecial && !search && (
                             <>
                                 <button
@@ -194,7 +238,8 @@ export default function SearchableFolderSelect({
                             <p className="py-4 text-center text-xs text-text-mute">No folders found</p>
                         )}
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );
