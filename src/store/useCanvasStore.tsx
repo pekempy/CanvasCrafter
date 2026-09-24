@@ -2044,7 +2044,8 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
                 // If the pointer hasn't moved much, it was a click, not a drag
                 const isClick = downPointer && Math.hypot(pointer.x - downPointer.x, pointer.y - downPointer.y) < 5;
                 if (isClick && opt.e.button === 0) {
-                    const subTarget = (opt.target as any)._searchPossibleTargets(opt.e);
+                    const subTarget = (opt.subTargets && opt.subTargets[0]) ||
+                        (typeof (canvas as any).searchPossibleTargets === 'function' ? (canvas as any).searchPossibleTargets(canvas.getObjects(), pointer)?.subTargets?.[0] : null);
                     if (subTarget) {
                         canvas.setActiveObject(subTarget);
                         canvas.requestRenderAll();
