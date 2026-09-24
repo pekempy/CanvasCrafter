@@ -1,7 +1,7 @@
 "use client";
 
 import { useCanvas } from "@/store/useCanvasStore";
-import { Replace, Type, Image as ImageIcon, Palette, ALargeSmall, Crosshair, Upload, Folder, Shield, Search, X, Users, Music } from "lucide-react";
+import { Replace, Type, Image as ImageIcon, Palette, ALargeSmall, Crosshair, Upload, Folder, Shield, Search, X, Users } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { normalizeSearchString } from "@/utils/normalize";
 import { applyTextFit } from "@/utils/textFit";
@@ -66,7 +66,6 @@ export default function QuickSwapPanel() {
     const [assetSearch, setAssetSearch] = useState<string>("");
     const [playerSlots, setPlayerSlots] = useState<Record<number, { playerId: string; photoUrl: string; sponsorUrl: string }>>({});
     const [manualSlotCount, setManualSlotCount] = useState<number | null>(null);
-    const [playlistPlayerId, setPlaylistPlayerId] = useState<string>("");
 
     useEffect(() => {
         if (!canvas) return;
@@ -184,7 +183,7 @@ export default function QuickSwapPanel() {
     };
 
     // Automagically swap a player into a specific slot index (slotIndex: 1, 2, 3...)
-    const swapPlayerSlot = async (slotIndex: number, player: any, chosenPhotoUrl?: string, chosenSponsorUrl?: string) => {
+    const swapPlayerSlot = async (slotIndex: number, player: any, chosenPhotoUrl?: string, chosenSponsorUrl?: string, totalSlots: number = 1) => {
         if (!canvas || !player) return;
 
         const photoToUse = chosenPhotoUrl || player.photoUrl || (player.folderId && assetFolders.find((f: any) => f.id === player.folderId)?.assets?.[0]?.url) || "";
@@ -194,6 +193,8 @@ export default function QuickSwapPanel() {
         const playerNum = player.number || "";
         const playerPos = player.position || "";
         const sponsorName = player.sponsorName || "";
+        const primarySong = (player.playlist && player.playlist[0] && player.playlist[0].song) || "";
+        const primaryArtist = (player.playlist && player.playlist[0] && player.playlist[0].artist) || "";
         const sponsorUrl = chosenSponsorUrl !== undefined ? chosenSponsorUrl : (player.sponsorUrl || "");
         const allObjects = flattenObjects(canvas.getObjects() as AnyObj[]);
         const applyCasing = (o: AnyObj, rawVal: string, defaultTransform: "as-is" | "uppercase" = "as-is") => {
@@ -254,6 +255,26 @@ export default function QuickSwapPanel() {
             else if ((name === "player sponsor" || name === "player sponsor name" || name === "player sponsor line") && isMatchingSlot(slotIndex)) {
                 if (sponsorName) {
                     o.set("text", sponsorName.toUpperCase());
+                }
+            }
+            // Walkout song matches. Two modes, chosen by how many player slots this template
+            // has (see the "Active Players" count above the Player Swap list):
+            //  - Single-player templates (a dedicated playlist board): the digit is which of
+            //    this player's up to 8 songs to show, e.g. "Song 3" / "Artist 3" = their 3rd song.
+            //  - Multi-player templates ("Player 2", "Player 3", ...): the digit is which player
+            //    slot, e.g. "Song 2" / "Artist 2" = the primary song of whichever player fills
+            //    slot 2 — the same numbering already used for Number/Position/Sponsor above.
+            else if (name.includes("artist") || name.includes("song") || name.includes("track")) {
+                const isArtistField = name.includes("artist");
+                if (totalSlots > 1) {
+                    if (isMatchingSlot(slotIndex)) {
+                        o.set("text", isArtistField ? primaryArtist : primarySong);
+                    }
+                } else {
+                    const digitMatch = name.match(/([1-8])/);
+                    const songIdx = digitMatch ? parseInt(digitMatch[1], 10) : 1;
+                    const entry = (player.playlist && player.playlist[songIdx - 1]) || { song: "", artist: "" };
+                    o.set("text", isArtistField ? entry.artist : entry.song);
                 }
             }
             // Fallback heuristics for unnamed objects
@@ -324,34 +345,6 @@ export default function QuickSwapPanel() {
         commit();
     };
 
-    // Automagically fills a player's up-to-8 walkout playlist into text layers
-    // named "Song N" / "Artist N" (N = 1-8; an unnumbered "Song"/"Artist" layer
-    // is treated as index 1, matching the single-slot convention used above).
-    const applyPlaylistToCanvas = (player: any) => {
-        if (!canvas || !player) return;
-        const playlist: { song: string; artist: string }[] = player.playlist || [];
-        const allObjects = flattenObjects(canvas.getObjects() as AnyObj[]);
-
-        allObjects.forEach((o) => {
-            if (!isText(o)) return;
-            const name = (o.name || "").trim().toLowerCase();
-            const isArtistField = name.includes("artist");
-            const isSongField = !isArtistField && (name.includes("song") || name.includes("track"));
-            if (!isArtistField && !isSongField) return;
-
-            const digitMatch = name.match(/([1-8])/);
-            const idx = digitMatch ? parseInt(digitMatch[1], 10) : 1;
-            const entry = playlist[idx - 1] || { song: "", artist: "" };
-
-            o.set("text", isArtistField ? entry.artist : entry.song);
-
-            const effectiveRule = o.textFitRule && o.textFitRule !== "none" ? o.textFitRule : "shrink";
-            applyTextFit(o, effectiveRule);
-        });
-
-        canvas.requestRenderAll();
-        commit();
-    };
 
     const imgThumb = (o: AnyObj): string => {
         try { return o.getSrc?.() || o._element?.currentSrc || o._element?.src || ""; } catch { return ""; }
@@ -481,7 +474,7 @@ export default function QuickSwapPanel() {
                                                                 ...prev,
                                                                 [slotNum]: { playerId: pId, photoUrl: defaultPhoto, sponsorUrl: defaultSponsor }
                                                             }));
-                                                            swapPlayerSlot(slotNum, p, defaultPhoto, defaultSponsor);
+                                                            swapPlayerSlot(slotNum, p, defaultPhoto, defaultSponsor, totalSlots);
                                                         }
                                                     }}
                                                     className="w-full rounded-md border border-line bg-white/5 px-2.5 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-gold cursor-pointer"
@@ -516,7 +509,7 @@ export default function QuickSwapPanel() {
                                                                         ...prev,
                                                                         [slotNum]: { ...prev[slotNum], photoUrl: asset.url }
                                                                     }));
-                                                                    swapPlayerSlot(slotNum, selectedP, asset.url);
+                                                                swapPlayerSlot(slotNum, selectedP, asset.url, undefined, totalSlots);
                                                                 }}
                                                                 className={`relative aspect-square rounded overflow-hidden border transition-all ${currentSlotData.photoUrl === asset.url ? 'border-gold ring-1 ring-gold' : 'border-line opacity-60 hover:opacity-100'}`}
                                                             >
@@ -542,7 +535,7 @@ export default function QuickSwapPanel() {
                                                                         ...prev,
                                                                         [slotNum]: { ...prev[slotNum], sponsorUrl: "" }
                                                                     }));
-                                                                    swapPlayerSlot(slotNum, selectedP, currentSlotData.photoUrl, "");
+                                                                swapPlayerSlot(slotNum, selectedP, currentSlotData.photoUrl, "", totalSlots);
                                                                 }}
                                                                 className="text-[8px] text-text-mute hover:text-red-400"
                                                             >
@@ -563,7 +556,7 @@ export default function QuickSwapPanel() {
                                                                             ...prev,
                                                                             [slotNum]: { ...prev[slotNum], sponsorUrl: asset.url }
                                                                         }));
-                                                                        swapPlayerSlot(slotNum, selectedP, currentSlotData.photoUrl, asset.url);
+                                                                        swapPlayerSlot(slotNum, selectedP, currentSlotData.photoUrl, asset.url, totalSlots);
                                                                     }}
                                                                     className={`relative aspect-square rounded overflow-hidden border p-1 transition-all ${isSelected ? 'border-gold bg-gold/20 ring-1 ring-gold' : 'border-line bg-black/40 hover:border-gold/50'}`}
                                                                 >
@@ -578,51 +571,6 @@ export default function QuickSwapPanel() {
                                     );
                                 })}
                             </div>
-                        </Section>
-                    );
-                })()}
-                {roster && roster.length > 0 && (() => {
-                    const playlistPlayer = roster.find((r: any) => r.id === playlistPlayerId);
-                    return (
-                        <Section icon={<Music className="h-3.5 w-3.5 text-gold" />} title="Playlist" count={playlistPlayer?.playlist?.length || 0}>
-                            <p className="text-[10px] text-text-mute leading-relaxed mb-2">
-                                Fills text layers named <span className="text-gold font-semibold">Song 1</span>…<span className="text-gold font-semibold">Song 8</span> and <span className="text-gold font-semibold">Artist 1</span>…<span className="text-gold font-semibold">Artist 8</span> from the selected player&apos;s walkout playlist.
-                            </p>
-                            <select
-                                value={playlistPlayerId}
-                                onChange={(e) => {
-                                    const pId = e.target.value;
-                                    setPlaylistPlayerId(pId);
-                                    const p = roster.find((r: any) => r.id === pId);
-                                    if (p) applyPlaylistToCanvas(p);
-                                }}
-                                className="w-full rounded-md border border-line bg-white/5 px-2.5 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-gold cursor-pointer"
-                            >
-                                <option value="" disabled className="bg-[#16191f]">Select player...</option>
-                                {roster
-                                    .slice()
-                                    .sort((a: any, b: any) => (parseInt(a.number) || 999) - (parseInt(b.number) || 999))
-                                    .map((p: any) => (
-                                        <option key={p.id} value={p.id} className="bg-[#16191f]">
-                                            {p.number ? `#${p.number} ` : ""}{p.name} ({(p.playlist || []).length}/8 songs)
-                                        </option>
-                                    ))}
-                            </select>
-
-                            {playlistPlayer && (
-                                <div className="mt-2.5 space-y-1 max-h-40 overflow-y-auto pr-1">
-                                    {(playlistPlayer.playlist || []).length === 0 && (
-                                        <p className="text-[10px] text-text-mute italic py-2 text-center">This player has no playlist songs yet — add some in the Roster panel.</p>
-                                    )}
-                                    {(playlistPlayer.playlist || []).map((entry: any, i: number) => (
-                                        <div key={i} className="flex items-center gap-2 rounded-md border border-line bg-surface-2 px-2 py-1">
-                                            <span className="w-4 shrink-0 text-center text-[9px] font-bold text-text-mute">{i + 1}</span>
-                                            <span className="flex-1 min-w-0 truncate text-[11px] text-white">{entry.song || <em className="text-text-mute">(no song)</em>}</span>
-                                            <span className="shrink-0 truncate max-w-[35%] text-[10px] text-text-dim">{entry.artist}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
                         </Section>
                     );
                 })()}
