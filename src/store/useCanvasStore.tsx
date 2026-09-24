@@ -680,6 +680,18 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
 
     const updateSelectedObject = useCallback((properties: any) => {
         if (!canvas || !selectedObject) return;
+
+        const setRecursive = (target: fabric.Object, props: any) => {
+            if (typeof (target as any).forEachObject === 'function') {
+                (target as fabric.Group).forEachObject((child) => setRecursive(child, props));
+            }
+            target.set(props);
+        };
+
+        const isGroupOrSelection = (selectedObject.type || '').toLowerCase() === 'activeselection' || selectedObject.type === 'group';
+        if (isGroupOrSelection && typeof (selectedObject as any).forEachObject === 'function') {
+            (selectedObject as fabric.Group | fabric.ActiveSelection).forEachObject((child) => setRecursive(child, properties));
+        }
         selectedObject.set(properties);
         canvas.requestRenderAll();
         forceUpdate();
@@ -688,18 +700,22 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
     const clearEffects = useCallback(() => {
         if (!canvas || !selectedObject) return;
 
-        selectedObject.set({
-            clipPath: undefined,
-            shadow: undefined,
-        });
+        const clearProps = { clipPath: undefined, shadow: undefined };
+        const clearRecursive = (target: fabric.Object) => {
+            if (typeof (target as any).forEachObject === 'function') {
+                (target as fabric.Group).forEachObject((child) => clearRecursive(child));
+            }
+            target.set(clearProps);
+            if (target instanceof fabric.Image) {
+                target.filters = [];
+                target.applyFilters();
+            }
+        };
 
-        if (selectedObject instanceof fabric.Image) {
-            selectedObject.filters = [];
-            selectedObject.applyFilters();
-        }
-
+        clearRecursive(selectedObject);
         canvas.requestRenderAll();
-    }, [canvas, selectedObject]);
+        forceUpdate();
+    }, [canvas, selectedObject, forceUpdate]);
 
     const updateMaskProperties = useCallback((properties: any) => {
         if (!canvas || !selectedObject || !selectedObject.clipPath) return;
@@ -1397,7 +1413,7 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
                     top: (cloned.top || 0) + 10,
                     evented: true,
                 });
-                if (cloned.type === 'activeSelection') {
+                if ((cloned.type || '').toLowerCase() === 'activeselection') {
                     cloned.canvas = canvas;
                     cloned.forEachObject((obj: any) => canvas.add(obj));
                     cloned.setCoords();
@@ -1496,11 +1512,18 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
                 left: (cloned.left || 0) + 10,
                 top: (cloned.top || 0) + 10
             });
-            canvas.add(cloned);
+            if ((cloned.type || '').toLowerCase() === 'activeselection') {
+                cloned.canvas = canvas;
+                (cloned as fabric.ActiveSelection).forEachObject((obj: any) => canvas.add(obj));
+                cloned.setCoords();
+            } else {
+                canvas.add(cloned);
+            }
             canvas.setActiveObject(cloned);
-            canvas.renderAll();
+            canvas.requestRenderAll();
+            forceUpdate();
         });
-    }, [canvas, selectedObject]);
+    }, [canvas, selectedObject, forceUpdate]);
 
     const releaseMask = useCallback(() => {
         if (!canvas || !selectedObject || !selectedObject.clipPath) return;
@@ -1526,18 +1549,40 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
     const groupSelected = useCallback(() => {
         if (!canvas) return;
         const activeObject = canvas.getActiveObject();
-        if (!activeObject || activeObject.type !== 'activeSelection') return;
+        if (!activeObject || activeObject.type === 'group') return;
 
-        const selection = activeObject as fabric.ActiveSelection;
-        // toGroup() is the native way in Fabric v6+ to convert selection to a permanent Group
-        const group = (selection as any).toGroup();
-        
-        group.set({
-            name: "New Group",
+        const isMulti = (activeObject.type || '').toLowerCase() === 'activeselection' || activeObject instanceof fabric.ActiveSelection;
+
+        let objects: fabric.Object[] = [];
+        const allObjects = canvas.getObjects();
+
+        if (isMulti) {
+            const selection = activeObject as fabric.ActiveSelection;
+            const selObjects = selection.getObjects();
+            objects = [...selObjects].sort((a, b) => allObjects.indexOf(a) - allObjects.indexOf(b));
+            canvas.discardActiveObject();
+        } else {
+            objects = [activeObject];
+            canvas.discardActiveObject();
+        }
+
+        if (objects.length === 0) return;
+
+        const minIndex = Math.min(...objects.map(o => allObjects.indexOf(o)).filter(i => i !== -1));
+
+        objects.forEach(obj => canvas.remove(obj));
+
+        const group = new fabric.Group(objects, {
+            name: objects.length > 1 ? "New Group" : "Folder",
             subTargetCheck: true,
             interactive: false,
-            objectCaching: false,
         } as any);
+
+        if (minIndex !== -1) {
+            canvas.insertAt(minIndex, group);
+        } else {
+            canvas.add(group);
+        }
 
         canvas.setActiveObject(group);
         canvas.requestRenderAll();
@@ -1550,9 +1595,26 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         if (!activeObject || activeObject.type !== 'group') return;
 
         const group = activeObject as fabric.Group;
-        // toActiveSelection() is the native way to release group members back to canvas
-        (group as any).toActiveSelection();
-        
+        const items = [...group.getObjects()];
+        if (items.length === 0) return;
+
+        const allObjects = canvas.getObjects();
+        const groupIndex = allObjects.indexOf(group);
+
+        group.removeAll();
+        canvas.remove(group);
+
+        items.forEach((item, i) => {
+            if (groupIndex !== -1) {
+                canvas.insertAt(groupIndex + i, item);
+            } else {
+                canvas.add(item);
+            }
+            item.setCoords();
+        });
+
+        const selection = new fabric.ActiveSelection(items, { canvas });
+        canvas.setActiveObject(selection);
         canvas.requestRenderAll();
         forceUpdate();
     }, [canvas, forceUpdate]);
@@ -1562,7 +1624,7 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         const activeObject = canvas.getActiveObject();
         if (!activeObject) return;
 
-        if (activeObject.type === 'activeSelection') {
+        if ((activeObject.type || '').toLowerCase() === 'activeselection') {
             const activeSelection = activeObject as fabric.ActiveSelection;
             const width = activeSelection.width || 0;
             const height = activeSelection.height || 0;

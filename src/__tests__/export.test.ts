@@ -38,7 +38,7 @@ describe('Export Logic', () => {
     });
 
     test('should generate a dataURL of appropriate format', () => {
-        const dataURL = canvas.toDataURL({ format: 'png', quality: 1 });
+        const dataURL = canvas.toDataURL({ format: 'png', quality: 1, multiplier: 1 });
         expect(dataURL).toContain('data:image/png;base64');
     });
 });

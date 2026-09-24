@@ -203,7 +203,18 @@ export default function LayersPanel() {
                         const idx = layers.indexOf(obj);
                         if (idx !== -1) handleDrop(e, idx);
                     }}
-                    onClick={(e) => selectObject(obj, e.metaKey || e.ctrlKey)}
+                    onClick={(e) => selectObject(obj, e.metaKey || e.ctrlKey || e.shiftKey)}
+                    onContextMenu={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const activeObjects = canvas?.getActiveObjects() || [];
+                        if (!activeObjects.includes(obj)) {
+                            selectObject(obj, false);
+                        }
+                        window.dispatchEvent(new CustomEvent("canvascrafter:contextmenu", {
+                            detail: { x: e.clientX, y: e.clientY }
+                        }));
+                    }}
                     className={`row group ${isSelected ? "is-active" : ""}`}
                     style={{ marginLeft: `${depth * 14}px` }}
                 >
@@ -259,13 +270,17 @@ export default function LayersPanel() {
             const active = canvas.getActiveObject();
             if (!active) {
                 canvas.setActiveObject(obj);
-            } else if (active.type === 'activeSelection') {
+            } else if ((active.type || '').toLowerCase() === 'activeselection') {
                 const as = active as fabric.ActiveSelection;
                 const objects = as.getObjects();
                 if (objects.includes(obj)) {
                     as.remove(obj);
                     if (as.getObjects().length === 1) {
-                        canvas.setActiveObject(as.getObjects()[0]);
+                        const remaining = as.getObjects()[0];
+                        canvas.discardActiveObject();
+                        canvas.setActiveObject(remaining);
+                    } else if (as.getObjects().length === 0) {
+                        canvas.discardActiveObject();
                     }
                 } else {
                     as.add(obj);
@@ -300,7 +315,7 @@ export default function LayersPanel() {
                         </button>
                     ) : (
                         <button onClick={(e) => { e.stopPropagation(); groupSelected(); }} className="btn btn-sm">
-                            <Folder className="h-3.5 w-3.5" /> {selectedObject.type === "activeSelection" ? "Group" : "Folder"}
+                            <Folder className="h-3.5 w-3.5" /> {(selectedObject.type || '').toLowerCase() === "activeselection" ? "Group" : "Folder"}
                         </button>
                     )
                 )}

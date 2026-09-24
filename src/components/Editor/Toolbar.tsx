@@ -24,7 +24,7 @@ export default function Toolbar() {
 
     const o = selectedObject;
     const isImage = o.type === "image" || o.isEdgeBorderGroup || o instanceof fabric.Image;
-    const isSelection = o.type === "activeSelection";
+    const isSelection = (o.type || '').toLowerCase() === "activeselection";
     const isGroup = o.type === "group";
     const hasMask = !!o.clipPath;
 

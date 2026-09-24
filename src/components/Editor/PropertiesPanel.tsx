@@ -56,14 +56,14 @@ export default function PropertiesPanel() {
     const isEdgeBorderGroup = !!o.isEdgeBorderGroup;
     const checkIsImage = (x: any) => x && (x.type === "image" || x.type === "FabricImage" || x.isEdgeBorderGroup || x instanceof fabric.Image);
     const isImage = checkIsImage(o);
-    const isMultiImage = o.type === "activeSelection" && o._objects?.every(checkIsImage);
+    const isMultiImage = (o.type || '').toLowerCase() === "activeselection" && o._objects?.every(checkIsImage);
     const hideFillStroke = isImage || isMultiImage;
 
     const fullyLocked = !o.selectable;
     const posLocked = !!o.lockMovementX && o.selectable;
 
     const applyToTargets = (fn: (x: any) => void) => {
-        if (o.type === "activeSelection") { o._objects?.forEach(fn); fn(o); }
+        if ((o.type || '').toLowerCase() === "activeselection") { o._objects?.forEach(fn); fn(o); }
         else fn(o);
         canvas?.requestRenderAll();
         canvas?.fire("object:modified", { target: o });

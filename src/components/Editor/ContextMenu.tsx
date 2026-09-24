@@ -29,11 +29,13 @@ export default function ContextMenu() {
             opt.e.preventDefault();
             opt.e.stopPropagation();
 
-            const isObject = !!opt.target;
-
-            // If right clicked on nothing but there is an active selection, 
-            // fabric might sometimes behave weirdly. 
-            // We force a refresh if the target is null but something is active? 
+            if (opt.target) {
+                const activeObjects = canvas.getActiveObjects();
+                if (!activeObjects.includes(opt.target)) {
+                    canvas.setActiveObject(opt.target);
+                    canvas.requestRenderAll();
+                }
+            }
 
             setPosition({ x: opt.e.clientX, y: opt.e.clientY });
             setIsVisible(true);
@@ -41,23 +43,26 @@ export default function ContextMenu() {
 
         const hideMenu = () => setIsVisible(false);
 
+        const handleCustomContext = (e: any) => {
+            if (e.detail) {
+                setPosition({ x: e.detail.x, y: e.detail.y });
+                setIsVisible(true);
+            }
+        };
+
         canvas.on("mouse:down", hideMenu);
-        // We use the fabric 'contextmenu' event if available, or native
         const canvasEl = canvas.getElement().parentElement;
         if (canvasEl) {
             canvasEl.addEventListener("contextmenu", (e) => {
                 e.preventDefault();
-                // If we right click, we should ideally let fabric handle the target if possible
-                // but for now, simple native coords is fine.
             });
         }
 
-        // Custom fabric event
         canvas.on("contextmenu", handleContextMenu);
 
         window.addEventListener("click", hideMenu);
+        window.addEventListener("canvascrafter:contextmenu", handleCustomContext);
         window.addEventListener("contextmenu", (e) => {
-            // Prevent default global context menu in editor
             const isInsideEditor = (e.target as HTMLElement).closest(".canvas-container");
             if (isInsideEditor) e.preventDefault();
         });
@@ -66,13 +71,17 @@ export default function ContextMenu() {
             canvas.off("contextmenu", handleContextMenu);
             canvas.off("mouse:down", hideMenu);
             window.removeEventListener("click", hideMenu);
+            window.removeEventListener("canvascrafter:contextmenu", handleCustomContext);
         };
     }, [canvas]);
 
     if (!isVisible) return null;
 
-    const isGroup = selectedObject?.type === 'group';
-    const isMultiSelect = selectedObject?.type === 'activeSelection';
+    const activeObj = canvas?.getActiveObject() || selectedObject;
+    const isGroup = activeObj?.type === 'group';
+    const isMultiSelect = (activeObj?.type || '').toLowerCase() === 'activeselection' ||
+        activeObj instanceof fabric.ActiveSelection ||
+        (canvas ? canvas.getActiveObjects().length > 1 : false);
 
     return (
         <div
@@ -112,13 +121,25 @@ export default function ContextMenu() {
 
                 <div className="my-1 h-px bg-white/[0.08]" />
 
-                {(isMultiSelect || isGroup) && (
+                {isMultiSelect && (
                     <>
                         <ContextItem
-                            icon={isGroup ? <Ungroup className="h-3.5 w-3.5" /> : <Group className="h-3.5 w-3.5" />}
-                            label={isGroup ? "Ungroup" : "Group"}
+                            icon={<Group className="h-3.5 w-3.5" />}
+                            label="Group"
                             shortcut="Ctrl+G"
-                            onClick={() => { isGroup ? ungroupSelected() : groupSelected(); setIsVisible(false); }}
+                            onClick={() => { groupSelected(); setIsVisible(false); }}
+                        />
+                        <div className="my-1 h-px bg-white/[0.08]" />
+                    </>
+                )}
+
+                {isGroup && (
+                    <>
+                        <ContextItem
+                            icon={<Ungroup className="h-3.5 w-3.5" />}
+                            label="Ungroup"
+                            shortcut="Ctrl+Shift+G"
+                            onClick={() => { ungroupSelected(); setIsVisible(false); }}
                         />
                         <div className="my-1 h-px bg-white/[0.08]" />
                     </>

@@ -4,7 +4,7 @@ import { useCanvas } from "@/store/useCanvasStore";
 import {
     Bold, Italic, AlignLeft, AlignCenter, AlignRight,
     FlipHorizontal, FlipVertical, ArrowUp, ArrowDown,
-    Copy, Trash2, Type as TypeIcon, Image as ImageIcon, Square,
+    Copy, Trash2, Type as TypeIcon, Image as ImageIcon, Square, Folder,
     Minus, Plus,
 } from "lucide-react";
 import * as fabric from "fabric";
@@ -27,8 +27,10 @@ export default function PropertyBar() {
         o.type === "text" || o.type === "i-text" || o.type === "textbox" ||
         o instanceof fabric.IText || o instanceof fabric.Textbox;
     const isImage = o.type === "image" || o.isEdgeBorderGroup || o instanceof fabric.Image;
-    const kind = isText ? "Text" : isImage ? "Image" : o.type === "activeSelection" ? "Selection" : "Shape";
-    const KindIcon = isText ? TypeIcon : isImage ? ImageIcon : Square;
+    const isSelection = (o.type || '').toLowerCase() === "activeselection";
+    const isGroup = o.type === "group";
+    const kind = isText ? "Text" : isImage ? "Image" : isSelection ? "Selection" : isGroup ? "Group" : "Shape";
+    const KindIcon = isText ? TypeIcon : isImage ? ImageIcon : isGroup ? Folder : Square;
 
     const set = (p: any) => updateSelectedObject(p);
 
