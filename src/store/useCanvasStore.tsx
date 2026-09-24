@@ -112,6 +112,9 @@ interface CanvasContextType {
     copySelected: () => void;
     cutSelected: () => void;
     pasteSelected: () => void;
+    copyStyle: () => void;
+    pasteStyle: () => void;
+    hasCopiedStyle: boolean;
     enterCropMode: () => void;
     confirmCrop: () => void;
     cancelCrop: () => void;
@@ -227,6 +230,8 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
     });
     const [roster, setRoster] = useState<Player[]>([]);
     const [clipboard, setClipboard] = useState<any>(null);
+    const [copiedStyle, setCopiedStyle] = useState<any>(null);
+    const copiedStyleRef = useRef<any>(null);
     const [presets, setPresets] = useState<{ id: string; name: string; width: number; height: number; iconType?: string }[]>([
         { id: "insta", name: "Instagram", width: 1080, height: 1080, iconType: 'instagram' },
         { id: "fb", name: "Facebook", width: 1200, height: 630, iconType: 'facebook' },
@@ -1505,6 +1510,188 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
 
     }, [canvas, clipboard, addImage, theme]);
 
+    const copyStyle = useCallback(() => {
+        if (!canvas) return;
+        const activeObject = canvas.getActiveObject() || selectedObject;
+        if (!activeObject) return;
+
+        const isText = (obj: any): boolean => {
+            if (!obj) return false;
+            const t = (obj.type || '').toLowerCase();
+            return t === 'text' || t === 'i-text' || t === 'textbox' || obj instanceof fabric.IText || obj instanceof fabric.Textbox;
+        };
+
+        const isImg = (obj: any): boolean => {
+            if (!obj) return false;
+            const t = (obj.type || '').toLowerCase();
+            return t === 'image' || !!obj.isEdgeBorderGroup || obj instanceof fabric.Image;
+        };
+
+        let primary: any = activeObject;
+        let textSource: any = null;
+        let imageSource: any = null;
+
+        if (typeof (activeObject as any).forEachObject === 'function') {
+            const objs = (activeObject as fabric.Group).getObjects();
+            textSource = objs.find(isText);
+            imageSource = objs.find(isImg);
+            const styledChild = objs.find(o => o.fill || o.stroke || o.shadow);
+            if (styledChild && (!activeObject.fill || activeObject.fill === '')) {
+                primary = styledChild;
+            }
+        } else {
+            if (isText(activeObject)) textSource = activeObject;
+            if (isImg(activeObject)) imageSource = activeObject;
+        }
+
+        const shadowObj = primary.shadow || (typeof (activeObject as any).forEachObject === 'function'
+            ? (activeObject as fabric.Group).getObjects().find(o => o.shadow)?.shadow
+            : null);
+
+        const strokeObj = primary.stroke !== undefined ? primary : (typeof (activeObject as any).forEachObject === 'function'
+            ? (activeObject as fabric.Group).getObjects().find(o => o.stroke !== undefined)
+            : null);
+
+        const styleData: any = {
+            hasVisuals: true,
+            fill: primary.fill !== undefined ? (
+                primary.fill instanceof fabric.Gradient
+                    ? new fabric.Gradient((primary.fill as any).toObject ? (primary.fill as any).toObject() : primary.fill)
+                    : primary.fill
+            ) : undefined,
+            stroke: strokeObj ? strokeObj.stroke : undefined,
+            strokeWidth: strokeObj ? strokeObj.strokeWidth : undefined,
+            strokeDashArray: strokeObj?.strokeDashArray ? [...strokeObj.strokeDashArray] : strokeObj?.strokeDashArray,
+            strokeLineCap: strokeObj?.strokeLineCap,
+            strokeLineJoin: strokeObj?.strokeLineJoin,
+            strokeMiterLimit: strokeObj?.strokeMiterLimit,
+            paintFirst: strokeObj?.paintFirst,
+            opacity: primary.opacity !== undefined ? primary.opacity : 1,
+            shadow: shadowObj ? {
+                color: shadowObj.color,
+                blur: shadowObj.blur,
+                offsetX: shadowObj.offsetX,
+                offsetY: shadowObj.offsetY,
+                affectStroke: shadowObj.affectStroke,
+                nonScaling: shadowObj.nonScaling,
+            } : (primary.shadow === null ? null : undefined),
+        };
+
+        if (textSource) {
+            styleData.isText = true;
+            styleData.fontFamily = textSource.fontFamily;
+            styleData.fontSize = textSource.fontSize;
+            styleData.fontWeight = textSource.fontWeight;
+            styleData.fontStyle = textSource.fontStyle;
+            styleData.textAlign = textSource.textAlign;
+            styleData.lineHeight = textSource.lineHeight;
+            styleData.charSpacing = textSource.charSpacing;
+            styleData.underline = textSource.underline;
+            styleData.linethrough = textSource.linethrough;
+            styleData.overline = textSource.overline;
+            styleData.textCasing = textSource.textCasing;
+            styleData.textFitRule = textSource.textFitRule;
+        }
+
+        if (imageSource && imageSource.filters && imageSource.filters.length > 0) {
+            styleData.filters = [...imageSource.filters];
+        }
+
+        setCopiedStyle(styleData);
+        copiedStyleRef.current = styleData;
+    }, [canvas, selectedObject]);
+
+    const pasteStyle = useCallback(() => {
+        if (!canvas) return;
+        const style = copiedStyleRef.current || copiedStyle;
+        if (!style) return;
+
+        const activeObject = canvas.getActiveObject() || selectedObject;
+        if (!activeObject) return;
+
+        const isText = (obj: any): boolean => {
+            if (!obj) return false;
+            const t = (obj.type || '').toLowerCase();
+            return t === 'text' || t === 'i-text' || t === 'textbox' || obj instanceof fabric.IText || obj instanceof fabric.Textbox;
+        };
+
+        const isImg = (obj: any): boolean => {
+            if (!obj) return false;
+            const t = (obj.type || '').toLowerCase();
+            return t === 'image' || !!obj.isEdgeBorderGroup || obj instanceof fabric.Image;
+        };
+
+        const applyToSingleObject = (target: fabric.Object) => {
+            const propsToSet: any = {};
+
+            if (style.opacity !== undefined) propsToSet.opacity = style.opacity;
+
+            if (style.shadow !== undefined) {
+                propsToSet.shadow = style.shadow ? new fabric.Shadow(style.shadow) : null;
+            }
+
+            if (style.stroke !== undefined) propsToSet.stroke = style.stroke;
+            if (style.strokeWidth !== undefined) propsToSet.strokeWidth = style.strokeWidth;
+            if (style.strokeDashArray !== undefined) propsToSet.strokeDashArray = style.strokeDashArray ? [...style.strokeDashArray] : null;
+            if (style.strokeLineCap !== undefined) propsToSet.strokeLineCap = style.strokeLineCap;
+            if (style.strokeLineJoin !== undefined) propsToSet.strokeLineJoin = style.strokeLineJoin;
+            if (style.strokeMiterLimit !== undefined) propsToSet.strokeMiterLimit = style.strokeMiterLimit;
+            if (style.paintFirst !== undefined) propsToSet.paintFirst = style.paintFirst;
+
+            const isTargetText = isText(target);
+            const isTargetImg = isImg(target);
+
+            if (!isTargetImg && style.fill !== undefined) {
+                propsToSet.fill = style.fill instanceof fabric.Gradient
+                    ? new fabric.Gradient((style.fill as any).toObject ? (style.fill as any).toObject() : style.fill)
+                    : style.fill;
+            }
+
+            if (isTargetText && style.isText) {
+                if (style.fontFamily !== undefined) propsToSet.fontFamily = style.fontFamily;
+                if (style.fontSize !== undefined) {
+                    propsToSet.fontSize = style.fontSize;
+                    propsToSet.baseFontSize = style.fontSize;
+                }
+                if (style.fontWeight !== undefined) propsToSet.fontWeight = style.fontWeight;
+                if (style.fontStyle !== undefined) propsToSet.fontStyle = style.fontStyle;
+                if (style.textAlign !== undefined) propsToSet.textAlign = style.textAlign;
+                if (style.lineHeight !== undefined) propsToSet.lineHeight = style.lineHeight;
+                if (style.charSpacing !== undefined) propsToSet.charSpacing = style.charSpacing;
+                if (style.underline !== undefined) propsToSet.underline = style.underline;
+                if (style.linethrough !== undefined) propsToSet.linethrough = style.linethrough;
+                if (style.overline !== undefined) propsToSet.overline = style.overline;
+                if (style.textCasing !== undefined) propsToSet.textCasing = style.textCasing;
+                if (style.textFitRule !== undefined) propsToSet.textFitRule = style.textFitRule;
+            }
+
+            if (isTargetImg && style.filters && target instanceof fabric.Image) {
+                target.filters = [...style.filters];
+                target.applyFilters();
+            }
+
+            target.set(propsToSet);
+            if (isTargetText && typeof (target as any).initDimensions === 'function') {
+                (target as any).initDimensions();
+            }
+            target.setCoords();
+        };
+
+        const applyRecursively = (target: fabric.Object) => {
+            if (typeof (target as any).forEachObject === 'function') {
+                (target as fabric.Group).forEachObject((child) => applyRecursively(child));
+            }
+            applyToSingleObject(target);
+        };
+
+        applyRecursively(activeObject);
+
+        activeObject.dirty = true;
+        canvas.requestRenderAll();
+        canvas.fire('object:modified', { target: activeObject });
+        forceUpdate();
+    }, [canvas, selectedObject, copiedStyle, forceUpdate]);
+
     const duplicateSelected = useCallback(() => {
         if (!canvas || !selectedObject) return;
         selectedObject.clone().then((cloned: fabric.Object) => {
@@ -1900,9 +2087,18 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
                         return;
                     case 'c':
                         e.preventDefault();
-                        copySelected();
+                        if (e.altKey) {
+                            copyStyle();
+                        } else {
+                            copySelected();
+                        }
                         return;
                     case 'v':
+                        if (e.altKey) {
+                            e.preventDefault();
+                            pasteStyle();
+                            return;
+                        }
                         if (clipboard) {
                             e.preventDefault();
                             pasteSelected();
@@ -2096,7 +2292,7 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
             window.removeEventListener("keydown", handleKeyDown);
             window.removeEventListener("paste", handlePaste);
         };
-    }, [canvas, undo, redo, copySelected, pasteSelected, duplicateSelected, cutSelected, groupSelected, ungroupSelected, bringToFront, sendToBack, deleteSelected, addImage, clipboard]);
+    }, [canvas, undo, redo, copySelected, pasteSelected, copyStyle, pasteStyle, duplicateSelected, cutSelected, groupSelected, ungroupSelected, bringToFront, sendToBack, deleteSelected, addImage, clipboard]);
 
     const [isDrawingMode, setIsDrawingMode] = useState(false);
     const [brushSize, setBrushSize] = useState(5);
@@ -2127,6 +2323,7 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         clearCanvas, updateSelectedObject, applyFilter, clearEffects, updateMaskProperties,
         bringToFront, sendToBack, bringForward, sendBackwards, deleteSelected,
         duplicateSelected, copySelected, cutSelected, pasteSelected, releaseMask,
+        copyStyle, pasteStyle, hasCopiedStyle: !!copiedStyle,
         groupSelected, ungroupSelected, alignSelected,
         maskShapeWithImage, saveToTemplate, loadTemplate,
         switchTemplateSize, saveWorkingTemplate, updateDefaultTemplate, resetTemplateToDefault, applyFixture, exportAllSizes,
@@ -2151,6 +2348,7 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         clearCanvas, updateSelectedObject, applyFilter, clearEffects, updateMaskProperties,
         bringToFront, sendToBack, bringForward, sendBackwards, deleteSelected,
         duplicateSelected, copySelected, cutSelected, pasteSelected, releaseMask,
+        copyStyle, pasteStyle, copiedStyle,
         groupSelected, ungroupSelected, alignSelected,
         maskShapeWithImage, saveToTemplate, loadTemplate, switchTemplateSize,
         saveWorkingTemplate, updateDefaultTemplate, resetTemplateToDefault, applyFixture, exportAllSizes, updateTick,

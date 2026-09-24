@@ -5,7 +5,7 @@ import {
     Bold, Italic, AlignLeft, AlignCenter, AlignRight,
     FlipHorizontal, FlipVertical, ArrowUp, ArrowDown,
     Copy, Trash2, Type as TypeIcon, Image as ImageIcon, Square, Folder,
-    Minus, Plus,
+    Minus, Plus, Paintbrush, ClipboardPaste
 } from "lucide-react";
 import * as fabric from "fabric";
 
@@ -18,6 +18,7 @@ export default function PropertyBar() {
         selectedObject, updateSelectedObject,
         duplicateSelected, deleteSelected,
         bringForward, sendBackwards,
+        copyStyle, pasteStyle, hasCopiedStyle
     } = useCanvas() as any;
 
     if (!selectedObject) return null;
@@ -84,6 +85,10 @@ export default function PropertyBar() {
                 <div className="seg">
                     <button onClick={bringForward} title="Bring forward"><ArrowUp className="h-4 w-4" /></button>
                     <button onClick={sendBackwards} title="Send backward"><ArrowDown className="h-4 w-4" /></button>
+                </div>
+                <div className="seg">
+                    <button className="icon-btn" onClick={copyStyle} title="Copy style (Ctrl+Alt+C)"><Paintbrush className="h-4 w-4" /></button>
+                    <button className={`icon-btn ${!hasCopiedStyle ? 'opacity-40 cursor-not-allowed' : ''}`} onClick={pasteStyle} disabled={!hasCopiedStyle} title={hasCopiedStyle ? "Paste style (Ctrl+Alt+V)" : "Paste style (no style copied)"}><ClipboardPaste className="h-4 w-4" /></button>
                 </div>
                 <button className="icon-btn" onClick={duplicateSelected} title="Duplicate"><Copy className="h-4 w-4" /></button>
                 <button className="icon-btn hover:text-danger" onClick={deleteSelected} title="Delete"><Trash2 className="h-4 w-4" /></button>

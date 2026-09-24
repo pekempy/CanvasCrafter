@@ -4,7 +4,7 @@ import { useCanvas } from "@/store/useCanvasStore";
 import {
     Scissors, Copy, Clipboard, Trash2,
     ChevronUp, ChevronDown, Layers,
-    Maximize2, Group, Ungroup, Save
+    Maximize2, Group, Ungroup, Save, Paintbrush
 } from "lucide-react";
 import React, { useEffect, useState, useRef } from "react";
 import * as fabric from "fabric";
@@ -15,7 +15,8 @@ export default function ContextMenu() {
         cutSelected, copySelected, pasteSelected, deleteSelected,
         bringToFront, sendToBack, bringForward, sendBackwards, duplicateSelected,
         groupSelected, ungroupSelected,
-        setSavingAssetUrl
+        setSavingAssetUrl,
+        copyStyle, pasteStyle, hasCopiedStyle
     } = useCanvas();
 
     const [isVisible, setIsVisible] = useState(false);
@@ -117,6 +118,20 @@ export default function ContextMenu() {
                     shortcut="Ctrl+D"
                     onClick={() => { duplicateSelected(); setIsVisible(false); }}
                     disabled={!selectedObject}
+                />
+                <ContextItem
+                    icon={<Paintbrush className="h-3.5 w-3.5" />}
+                    label="Copy Style"
+                    shortcut="Ctrl+Alt+C"
+                    onClick={() => { copyStyle(); setIsVisible(false); }}
+                    disabled={!selectedObject}
+                />
+                <ContextItem
+                    icon={<Paintbrush className="h-3.5 w-3.5" />}
+                    label="Paste Style"
+                    shortcut="Ctrl+Alt+V"
+                    onClick={() => { pasteStyle(); setIsVisible(false); }}
+                    disabled={!hasCopiedStyle || !selectedObject}
                 />
 
                 <div className="my-1 h-px bg-white/[0.08]" />
