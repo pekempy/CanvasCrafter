@@ -1,7 +1,7 @@
 "use client";
 
 import { useCanvas } from "@/store/useCanvasStore";
-import { Replace, Type, Image as ImageIcon, Palette, ALargeSmall, Crosshair, Upload, Folder, Shield, Search, X, Users } from "lucide-react";
+import { Replace, Type, Image as ImageIcon, Palette, ALargeSmall, Crosshair, Upload, Folder, Shield, Search, X, Users, Music } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { normalizeSearchString } from "@/utils/normalize";
 import { applyTextFit } from "@/utils/textFit";
@@ -15,6 +15,19 @@ type AnyObj = any;
 
 const isText = (o: AnyObj) => o && (o.type === "textbox" || o.type === "i-text" || o.type === "text");
 const isImage = (o: AnyObj) => o && o.type === "image";
+
+// Flattens objects and inspects inside any Groups (e.g. grouped First + Last name)
+// so name-based matching still finds text/images nested in a group.
+const flattenObjects = (objs: AnyObj[]): AnyObj[] => {
+    const list: AnyObj[] = [];
+    objs.forEach((o) => {
+        list.push(o);
+        if (o.type === "group" && typeof o.getObjects === "function") {
+            list.push(...flattenObjects(o.getObjects()));
+        }
+    });
+    return list;
+};
 
 const normHex = (c: any): string | null => {
     if (typeof c !== "string") return null;
@@ -53,6 +66,7 @@ export default function QuickSwapPanel() {
     const [assetSearch, setAssetSearch] = useState<string>("");
     const [playerSlots, setPlayerSlots] = useState<Record<number, { playerId: string; photoUrl: string; sponsorUrl: string }>>({});
     const [manualSlotCount, setManualSlotCount] = useState<number | null>(null);
+    const [playlistPlayerId, setPlaylistPlayerId] = useState<string>("");
 
     useEffect(() => {
         if (!canvas) return;
@@ -181,18 +195,6 @@ export default function QuickSwapPanel() {
         const playerPos = player.position || "";
         const sponsorName = player.sponsorName || "";
         const sponsorUrl = chosenSponsorUrl !== undefined ? chosenSponsorUrl : (player.sponsorUrl || "");
-        // Helper to flatten objects and inspect inside any Groups (e.g. grouped First + Last name)
-        const flattenObjects = (objs: AnyObj[]): AnyObj[] => {
-            const list: AnyObj[] = [];
-            objs.forEach((o) => {
-                list.push(o);
-                if (o.type === "group" && typeof o.getObjects === "function") {
-                    list.push(...flattenObjects(o.getObjects()));
-                }
-            });
-            return list;
-        };
-
         const allObjects = flattenObjects(canvas.getObjects() as AnyObj[]);
         const applyCasing = (o: AnyObj, rawVal: string, defaultTransform: "as-is" | "uppercase" = "as-is") => {
             const casing = o.textCasing || (defaultTransform === "uppercase" ? "uppercase" : "preserve");
@@ -317,6 +319,35 @@ export default function QuickSwapPanel() {
                 await setImageFromUrl(sImg, sponsorUrl);
             }
         }
+
+        canvas.requestRenderAll();
+        commit();
+    };
+
+    // Automagically fills a player's up-to-8 walkout playlist into text layers
+    // named "Song N" / "Artist N" (N = 1-8; an unnumbered "Song"/"Artist" layer
+    // is treated as index 1, matching the single-slot convention used above).
+    const applyPlaylistToCanvas = (player: any) => {
+        if (!canvas || !player) return;
+        const playlist: { song: string; artist: string }[] = player.playlist || [];
+        const allObjects = flattenObjects(canvas.getObjects() as AnyObj[]);
+
+        allObjects.forEach((o) => {
+            if (!isText(o)) return;
+            const name = (o.name || "").trim().toLowerCase();
+            const isArtistField = name.includes("artist");
+            const isSongField = !isArtistField && (name.includes("song") || name.includes("track"));
+            if (!isArtistField && !isSongField) return;
+
+            const digitMatch = name.match(/([1-8])/);
+            const idx = digitMatch ? parseInt(digitMatch[1], 10) : 1;
+            const entry = playlist[idx - 1] || { song: "", artist: "" };
+
+            o.set("text", isArtistField ? entry.artist : entry.song);
+
+            const effectiveRule = o.textFitRule && o.textFitRule !== "none" ? o.textFitRule : "shrink";
+            applyTextFit(o, effectiveRule);
+        });
 
         canvas.requestRenderAll();
         commit();
@@ -547,6 +578,51 @@ export default function QuickSwapPanel() {
                                     );
                                 })}
                             </div>
+                        </Section>
+                    );
+                })()}
+                {roster && roster.length > 0 && (() => {
+                    const playlistPlayer = roster.find((r: any) => r.id === playlistPlayerId);
+                    return (
+                        <Section icon={<Music className="h-3.5 w-3.5 text-gold" />} title="Playlist" count={playlistPlayer?.playlist?.length || 0}>
+                            <p className="text-[10px] text-text-mute leading-relaxed mb-2">
+                                Fills text layers named <span className="text-gold font-semibold">Song 1</span>…<span className="text-gold font-semibold">Song 8</span> and <span className="text-gold font-semibold">Artist 1</span>…<span className="text-gold font-semibold">Artist 8</span> from the selected player&apos;s walkout playlist.
+                            </p>
+                            <select
+                                value={playlistPlayerId}
+                                onChange={(e) => {
+                                    const pId = e.target.value;
+                                    setPlaylistPlayerId(pId);
+                                    const p = roster.find((r: any) => r.id === pId);
+                                    if (p) applyPlaylistToCanvas(p);
+                                }}
+                                className="w-full rounded-md border border-line bg-white/5 px-2.5 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-gold cursor-pointer"
+                            >
+                                <option value="" disabled className="bg-[#16191f]">Select player...</option>
+                                {roster
+                                    .slice()
+                                    .sort((a: any, b: any) => (parseInt(a.number) || 999) - (parseInt(b.number) || 999))
+                                    .map((p: any) => (
+                                        <option key={p.id} value={p.id} className="bg-[#16191f]">
+                                            {p.number ? `#${p.number} ` : ""}{p.name} ({(p.playlist || []).length}/8 songs)
+                                        </option>
+                                    ))}
+                            </select>
+
+                            {playlistPlayer && (
+                                <div className="mt-2.5 space-y-1 max-h-40 overflow-y-auto pr-1">
+                                    {(playlistPlayer.playlist || []).length === 0 && (
+                                        <p className="text-[10px] text-text-mute italic py-2 text-center">This player has no playlist songs yet — add some in the Roster panel.</p>
+                                    )}
+                                    {(playlistPlayer.playlist || []).map((entry: any, i: number) => (
+                                        <div key={i} className="flex items-center gap-2 rounded-md border border-line bg-surface-2 px-2 py-1">
+                                            <span className="w-4 shrink-0 text-center text-[9px] font-bold text-text-mute">{i + 1}</span>
+                                            <span className="flex-1 min-w-0 truncate text-[11px] text-white">{entry.song || <em className="text-text-mute">(no song)</em>}</span>
+                                            <span className="shrink-0 truncate max-w-[35%] text-[10px] text-text-dim">{entry.artist}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </Section>
                     );
                 })()}

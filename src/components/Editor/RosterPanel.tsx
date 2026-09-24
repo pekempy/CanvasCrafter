@@ -1,7 +1,7 @@
 "use client";
 
 import { useCanvas, Player } from "@/store/useCanvasStore";
-import { Users, Plus, Trash2, Edit2, Folder, Image as ImageIcon, Check, X, Search, Sparkles, Award } from "lucide-react";
+import { Users, Plus, Trash2, Edit2, Folder, Image as ImageIcon, Check, X, Search, Sparkles, Award, Music, ChevronUp, ChevronDown } from "lucide-react";
 import React, { useState, useMemo } from "react";
 import { normalizeSearchString } from "@/utils/normalize";
 import { sortFoldersNaturally } from "@/utils/folderSort";
@@ -24,6 +24,7 @@ export default function RosterPanel() {
     const [sponsorAssetId, setSponsorAssetId] = useState("");
     const [sponsorUrl, setSponsorUrl] = useState("");
     const [sponsorName, setSponsorName] = useState("");
+    const [playlist, setPlaylist] = useState<{ song: string; artist: string }[]>([]);
 
     const openCreate = () => {
         setIsCreating(true);
@@ -37,6 +38,7 @@ export default function RosterPanel() {
         setSponsorAssetId("");
         setSponsorUrl("");
         setSponsorName("");
+        setPlaylist([]);
     };
 
     const openEdit = (p: Player) => {
@@ -52,6 +54,7 @@ export default function RosterPanel() {
         setSponsorAssetId(p.sponsorAssetId || "");
         setSponsorUrl(p.sponsorUrl || "");
         setSponsorName(p.sponsorName || "");
+        setPlaylist(p.playlist || []);
     };
 
     const cancelForm = () => {
@@ -101,7 +104,10 @@ export default function RosterPanel() {
             photoUrl: finalPhoto || undefined,
             sponsorAssetId: sponsorAssetId || undefined,
             sponsorUrl: sponsorUrl || undefined,
-            sponsorName: sponsorName.trim() || undefined
+            sponsorName: sponsorName.trim() || undefined,
+            playlist: playlist
+                .map((e) => ({ song: e.song.trim(), artist: e.artist.trim() }))
+                .filter((e) => e.song || e.artist)
         });
 
         cancelForm();
@@ -435,6 +441,92 @@ export default function RosterPanel() {
                             </div>
                         </div>
 
+                        {/* Walkout / Warm-Up Playlist */}
+                        <div className="space-y-2 pt-2 border-t border-line">
+                            <label className="text-[9px] font-semibold uppercase text-text-mute flex items-center justify-between">
+                                <span className="flex items-center gap-1">
+                                    <Music className="h-3 w-3 text-gold" /> Walkout Playlist
+                                </span>
+                                <span className="text-[8px] text-text-mute normal-case">{playlist.length}/8 songs</span>
+                            </label>
+
+                            <div className="space-y-1.5">
+                                {playlist.map((entry, i) => (
+                                    <div key={i} className="flex items-center gap-1">
+                                        <span className="w-4 shrink-0 text-center text-[9px] font-bold text-text-mute">{i + 1}</span>
+                                        <input
+                                            type="text"
+                                            placeholder="Song title"
+                                            value={entry.song}
+                                            onChange={(e) => {
+                                                const next = [...playlist];
+                                                next[i] = { ...next[i], song: e.target.value };
+                                                setPlaylist(next);
+                                            }}
+                                            className="flex-[3] min-w-0 rounded-md border border-line bg-white/5 px-2 py-1 text-[11px] text-white placeholder:text-text-mute focus:outline-none focus:ring-1 focus:ring-gold"
+                                        />
+                                        <input
+                                            type="text"
+                                            placeholder="Artist"
+                                            value={entry.artist}
+                                            onChange={(e) => {
+                                                const next = [...playlist];
+                                                next[i] = { ...next[i], artist: e.target.value };
+                                                setPlaylist(next);
+                                            }}
+                                            className="flex-[2] min-w-0 rounded-md border border-line bg-white/5 px-2 py-1 text-[11px] text-white placeholder:text-text-mute focus:outline-none focus:ring-1 focus:ring-gold"
+                                        />
+                                        <div className="flex flex-col shrink-0">
+                                            <button
+                                                type="button"
+                                                disabled={i === 0}
+                                                onClick={() => {
+                                                    const next = [...playlist];
+                                                    [next[i - 1], next[i]] = [next[i], next[i - 1]];
+                                                    setPlaylist(next);
+                                                }}
+                                                className="text-text-mute hover:text-white disabled:opacity-20 disabled:hover:text-text-mute"
+                                                title="Move up"
+                                            >
+                                                <ChevronUp className="h-3 w-3" />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                disabled={i === playlist.length - 1}
+                                                onClick={() => {
+                                                    const next = [...playlist];
+                                                    [next[i + 1], next[i]] = [next[i], next[i + 1]];
+                                                    setPlaylist(next);
+                                                }}
+                                                className="text-text-mute hover:text-white disabled:opacity-20 disabled:hover:text-text-mute"
+                                                title="Move down"
+                                            >
+                                                <ChevronDown className="h-3 w-3" />
+                                            </button>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setPlaylist(playlist.filter((_, idx) => idx !== i))}
+                                            className="shrink-0 p-1 rounded-md hover:bg-red-500/20 text-text-mute hover:text-red-400"
+                                            title="Remove song"
+                                        >
+                                            <X className="h-3 w-3" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {playlist.length < 8 && (
+                                <button
+                                    type="button"
+                                    onClick={() => setPlaylist([...playlist, { song: "", artist: "" }])}
+                                    className="flex w-full items-center justify-center gap-1 rounded-md border border-dashed border-line bg-white/5 py-1.5 text-[10px] font-semibold text-text-dim hover:border-gold/50 hover:text-white transition-all"
+                                >
+                                    <Plus className="h-3 w-3" /> Add Song
+                                </button>
+                            )}
+                        </div>
+
                         <div className="flex items-center justify-end gap-2 pt-2 border-t border-line">
                             <button
                                 type="button"
@@ -509,6 +601,15 @@ export default function RosterPanel() {
                                                     <span className="truncate flex items-center gap-1 text-gold">
                                                         <Award className="h-2.5 w-2.5" />
                                                         {player.sponsorName || "Sponsored"}
+                                                    </span>
+                                                </>
+                                            )}
+                                            {player.playlist && player.playlist.length > 0 && (
+                                                <>
+                                                    <span>•</span>
+                                                    <span className="truncate flex items-center gap-0.5 text-text-dim">
+                                                        <Music className="h-2.5 w-2.5" />
+                                                        {player.playlist.length}/8
                                                     </span>
                                                 </>
                                             )}

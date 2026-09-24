@@ -55,6 +55,11 @@ export interface AssetFolder {
     updatedAt?: number;
 }
 
+export interface PlaylistEntry {
+    song: string;
+    artist: string;
+}
+
 export interface Player {
     id: string;
     name: string;
@@ -67,6 +72,8 @@ export interface Player {
     sponsorAssetId?: string;
     sponsorUrl?: string;
     sponsorName?: string;
+    // Walkout / warm-up playlist, up to 8 song+artist pairs, in play order.
+    playlist?: PlaylistEntry[];
 }
 interface CanvasContextType {
     canvas: fabric.Canvas | null;
