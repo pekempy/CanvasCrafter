@@ -9,7 +9,7 @@ import { smartResizeSelected as smartResizeUtils } from "@/utils/smartResize";
 import { handleObjectSnapping, clearGuides } from "@/utils/snapping";
 import * as backgroundRemoval from "@imgly/background-removal";
 import { detectEdgesAndAddStroke } from "@/utils/edgeDetection";
-import { preloadFontsFromJSON } from "@/utils/fontLoader";
+import { preloadFontsFromJSON, registerFontFace } from "@/utils/fontLoader";
 import { isResponsive, tierOf, sizeKey, captureSlots, applySlots, layoutForSize } from "@/lib/responsiveTemplate";
 import SEED_DESIGNS from "@/lib/seed/designs.json";
 import SEED_BRANDKITS from "@/lib/seed/brandkits.json";
@@ -272,10 +272,7 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
                 setCustomFonts(fonts);
                 // Preload custom fonts into the document
                 fonts.forEach((font) => {
-                    const fontFace = new FontFace(font.name, `url(${font.dataUrl})`);
-                    fontFace.load().then((loaded) => {
-                        document.fonts.add(loaded);
-                    }).catch(console.error);
+                    registerFontFace(font.name, font.dataUrl);
                 });
             })
             .catch(console.error);
@@ -284,14 +281,7 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
     const addCustomFont = useCallback(async (name: string, dataUrl: string) => {
         await saveCustomFont(name, dataUrl);
         setCustomFonts((prev) => [...prev.filter((f) => f.name !== name), { name, dataUrl }]);
-
-        const fontFace = new FontFace(name, `url(${dataUrl})`);
-        try {
-            const loaded = await fontFace.load();
-            document.fonts.add(loaded);
-        } catch (e) {
-            console.error("Failed to load added font into document", e);
-        }
+        await registerFontFace(name, dataUrl);
     }, []);
 
     const removeCustomFont = useCallback(async (name: string) => {
@@ -397,7 +387,14 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
             if (results[3] && typeof results[3] === 'object' && results[3].width && results[3].height) {
                 setCanvasSize(results[3]);
             }
-            if (results[4] && Array.isArray(results[4])) setCustomFonts(results[4]);
+            if (results[4] && Array.isArray(results[4])) {
+                setCustomFonts(results[4]);
+                // Fonts fetched from the server (e.g. uploaded from a different machine)
+                // still need registering as a usable @font-face on THIS document.
+                results[4].forEach((font: { name: string; dataUrl: string }) => {
+                    registerFontFace(font.name, font.dataUrl);
+                });
+            }
             {
                 let presetData: any[] = (Array.isArray(results[5]) && results[5].length) ? results[5] : (SEED_PRESETS as any[]);
                 if (presetData === SEED_PRESETS) {

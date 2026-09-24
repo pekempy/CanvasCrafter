@@ -1,5 +1,24 @@
 import WebFont from "webfontloader";
 
+/**
+ * Registers a custom (uploaded) font's data URL as a usable @font-face in the
+ * current document. Every place that learns about a custom font — whether from
+ * this machine's local IndexedDB cache, a fresh upload, or the list fetched
+ * from the server on load — must call this, otherwise the font shows up by
+ * name in pickers/brand kits but the browser has nothing to actually render
+ * text with, which is exactly what breaks custom fonts on a machine that
+ * never uploaded them itself.
+ */
+export async function registerFontFace(name: string, dataUrl: string): Promise<void> {
+    try {
+        const fontFace = new FontFace(name, `url(${dataUrl})`);
+        const loaded = await fontFace.load();
+        document.fonts.add(loaded);
+    } catch (e) {
+        console.error(`Failed to register custom font "${name}"`, e);
+    }
+}
+
 export async function preloadFontsFromJSON(json: any): Promise<void> {
     const fonts = new Set<string>();
 
