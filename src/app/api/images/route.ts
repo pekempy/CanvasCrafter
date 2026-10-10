@@ -38,13 +38,26 @@ export async function GET(request: Request) {
     }
 
     try {
-        const filePath = path.join(IMAGES_DIR, `${id}.png`); // Support more formats? user said "images"
+        // Try .gif first, then .png
+        const gifPath = path.join(IMAGES_DIR, `${id}.gif`);
+        const pngPath = path.join(IMAGES_DIR, `${id}.png`);
+        let filePath: string;
+        let contentType: string;
+
+        try {
+            await fs.access(gifPath);
+            filePath = gifPath;
+            contentType = 'image/gif';
+        } catch {
+            filePath = pngPath;
+            contentType = 'image/png';
+        }
+
         const data = await fs.readFile(filePath);
 
-        // Basic mime type detection based on extension or just use image/png for now since uploads are likely converted
         return new NextResponse(data, {
             headers: {
-                'Content-Type': 'image/png',
+                'Content-Type': contentType,
                 'Cache-Control': 'public, max-age=31536000, immutable'
             }
         });
@@ -73,21 +86,41 @@ export async function POST(request: Request) {
             const user = await getSession(request);
             const base64Data = url.split(',')[1];
             const rawBuffer = Buffer.from(base64Data, 'base64');
-            const buffer = await compressImageBuffer(rawBuffer);
-            const filePath = path.join(IMAGES_DIR, `${id}.png`);
+            
+            // Detect GIF and skip compression
+            const isGif = url.startsWith('data:image/gif');
+            let buffer = rawBuffer;
+            let mimeType = 'image/png';
+            let extension = 'png';
+
+            if (isGif) {
+                buffer = rawBuffer;
+                mimeType = 'image/gif';
+                extension = 'gif';
+            } else {
+                // @ts-expect-error - Buffer type compatibility
+                buffer = await compressImageBuffer(rawBuffer as unknown as Buffer);
+                mimeType = 'image/png';
+                extension = 'png';
+            }
+
+            const filePath = path.join(IMAGES_DIR, `${id}.${extension}`);
             await fs.writeFile(filePath, buffer);
+            
             // Save sidecar JSON
             const jsonPath = path.join(IMAGES_DIR, `${id}.json`);
             await fs.writeFile(jsonPath, JSON.stringify({
                 id,
                 ...metadata,
+                mimeType,
                 owner: user || undefined,
                 timestamp: Date.now()
             }, null, 2));
 
             return NextResponse.json({
                 success: true,
-                url: `/api/images?id=${id}`
+                url: `/api/images?id=${id}`,
+                mimeType
             });
         }
 
@@ -96,10 +129,45 @@ export async function POST(request: Request) {
             const user = await getSession(request);
             const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 CanvasCrafter' } });
             if (!res.ok) return NextResponse.json({ error: `Fetch failed (${res.status})` }, { status: 502 });
-            const rawBuffer = Buffer.from(await res.arrayBuffer());
-            const buffer = await compressImageBuffer(rawBuffer);
-            await fs.writeFile(path.join(IMAGES_DIR, `${id}.png`), buffer);
-            return NextResponse.json({ success: true, url: `/api/images?id=${id}` });
+            const rawBuffer = Buffer.from(await res.arrayBuffer() as ArrayBuffer);
+            
+            // Detect GIF by Content-Type or URL
+            const contentType = res.headers.get('content-type') || '';
+            const isGif = contentType.includes('image/gif') || url.toLowerCase().endsWith('.gif');
+            
+            let buffer = rawBuffer;
+            let mimeType = 'image/png';
+            let extension = 'png';
+
+            if (isGif) {
+                buffer = rawBuffer;
+                mimeType = 'image/gif';
+                extension = 'gif';
+            } else {
+                // @ts-expect-error - Buffer type compatibility
+                buffer = await compressImageBuffer(rawBuffer as unknown as Buffer);
+                mimeType = 'image/png';
+                extension = 'png';
+            }
+
+            const filePath = path.join(IMAGES_DIR, `${id}.${extension}`);
+            await fs.writeFile(filePath, buffer);
+            
+            // Save sidecar JSON
+            const jsonPath = path.join(IMAGES_DIR, `${id}.json`);
+            await fs.writeFile(jsonPath, JSON.stringify({
+                id,
+                ...metadata,
+                mimeType,
+                owner: user || undefined,
+                timestamp: Date.now()
+            }, null, 2));
+
+            return NextResponse.json({ 
+                success: true, 
+                url: `/api/images?id=${id}`,
+                mimeType
+            });
         }
 
         return NextResponse.json({ error: 'Only base64 uploads or http(s) URLs supported' }, { status: 400 });
@@ -119,11 +187,14 @@ export async function DELETE(request: Request) {
     if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
 
     try {
-        const filePath = path.join(IMAGES_DIR, `${id}.png`);
+        const gifPath = path.join(IMAGES_DIR, `${id}.gif`);
+        const pngPath = path.join(IMAGES_DIR, `${id}.png`);
         const jsonPath = path.join(IMAGES_DIR, `${id}.json`);
 
-        // Delete image if exists
-        try { await fs.unlink(filePath); } catch { }
+        // Delete GIF if exists
+        try { await fs.unlink(gifPath); } catch { }
+        // Delete PNG if exists
+        try { await fs.unlink(pngPath); } catch { }
         // Delete metadata if exists
         try { await fs.unlink(jsonPath); } catch { }
 

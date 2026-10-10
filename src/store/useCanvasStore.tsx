@@ -14,6 +14,8 @@ import { isResponsive, tierOf, sizeKey, captureSlots, applySlots, layoutForSize 
 import SEED_DESIGNS from "@/lib/seed/designs.json";
 import SEED_BRANDKITS from "@/lib/seed/brandkits.json";
 import SEED_PRESETS from "@/lib/seed/presets.json";
+import { parseGifFrames, FabricGif } from "@/lib/gifPlayer";
+import { exportCanvasAsMp4 } from "@/lib/mp4Export";
 
 const PERSISTENT_PROPS = [
     'id', 'name', 'lockMovementX', 'lockMovementY', 'lockRotation', 
@@ -43,6 +45,7 @@ export interface CustomAsset {
     owner?: string;
     visibility?: 'private' | 'global';
     updatedAt?: number;
+    mimeType?: string;
 }
 
 export interface AssetFolder {
@@ -204,6 +207,11 @@ interface CanvasContextType {
     setIsResizeOpen: (open: boolean) => void;
     savingAssetUrl: string | null;
     setSavingAssetUrl: (url: string | null) => void;
+    addGif: (url: string) => Promise<void>;
+    removeBackgroundFromGif: (gifObj: FabricGif) => Promise<void>;
+    exportAsMp4: () => Promise<void>;
+    exportProgress: number;
+    setExportProgress: (progress: number) => void;
 }
 
 const CanvasContext = createContext<CanvasContextType | null>(null);
@@ -276,6 +284,8 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
     const [isResizeOpen, setIsResizeOpen] = useState(false);
     const [isHelpOpen, setIsHelpOpen] = useState(false);
     const [savingAssetUrl, setSavingAssetUrl] = useState<string | null>(null);
+    const [exportProgress, setExportProgress] = useState(0);
+
 
 
     useEffect(() => {
@@ -607,6 +617,89 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
             canvas.setActiveObject(img);
             canvas.renderAll();
         }).catch(e => console.error("Image load failed", e));
+    }, [canvas]);
+
+    const addGif = useCallback(async (url: string) => {
+        if (!canvas) return;
+        try {
+            const frames = await parseGifFrames(url);
+            const gifObj = await FabricGif.fromFrames(frames, url, { crossOrigin: 'anonymous' });
+            canvas.add(gifObj);
+            canvas.centerObject(gifObj);
+            canvas.setActiveObject(gifObj);
+            canvas.renderAll();
+            gifObj.play(canvas);
+        } catch (err) {
+            console.error("GIF load failed", err);
+        }
+    }, [canvas]);
+
+    const removeBackgroundFromGif = useCallback(async (gifObj: FabricGif) => {
+        if (!canvas) return;
+        try {
+            const newFrames: HTMLCanvasElement[] = [];
+            const totalFrames = gifObj.frames.length;
+
+            for (let i = 0; i < totalFrames; i++) {
+                const frameCanvas = gifObj.frames[i];
+                const dataUrl = frameCanvas.toDataURL('image/png');
+                const blob = await backgroundRemoval.removeBackground(dataUrl);
+                const reader = new FileReader();
+                await new Promise<void>((resolve) => {
+                    reader.onload = () => {
+                        const resultDataUrl = reader.result as string;
+                        const canvas2d = document.createElement('canvas');
+                        canvas2d.width = frameCanvas.width;
+                        canvas2d.height = frameCanvas.height;
+                        const ctx = canvas2d.getContext('2d');
+                        if (ctx) {
+                            ctx.clearRect(0, 0, canvas2d.width, canvas2d.height);
+                            const img = new Image();
+                            img.onload = () => {
+                                ctx.drawImage(img, 0, 0);
+                                newFrames.push(canvas2d);
+                                resolve();
+                            };
+                            img.src = resultDataUrl;
+                        } else {
+                            resolve();
+                        }
+                    };
+                    reader.readAsDataURL(blob);
+                });
+
+                setExportProgress((i / totalFrames) * 100);
+            }
+
+            gifObj.frames = newFrames;
+            setExportProgress(0);
+        } catch (err) {
+            console.error("GIF background removal failed", err);
+        }
+    }, [canvas]);
+
+    const exportMp4Func = useCallback(async () => {
+        if (!canvas) return;
+        try {
+            setExportProgress(0);
+            const gifObjects = canvas.getObjects().filter(obj => (obj as any).type === 'gif') as FabricGif[];
+            if (gifObjects.length === 0) {
+                alert("No animated GIFs found on canvas");
+                return;
+            }
+
+            const blob = await exportCanvasAsMp4(canvas, gifObjects, setExportProgress);
+            const link = document.createElement("a");
+            link.download = 'design.mp4';
+            link.href = URL.createObjectURL(blob);
+            link.click();
+            URL.revokeObjectURL(link.href);
+            setExportProgress(0);
+        } catch (err) {
+            console.error("MP4 export failed", err);
+            alert("Failed to export as MP4");
+            setExportProgress(0);
+        }
     }, [canvas]);
 
     const setBackgroundImage = useCallback((url: string) => {
@@ -2334,7 +2427,7 @@ export const CanvasProvider = ({ children }: { children: React.ReactNode }) => {
         deleteDesign, exportAsFormat,
         roster, setRoster, addOrUpdatePlayer, deletePlayer,
         setCanvas, setTheme, setCanvasSize, setZoom, setPanOffset,
-        savingAssetUrl, setSavingAssetUrl
+        addGif, removeBackgroundFromGif, exportAsMp4: exportMp4Func, exportProgress, setExportProgress, savingAssetUrl, setSavingAssetUrl
     }), [
         canvas, selectedObject, theme, canvasSize, zoom, panOffset, fitToScreen,
         currentUser, setCurrentUser,

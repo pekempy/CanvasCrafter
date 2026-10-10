@@ -6,7 +6,7 @@ import { Trash2, Heart, Tag, Plus, X, Info, Globe, Folder } from "lucide-react";
 import { useState } from "react";
 
 export default function CustomAssetItem({ asset, folderId }: { asset: CustomAsset; folderId: string }) {
-    const { addImage, maskShapeWithImage, selectedObject, assetFolders, setAssetFolders, setBackgroundImage } = useCanvas();
+    const { addImage, addGif, maskShapeWithImage, selectedObject, assetFolders, setAssetFolders, setBackgroundImage } = useCanvas();
     const [isEditingTags, setIsEditingTags] = useState(false);
     const [newTag, setNewTag] = useState("");
     const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -149,7 +149,14 @@ export default function CustomAssetItem({ asset, folderId }: { asset: CustomAsse
                     <div className="flex flex-col h-full">
                         <div className="grid grid-cols-2 gap-1.5 shrink-0 mb-1.5">
                             <button
-                                onClick={() => addImage(asset.url)}
+                                onClick={() => {
+                                    const isGif = asset.mimeType === 'image/gif' || (asset.url && asset.url.toLowerCase().endsWith('.gif'));
+                                    if (isGif) {
+                                        addGif(asset.url);
+                                    } else {
+                                        addImage(asset.url);
+                                    }
+                                }}
                                 className="col-span-2 py-1.5 rounded-lg bg-gold/20 text-gold hover:bg-gold hover:text-white text-[9px] font-semibold uppercase tracking-normal transition-all flex items-center justify-center gap-1.5"
                             >
                                 <Plus className="h-3 w-3" /> Insert

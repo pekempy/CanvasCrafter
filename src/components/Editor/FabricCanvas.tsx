@@ -283,6 +283,19 @@ export default function FabricCanvas() {
         canvas.requestRenderAll();
     }, [canvas, isDrawingMode, brushSize, brushColor, brushSmoothing]);
 
+    // Cleanup GIF animations on unmount
+    useEffect(() => {
+        return () => {
+            if (canvas) {
+                canvas.getObjects().forEach((obj: fabric.Object) => {
+                    if ((obj as any).stop && typeof (obj as any).stop === 'function') {
+                        (obj as any).stop();
+                    }
+                });
+            }
+        };
+    }, [canvas]);
+
     return (
         <canvas ref={canvasRef} className="shadow-2xl" />
     );

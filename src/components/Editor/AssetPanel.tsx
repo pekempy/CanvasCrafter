@@ -275,6 +275,7 @@ export default function AssetPanel() {
                 const assetId = Date.now() + i;
                 let finalUrl = dataUrl;
 
+                let data: any = {};
                 try {
                     const res = await fetch('/api/images', {
                         method: 'POST',
@@ -285,7 +286,7 @@ export default function AssetPanel() {
                             metadata: { folderId: activeFolderId }
                         })
                     });
-                    const data = await res.json();
+                    data = await res.json();
                     if (data.url) finalUrl = data.url;
                 } catch (err) {
                     console.error("Failed to upload image to server", err);
@@ -294,6 +295,7 @@ export default function AssetPanel() {
                 newAssets.push({
                     id: assetId,
                     url: finalUrl,
+                    mimeType: data.mimeType || file.type,
                     owner: currentUser || undefined,
                     visibility: nextVisibility
                 });

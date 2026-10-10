@@ -53,7 +53,7 @@ export default function MenuBar({ setActiveTab }: MenuBarProps) {
         showGrid, setShowGrid, fitToScreen,
         canvasSize, exportAsFormat, exportAllSizes, activeTemplate,
         canvasName, setCanvasName,
-        saveToTemplate, addImage,
+        saveToTemplate, addImage, addGif, exportAsMp4,
         selectedObject, updateSelectedObject, clearEffects,
         setIsResizeOpen, setIsHelpOpen,
     } = useCanvas() as any;
@@ -76,7 +76,14 @@ export default function MenuBar({ setActiveTab }: MenuBarProps) {
         const file = e.target.files?.[0];
         if (!file) return;
         const reader = new FileReader();
-        reader.onload = (ev) => addImage(ev.target?.result as string);
+        reader.onload = (ev) => {
+            const dataUrl = ev.target?.result as string;
+            if (file.type === 'image/gif') {
+                addGif(dataUrl);
+            } else {
+                addImage(dataUrl);
+            }
+        };
         reader.readAsDataURL(file);
     };
 
@@ -97,6 +104,7 @@ export default function MenuBar({ setActiveTab }: MenuBarProps) {
                         { id: "png", label: "PNG image", onClick: () => exportAsFormat("png") },
                         { id: "jpeg", label: "JPEG image", onClick: () => exportAsFormat("jpeg") },
                         { id: "pdf", label: "PDF document", onClick: () => exportAsFormat("pdf") },
+                        { id: "mp4", label: "MP4 Video", onClick: () => exportAsMp4() },
                         ...(activeTemplate ? [{ id: "all", label: "All sizes (PNG)", onClick: () => exportAllSizes() }] : []),
                     ],
                 },
